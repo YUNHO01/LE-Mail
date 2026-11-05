@@ -36,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({ sidebarOpen, setSidebarOpen }) =
 
       <div className="flex items-center gap-3">
         <a
-          href="http://localhost:9100/api/docs"
+          href="http://localhost:9200/api/docs"
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"

@@ -1,44 +1,51 @@
-export enum UserRole {
-  SYSTEM_ADMIN = 'SYSTEM_ADMIN',
-  USER = 'USER',
-}
+export const UserRole = {
+  SYSTEM_ADMIN: 'SYSTEM_ADMIN',
+  USER: 'USER',
+} as const;
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
-export enum Direction {
-  INBOUND = 'INBOUND',
-  OUTBOUND = 'OUTBOUND',
-}
+export const Direction = {
+  INBOUND: 'INBOUND',
+  OUTBOUND: 'OUTBOUND',
+} as const;
+export type Direction = (typeof Direction)[keyof typeof Direction];
 
-export enum MailStatus {
-  QUEUED = 'QUEUED',
-  PROCESSED = 'PROCESSED',
-  FAILED = 'FAILED',
-}
+export const MailStatus = {
+  QUEUED: 'QUEUED',
+  PROCESSED: 'PROCESSED',
+  FAILED: 'FAILED',
+} as const;
+export type MailStatus = (typeof MailStatus)[keyof typeof MailStatus];
 
-export enum SpfResult {
-  PASS = 'PASS',
-  FAIL = 'FAIL',
-  SOFTFAIL = 'SOFTFAIL',
-  NEUTRAL = 'NEUTRAL',
-  NONE = 'NONE',
-}
+export const SpfResult = {
+  PASS: 'PASS',
+  FAIL: 'FAIL',
+  SOFTFAIL: 'SOFTFAIL',
+  NEUTRAL: 'NEUTRAL',
+  NONE: 'NONE',
+} as const;
+export type SpfResult = (typeof SpfResult)[keyof typeof SpfResult];
 
-export enum DkimResult {
-  PASS = 'PASS',
-  FAIL = 'FAIL',
-  NONE = 'NONE',
-}
+export const DkimResult = {
+  PASS: 'PASS',
+  FAIL: 'FAIL',
+  NONE: 'NONE',
+} as const;
+export type DkimResult = (typeof DkimResult)[keyof typeof DkimResult];
 
-export enum DmarcResult {
-  PASS = 'PASS',
-  FAIL = 'FAIL',
-  NONE = 'NONE',
-}
+export const DmarcResult = {
+  PASS: 'PASS',
+  FAIL: 'FAIL',
+  NONE: 'NONE',
+} as const;
+export type DmarcResult = (typeof DmarcResult)[keyof typeof DmarcResult];
 
-export enum RecipientType {
-  TO = 'TO',
-  CC = 'CC',
-  BCC = 'BCC',
-}
+export const RecipientType = {
+  TO: 'TO',
+  CC: 'CC',
+  BCC: 'BCC',
+} as const;
+export type RecipientType = (typeof RecipientType)[keyof typeof RecipientType];
 
 export interface UserDto {
   id: string;

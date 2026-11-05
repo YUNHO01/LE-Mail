@@ -19,6 +19,7 @@ import { AppService } from './app.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', 'apps/api/.env'],
       load: [configuration],
       validationSchema,
     }),

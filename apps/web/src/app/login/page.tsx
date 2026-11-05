@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, Lock, LogIn, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,58 +40,62 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-2xl sm:p-10">
-        <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-sky-500/30">
-            <Mail className="h-7 w-7" />
-          </div>
-          <h2 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">
-            LEMail 콘솔 로그인
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            엔터프라이즈 SMTP 메일 시스템 계정으로 로그인하세요.
-          </p>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 py-12 sm:px-6">
+      {/* Top Brand Header */}
+      <div className="mb-8 flex flex-col items-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/25">
+          <Mail className="h-8 w-8" />
+        </div>
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">
+          가장자리 메일 시스템
+        </h1>
+      </div>
+
+      {/* Main Login Card */}
+      <div className="w-full max-w-[420px] rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl sm:p-10">
+        <div className="flex items-center gap-2 text-xl font-bold text-slate-900">
+          <Lock className="h-5 w-5 text-blue-600" />
+          <span>로그인</span>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2.5 rounded-lg border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-700">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-rose-500" />
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+            <AlertCircle className="h-4 w-4 flex-shrink-0 text-rose-500" />
             <span>{error}</span>
           </div>
         )}
 
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-              이메일 주소
+            <label className="block text-xs font-semibold text-slate-700">
+              이메일 또는 계정
             </label>
             <div className="relative mt-1.5">
-              <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@lineedge.com"
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                className="w-full rounded-xl border border-blue-100 bg-blue-50/60 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+            <label className="block text-xs font-semibold text-slate-700">
               비밀번호
             </label>
             <div className="relative mt-1.5">
-              <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                placeholder="••••••••••••"
+                className="w-full rounded-xl border border-blue-100 bg-blue-50/60 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
@@ -99,34 +103,35 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 py-3 text-sm font-semibold text-white shadow-md shadow-sky-600/30 transition hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500/40 disabled:opacity-50"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50"
           >
             {isSubmitting ? (
               <span>로그인 중...</span>
             ) : (
               <>
-                <LogIn className="h-4 w-4" />
                 <span>로그인</span>
+                <ArrowRight className="h-4 w-4" />
               </>
             )}
           </button>
         </form>
 
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+        {/* Default Admin Quick Access Info */}
+        <div className="mt-8 rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 text-xs">
+          <div className="flex items-center justify-between text-slate-700">
+            <div className="flex items-center gap-1.5 font-semibold">
               <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              <span>기본 시스템 관리자 계정</span>
+              <span>기본 관리자 계정</span>
             </div>
             <button
               type="button"
               onClick={handleFillAdmin}
-              className="text-xs font-medium text-sky-600 hover:underline"
+              className="font-medium text-blue-600 hover:underline"
             >
               자동 입력
             </button>
           </div>
-          <div className="mt-2 text-xs text-slate-500 space-y-0.5">
+          <div className="mt-1.5 space-y-0.5 text-slate-500">
             <div>계정: <span className="font-mono text-slate-700">admin@lineedge.com</span></div>
             <div>비밀번호: <span className="font-mono text-slate-700">admin1234!</span></div>
           </div>

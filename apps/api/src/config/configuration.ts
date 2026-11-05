@@ -45,7 +45,7 @@ export interface AppConfig {
 }
 
 export default (): AppConfig => ({
-  port: parseInt(process.env.PORT || '9100', 10),
+  port: parseInt(process.env.PORT || '9200', 10),
   workerConcurrency: parseInt(process.env.WORKER_CONCURRENCY || '5', 10),
   smtp: {
     port: parseInt(process.env.SMTP_PORT || '2525', 10),

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { UserDto, UserRole } from '@lemail/shared-types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9100';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9200';
 
 export default function UsersManagementPage() {
   const { token, user: currentUser, isAdmin } = useAuth();
@@ -35,7 +35,12 @@ export default function UsersManagementPage() {
   const [targetUser, setTargetUser] = useState<UserDto | null>(null);
 
   // Form states
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    email: string;
+    name: string;
+    password: string;
+    role: UserRole;
+  }>({
     email: '',
     name: '',
     password: '',

@@ -11,7 +11,7 @@
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "api:dev": "yarn --cwd apps/api start:dev",
+    "api:dev": "yarn --cwd apps/api dev",
     "api:build": "yarn --cwd apps/api build",
     "web:dev": "yarn --cwd apps/web dev",
     "web:build": "yarn --cwd apps/web build",

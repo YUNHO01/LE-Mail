@@ -6,11 +6,9 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
+import { UserRole } from '@lemail/shared-types';
 
-export enum UserRole {
-  SYSTEM_ADMIN = 'SYSTEM_ADMIN',
-  USER = 'USER',
-}
+export { UserRole };
 
 @Entity('user')
 export class User {
@@ -30,7 +28,7 @@ export class User {
   @Index('idx_user_role')
   @Column({
     type: 'enum',
-    enum: UserRole,
+    enum: [UserRole.SYSTEM_ADMIN, UserRole.USER],
     default: UserRole.USER,
   })
   role: UserRole;

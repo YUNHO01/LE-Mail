@@ -1,7 +1,7 @@
 import * as Joi from 'joi';
 
 export const validationSchema = Joi.object({
-  PORT: Joi.number().default(9100),
+  PORT: Joi.number().default(9200),
   WORKER_CONCURRENCY: Joi.number().default(5),
 
   SMTP_PORT: Joi.number().default(2525),
