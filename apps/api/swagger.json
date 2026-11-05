@@ -1,0 +1,483 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/api/mailboxes/statistics": {
+      "get": {
+        "operationId": "MailboxController_getStatistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "통계 정보 반환"
+          }
+        },
+        "summary": "사서함 및 도메인 통계 조회",
+        "tags": [
+          "Mailboxes"
+        ]
+      }
+    },
+    "/api/mailboxes": {
+      "get": {
+        "operationId": "MailboxController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "페이지 번호",
+            "schema": {
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "페이지당 항목 수",
+            "schema": {
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "domain",
+            "required": false,
+            "in": "query",
+            "description": "도메인 필터",
+            "schema": {
+              "example": "example.com",
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "이메일 검색어",
+            "schema": {
+              "example": "user",
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "활성화 상태 필터",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "사서함 목록 및 페이징 정보"
+          }
+        },
+        "summary": "사서함 목록 조회 (페이징, 검색, 필터)",
+        "tags": [
+          "Mailboxes"
+        ]
+      },
+      "post": {
+        "operationId": "MailboxController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMailboxDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "생성 완료"
+          },
+          "409": {
+            "description": "이미 존재하는 이메일"
+          }
+        },
+        "summary": "신규 사서함 생성",
+        "tags": [
+          "Mailboxes"
+        ]
+      }
+    },
+    "/api/mailboxes/{id}": {
+      "get": {
+        "operationId": "MailboxController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "사서함 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "사서함 상세 정보"
+          },
+          "404": {
+            "description": "사서함을 찾을 수 없음"
+          }
+        },
+        "summary": "사서함 단일 상세 조회",
+        "tags": [
+          "Mailboxes"
+        ]
+      },
+      "patch": {
+        "operationId": "MailboxController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "사서함 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMailboxDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "수정 완료"
+          }
+        },
+        "summary": "사서함 정보 수정 (활성화 여부 등)",
+        "tags": [
+          "Mailboxes"
+        ]
+      },
+      "delete": {
+        "operationId": "MailboxController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "사서함 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "삭제 완료"
+          }
+        },
+        "summary": "사서함 삭제",
+        "tags": [
+          "Mailboxes"
+        ]
+      }
+    },
+    "/api/mails": {
+      "get": {
+        "operationId": "MailController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "페이지 번호",
+            "schema": {
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "페이지당 항목 수",
+            "schema": {
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "mailbox",
+            "required": false,
+            "in": "query",
+            "description": "특정 사서함 주소 필터",
+            "schema": {
+              "example": "user@example.com",
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "제목 및 발신자 검색어",
+            "schema": {
+              "example": "meeting",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "메일 상태 필터",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "QUEUED",
+                "PROCESSED",
+                "FAILED"
+              ]
+            }
+          },
+          {
+            "name": "direction",
+            "required": false,
+            "in": "query",
+            "description": "수신/발신 구분 필터",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INBOUND",
+                "OUTBOUND"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "메일 목록 및 페이징 정보"
+          }
+        },
+        "summary": "메일 목록 조회 (페이징, 사서함별, 검색)",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}": {
+      "get": {
+        "operationId": "MailController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "메일 상세 정보 반환"
+          },
+          "404": {
+            "description": "메일을 찾을 수 없음"
+          }
+        },
+        "summary": "메일 상세 조회 (본문 Text/HTML 및 첨부파일 목록)",
+        "tags": [
+          "Mails"
+        ]
+      },
+      "delete": {
+        "operationId": "MailController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "삭제 완료"
+          }
+        },
+        "summary": "메일 삭제 및 스토리지 파일 정리",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/raw": {
+      "get": {
+        "operationId": "MailController_downloadRaw",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "원본 EML 파일 다운로드",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/attachments/{attachmentId}": {
+      "get": {
+        "operationId": "MailController_downloadAttachment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "description": "첨부파일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "메일 첨부파일 다운로드",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/admin/monitoring/queue": {
+      "get": {
+        "operationId": "MonitoringController_getQueueStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "대기열, 활성, 완료, 실패 작업 수"
+          }
+        },
+        "summary": "BullMQ 메일 큐 작업 현황 조회",
+        "tags": [
+          "Monitoring"
+        ]
+      }
+    },
+    "/api/admin/monitoring/overview": {
+      "get": {
+        "operationId": "MonitoringController_getSystemOverview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "전체 시스템 개요 반환"
+          }
+        },
+        "summary": "시스템 리소스, 큐, 메일 통계 통합 대시보드 개요",
+        "tags": [
+          "Monitoring"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "LEMail Server REST API",
+    "description": "LEMail REST API",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "CreateMailboxDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com",
+            "description": "이메일 전체 주소"
+          },
+          "domain": {
+            "type": "string",
+            "example": "example.com",
+            "description": "메일 도메인 (생략 시 이메일에서 자동 추출)"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "활성화 여부",
+            "default": true
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "UpdateMailboxDto": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "활성화 여부"
+          }
+        }
+      }
+    }
+  }
+}

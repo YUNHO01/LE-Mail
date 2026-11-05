@@ -1,0 +1,27 @@
+{
+  "name": "lemail-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "api:dev": "yarn --cwd apps/api start:dev",
+    "api:build": "yarn --cwd apps/api build",
+    "web:dev": "yarn --cwd apps/web dev",
+    "web:build": "yarn --cwd apps/web build",
+    "test:pipeline": "yarn --cwd apps/api test:pipeline",
+    "test:smtp": "yarn --cwd apps/api test:smtp",
+    "test:security": "yarn --cwd apps/api test:security",
+    "test:api": "yarn --cwd apps/api test:api",
+    "test:users": "yarn --cwd apps/api test:users"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3"
+  }
+}

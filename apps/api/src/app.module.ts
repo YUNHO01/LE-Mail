@@ -1,0 +1,39 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import configuration from './config/configuration';
+import { validationSchema } from './config/validation.schema';
+import { DatabaseModule } from './modules/database/database.module';
+import { QueueModule } from './modules/queue/queue.module';
+import { SmtpIngestionModule } from './modules/smtp-ingestion/smtp-ingestion.module';
+import { WorkerPoolModule } from './modules/worker-pool/worker-pool.module';
+import { MailboxModule } from './modules/mailbox/mailbox.module';
+import { MailModule } from './modules/mail/mail.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { SeedModule } from './modules/seed/seed.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+      validationSchema,
+    }),
+    DatabaseModule,
+    QueueModule,
+    SmtpIngestionModule,
+    WorkerPoolModule,
+    MailboxModule,
+    MailModule,
+    MonitoringModule,
+    AuthModule,
+    UsersModule,
+    SeedModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
