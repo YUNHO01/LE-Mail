@@ -107,11 +107,18 @@ export class MailService {
         where: { folderId: query.folderId, messageId: In(messageIds) },
       });
       const umMap = new Map(userMails.map((um) => [um.messageId, um]));
-      const enrichedItems = items.map((m) => ({
-        ...m,
-        isRead: umMap.get(m.id)?.isRead ?? false,
-        isStarred: umMap.get(m.id)?.isStarred ?? false,
-      }));
+      const enrichedItems = items.map((m) => {
+        const um = umMap.get(m.id);
+        return {
+          ...m,
+          uid: um?.uid,
+          isRead: um?.isRead ?? false,
+          isStarred: um?.isStarred ?? false,
+          isDeleted: um?.isDeleted ?? false,
+          isAnswered: um?.isAnswered ?? false,
+          isDraft: um?.isDraft ?? false,
+        };
+      });
       return {
         items: enrichedItems,
         total,
@@ -142,22 +149,31 @@ export class MailService {
       where: { userId, messageId },
     });
 
+    const nextUid = targetFolder.uidnext || 1;
+    targetFolder.uidnext = nextUid + 1;
+    await this.folderRepo.save(targetFolder);
+
     if (!userMail) {
       // 기존 매핑이 없으면 새로 생성
       userMail = this.userMailRepo.create({
         userId,
         messageId,
         folderId: targetFolder.id,
+        uid: nextUid,
         isRead: false,
         isStarred: false,
+        isDeleted: false,
+        isAnswered: false,
+        isDraft: false,
       });
     } else {
       userMail.folderId = targetFolder.id;
+      userMail.uid = nextUid;
     }
 
     const saved = await this.userMailRepo.save(userMail);
     this.logger.log(
-      `Moved mail ${messageId} to folder [${targetFolder.name}] (${targetFolder.id}) for user ${userId}`,
+      `Moved mail ${messageId} to folder [${targetFolder.name}] (${targetFolder.id}, UID: ${nextUid}) for user ${userId}`,
     );
     return saved;
   }
@@ -182,12 +198,21 @@ export class MailService {
       const inbox = await this.folderRepo.findOne({
         where: { userId, type: FolderType.INBOX },
       });
+      const nextUid = inbox ? (inbox.uidnext || 1) : 1;
+      if (inbox) {
+        inbox.uidnext = nextUid + 1;
+        await this.folderRepo.save(inbox);
+      }
       const newMail = this.userMailRepo.create({
         userId,
         messageId,
         folderId: folderId || (inbox ? inbox.id : ''),
+        uid: nextUid,
         isRead,
         isStarred: false,
+        isDeleted: false,
+        isAnswered: false,
+        isDraft: false,
       });
       return this.userMailRepo.save(newMail);
     } else {
@@ -606,13 +631,21 @@ export class MailService {
         }),
       );
     }
+    const sentUid = sentFolder.uidnext || 1;
+    sentFolder.uidnext = sentUid + 1;
+    await this.folderRepo.save(sentFolder);
+
     await this.userMailRepo.save(
       this.userMailRepo.create({
         userId: user.id,
         messageId: mailId,
         folderId: sentFolder.id,
+        uid: sentUid,
         isRead: true,
         isStarred: false,
+        isDeleted: false,
+        isAnswered: false,
+        isDraft: false,
       }),
     );
 
@@ -642,13 +675,21 @@ export class MailService {
             }),
           );
         }
+        const inboxUid = inbox.uidnext || 1;
+        inbox.uidnext = inboxUid + 1;
+        await this.folderRepo.save(inbox);
+
         await this.userMailRepo.save(
           this.userMailRepo.create({
             userId: targetUser.id,
             messageId: mailId,
             folderId: inbox.id,
+            uid: inboxUid,
             isRead: false,
             isStarred: false,
+            isDeleted: false,
+            isAnswered: false,
+            isDraft: false,
           }),
         );
       }
@@ -845,12 +886,20 @@ export class MailService {
       where: { userId: user.id, messageId: mailId },
     });
     if (!userMail) {
+      const draftUid = draftsFolder.uidnext || 1;
+      draftsFolder.uidnext = draftUid + 1;
+      await this.folderRepo.save(draftsFolder);
+
       userMail = this.userMailRepo.create({
         userId: user.id,
         messageId: mailId,
         folderId: draftsFolder.id,
+        uid: draftUid,
         isRead: true,
         isStarred: false,
+        isDeleted: false,
+        isAnswered: false,
+        isDraft: true,
       });
       await this.userMailRepo.save(userMail);
     }

@@ -65,6 +65,8 @@ export interface MailFolderDto {
   type: FolderType;
   sortOrder: number;
   isSystem: boolean;
+  uidvalidity?: number;
+  uidnext?: number;
   createdAt: string;
   updatedAt: string;
   unreadCount?: number;
@@ -203,8 +205,12 @@ export interface MailMessageDto {
   dmarcResult: DmarcResult;
   status: MailStatus;
   createdAt: string;
+  uid?: number;
   isRead?: boolean;
   isStarred?: boolean;
+  isDeleted?: boolean;
+  isAnswered?: boolean;
+  isDraft?: boolean;
   recipients?: MailRecipientDto[];
   attachments?: MailAttachmentDto[];
   body?: {

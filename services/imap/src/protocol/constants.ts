@@ -1,0 +1,29 @@
+export enum ImapState {
+  NOT_AUTHENTICATED = 'NOT_AUTHENTICATED',
+  AUTHENTICATED = 'AUTHENTICATED',
+  SELECTED = 'SELECTED',
+  LOGOUT = 'LOGOUT',
+}
+
+export const CAPABILITIES_PLAIN = [
+  'IMAP4rev1',
+  'STARTTLS',
+  'AUTH=PLAIN',
+  'IDLE',
+  'NAMESPACE',
+  'ENABLE',
+  'UNSELECT',
+  'UIDPLUS',
+];
+
+export const CAPABILITIES_SECURE = [
+  'IMAP4rev1',
+  'AUTH=PLAIN',
+  'IDLE',
+  'NAMESPACE',
+  'ENABLE',
+  'UNSELECT',
+  'UIDPLUS',
+];
+
+export const SERVER_NAME = 'LEMail IMAP4rev1 Server Ready';

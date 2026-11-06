@@ -55,6 +55,12 @@ export class MailFolder {
   @Column({ name: 'is_system', type: 'boolean', default: false })
   isSystem: boolean;
 
+  @Column({ name: 'uidvalidity', type: 'int', unsigned: true, default: 1 })
+  uidvalidity: number;
+
+  @Column({ name: 'uidnext', type: 'int', unsigned: true, default: 1 })
+  uidnext: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

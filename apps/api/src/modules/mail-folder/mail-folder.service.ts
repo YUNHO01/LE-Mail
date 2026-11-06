@@ -60,6 +60,8 @@ export class MailFolderService {
         type: def.type,
         sortOrder: def.sortOrder,
         isSystem: def.isSystem,
+        uidvalidity: Math.floor(Date.now() / 1000),
+        uidnext: 1,
       });
       const saved = await repo.save(folder);
       createdList.push(saved);
@@ -132,6 +134,8 @@ export class MailFolderService {
         type: f.type,
         sortOrder: f.sortOrder,
         isSystem: f.isSystem,
+        uidvalidity: f.uidvalidity,
+        uidnext: f.uidnext,
         createdAt: f.createdAt.toISOString(),
         updatedAt: f.updatedAt.toISOString(),
         unreadCount: counts.unread,
@@ -217,6 +221,8 @@ export class MailFolderService {
       type: FolderType.CUSTOM,
       sortOrder: dto.sortOrder !== undefined ? dto.sortOrder : 0,
       isSystem: false,
+      uidvalidity: Math.floor(Date.now() / 1000),
+      uidnext: 1,
     });
 
     const saved = await this.folderRepo.save(newFolder);
@@ -232,6 +238,8 @@ export class MailFolderService {
       type: saved.type,
       sortOrder: saved.sortOrder,
       isSystem: saved.isSystem,
+      uidvalidity: saved.uidvalidity,
+      uidnext: saved.uidnext,
       createdAt: saved.createdAt.toISOString(),
       updatedAt: saved.updatedAt.toISOString(),
       unreadCount: 0,

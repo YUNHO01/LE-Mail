@@ -1,9 +1,10 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { InjectDataSource } from '@nestjs/typeorm';
+import Redis from 'ioredis';
 import {
   MailMessage,
   MailStatus,
@@ -30,11 +31,12 @@ import { join, resolve } from 'path';
 const workerConcurrency = parseInt(process.env.WORKER_CONCURRENCY || '5', 10);
 
 @Processor(INBOUND_MAIL_QUEUE_NAME, { concurrency: workerConcurrency })
-export class InboundMailProcessor extends WorkerHost {
+export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy {
   private readonly logger = new Logger(InboundMailProcessor.name);
   private readonly spoolCleanup: boolean;
   private readonly archiveDir: string;
   private readonly quarantineDir: string;
+  private readonly redisPublisher: Redis;
 
   constructor(
     private readonly workerPool: WorkerPoolService,
@@ -53,6 +55,23 @@ export class InboundMailProcessor extends WorkerHost {
       process.cwd(),
       join(this.configService.get<string>('smtp.spoolDir') || './mail-spool', 'quarantine'),
     );
+
+    const redisHost = this.configService.get<string>('redis.host') || '127.0.0.1';
+    const redisPort = this.configService.get<number>('redis.port') || 6379;
+    const redisPassword = this.configService.get<string>('redis.password') || undefined;
+    this.redisPublisher = new Redis({
+      host: redisHost,
+      port: redisPort,
+      password: redisPassword,
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+    });
+  }
+
+  async onModuleDestroy() {
+    if (this.redisPublisher) {
+      await this.redisPublisher.quit().catch(() => {});
+    }
   }
 
   async process(job: Job<InboundMailJobData>): Promise<void> {
@@ -181,6 +200,8 @@ export class InboundMailProcessor extends WorkerHost {
         parsedData.dmarcResult === DmarcResult.FAIL;
       const targetFolderType = isSpam ? FolderType.SPAM : FolderType.INBOX;
 
+      const notifyEvents: Array<{ userId: string; folderId: string; uid: number }> = [];
+
       for (const address of allToAddresses) {
         const normEmail = address.toLowerCase().trim();
         const targetUser = await queryRunner.manager.findOne(User, {
@@ -189,19 +210,34 @@ export class InboundMailProcessor extends WorkerHost {
         if (targetUser) {
           const folder = await queryRunner.manager.findOne(MailFolder, {
             where: { userId: targetUser.id, type: targetFolderType },
+            lock: { mode: 'pessimistic_write' },
           });
           if (folder) {
+            const assignedUid = folder.uidnext || 1;
+            folder.uidnext = assignedUid + 1;
+            await queryRunner.manager.save(folder);
+
             const userMail = queryRunner.manager.create(UserMail, {
               userId: targetUser.id,
               folderId: folder.id,
               messageId: id,
+              uid: assignedUid,
               isRead: false,
               isStarred: false,
+              isDeleted: false,
+              isAnswered: false,
+              isDraft: false,
             });
             await queryRunner.manager.save(userMail);
             this.logger.log(
-              `Mapped mail ${id} to folder [${folder.name}] for user ${targetUser.email}`,
+              `Mapped mail ${id} (UID: ${assignedUid}) to folder [${folder.name}] for user ${targetUser.email}`,
             );
+
+            notifyEvents.push({
+              userId: targetUser.id,
+              folderId: folder.id,
+              uid: assignedUid,
+            });
           }
         }
       }
@@ -209,6 +245,27 @@ export class InboundMailProcessor extends WorkerHost {
       // 7. 트랜잭션 커밋
       await queryRunner.commitTransaction();
       this.logger.log(`Successfully processed & persisted mail: ${id}`);
+
+      // 8. Redis Pub/Sub 이벤트 발행 (IMAP IDLE 및 실시간 알림 연동)
+      for (const ev of notifyEvents) {
+        try {
+          if (this.redisPublisher.status !== 'ready') {
+            await this.redisPublisher.connect();
+          }
+          await this.redisPublisher.publish(
+            `mailbox:events:${ev.userId}`,
+            JSON.stringify({
+              type: 'NEW_MAIL',
+              userId: ev.userId,
+              folderId: ev.folderId,
+              uid: ev.uid,
+              messageId: id,
+            }),
+          );
+        } catch (pubErr: any) {
+          this.logger.warn(`Failed to publish new mail event to Redis: ${pubErr.message}`);
+        }
+      }
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(

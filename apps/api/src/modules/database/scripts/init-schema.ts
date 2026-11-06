@@ -85,6 +85,8 @@ const schemaStatements = [
     \`type\` ENUM('INBOX', 'SENT', 'DRAFTS', 'SPAM', 'TRASH', 'CUSTOM') NOT NULL DEFAULT 'CUSTOM',
     \`sort_order\` INT NOT NULL DEFAULT 0,
     \`is_system\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`uidvalidity\` INT UNSIGNED NOT NULL DEFAULT 1,
+    \`uidnext\` INT UNSIGNED NOT NULL DEFAULT 1,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT \`fk_folder_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE,
@@ -98,14 +100,19 @@ const schemaStatements = [
     \`user_id\` VARCHAR(36) NOT NULL,
     \`folder_id\` VARCHAR(36) NOT NULL,
     \`message_id\` VARCHAR(36) NOT NULL,
+    \`uid\` INT UNSIGNED NOT NULL DEFAULT 1,
     \`is_read\` BOOLEAN NOT NULL DEFAULT FALSE,
     \`is_starred\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`is_deleted\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`is_answered\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`is_draft\` BOOLEAN NOT NULL DEFAULT FALSE,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT \`fk_user_mail_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE,
     CONSTRAINT \`fk_user_mail_folder\` FOREIGN KEY (\`folder_id\`) REFERENCES \`mail_folder\`(\`id\`) ON DELETE CASCADE,
     CONSTRAINT \`fk_user_mail_message\` FOREIGN KEY (\`message_id\`) REFERENCES \`mail_message\`(\`id\`) ON DELETE CASCADE,
     INDEX \`idx_user_folder_created\` (\`user_id\`, \`folder_id\`, \`created_at\` DESC),
-    INDEX \`idx_user_message\` (\`user_id\`, \`message_id\`)
+    INDEX \`idx_user_message\` (\`user_id\`, \`message_id\`),
+    UNIQUE INDEX \`idx_folder_uid\` (\`folder_id\`, \`uid\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
@@ -143,6 +150,84 @@ async function run() {
       } else {
         console.warn(`Column migration note for ${col.name}: ${err.message}`);
       }
+    }
+  }
+
+  // Migrate mail_folder columns for IMAP
+  const folderColumns = [
+    { name: 'uidvalidity', ddl: 'ALTER TABLE `mail_folder` ADD COLUMN `uidvalidity` INT UNSIGNED NOT NULL DEFAULT 1 AFTER `is_system`;' },
+    { name: 'uidnext', ddl: 'ALTER TABLE `mail_folder` ADD COLUMN `uidnext` INT UNSIGNED NOT NULL DEFAULT 1 AFTER `uidvalidity`;' },
+  ];
+
+  for (const col of folderColumns) {
+    try {
+      await conn.query(col.ddl);
+      console.log(`Added column ${col.name} to mail_folder table.`);
+    } catch (err: any) {
+      if (err.errno === 1060) {
+        // Already exists
+      } else {
+        console.warn(`Column migration note for mail_folder.${col.name}: ${err.message}`);
+      }
+    }
+  }
+
+  // Update uidvalidity with timestamp if it's 1
+  try {
+    await conn.query('UPDATE `mail_folder` SET `uidvalidity` = UNIX_TIMESTAMP() WHERE `uidvalidity` <= 1;');
+  } catch (err: any) {
+    console.warn('Note updating mail_folder uidvalidity:', err.message);
+  }
+
+  // Migrate user_mail columns for IMAP
+  const userMailColumns = [
+    { name: 'uid', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `uid` INT UNSIGNED NOT NULL DEFAULT 1 AFTER `message_id`;' },
+    { name: 'is_deleted', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_deleted` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_starred`;' },
+    { name: 'is_answered', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_answered` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_deleted`;' },
+    { name: 'is_draft', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_draft` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_answered`;' },
+  ];
+
+  for (const col of userMailColumns) {
+    try {
+      await conn.query(col.ddl);
+      console.log(`Added column ${col.name} to user_mail table.`);
+    } catch (err: any) {
+      if (err.errno === 1060) {
+        // Already exists
+      } else {
+        console.warn(`Column migration note for user_mail.${col.name}: ${err.message}`);
+      }
+    }
+  }
+
+  // Backfill sequential UID per folder for existing user_mail records
+  console.log('Checking and backfilling user_mail UIDs per folder...');
+  const [folders] = (await conn.query('SELECT `id` FROM `mail_folder`;')) as any;
+  for (const f of folders) {
+    const [mails] = (await conn.query(
+      'SELECT `id`, `uid` FROM `user_mail` WHERE `folder_id` = ? ORDER BY `created_at` ASC, `id` ASC;',
+      [f.id],
+    )) as any;
+
+    if (mails && mails.length > 0) {
+      let currentSeq = 1;
+      for (const m of mails) {
+        await conn.query('UPDATE `user_mail` SET `uid` = ? WHERE `id` = ?;', [currentSeq, m.id]);
+        currentSeq++;
+      }
+      await conn.query('UPDATE `mail_folder` SET `uidnext` = ? WHERE `id` = ?;', [currentSeq, f.id]);
+    }
+  }
+
+  // Ensure unique index idx_folder_uid on user_mail
+  try {
+    await conn.query('ALTER TABLE `user_mail` ADD UNIQUE INDEX `idx_folder_uid` (`folder_id`, `uid`);');
+    console.log('Created unique index idx_folder_uid on user_mail.');
+  } catch (err: any) {
+    if (err.errno === 1061) {
+      // Duplicate key name, index already exists
+    } else {
+      console.warn('Index migration note for idx_folder_uid:', err.message);
     }
   }
 

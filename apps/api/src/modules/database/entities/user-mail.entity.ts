@@ -14,6 +14,7 @@ import { MailMessage } from './mail-message.entity';
 @Entity('user_mail')
 @Index('idx_user_folder_created', ['userId', 'folderId', 'createdAt'])
 @Index('idx_user_message', ['userId', 'messageId'])
+@Index('idx_folder_uid', ['folderId', 'uid'], { unique: true })
 export class UserMail {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -39,11 +40,23 @@ export class UserMail {
   @JoinColumn({ name: 'message_id' })
   message?: MailMessage;
 
+  @Column({ name: 'uid', type: 'int', unsigned: true, default: 1 })
+  uid: number;
+
   @Column({ name: 'is_read', type: 'boolean', default: false })
   isRead: boolean;
 
   @Column({ name: 'is_starred', type: 'boolean', default: false })
   isStarred: boolean;
+
+  @Column({ name: 'is_deleted', type: 'boolean', default: false })
+  isDeleted: boolean;
+
+  @Column({ name: 'is_answered', type: 'boolean', default: false })
+  isAnswered: boolean;
+
+  @Column({ name: 'is_draft', type: 'boolean', default: false })
+  isDraft: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
