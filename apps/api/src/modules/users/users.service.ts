@@ -1,3 +1,4 @@
+import { existsSync, statSync } from 'fs';
 import {
   BadRequestException,
   ConflictException,
@@ -8,11 +9,11 @@ import {
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, Mailbox } from '../database/entities';
+import { User, Mailbox, Domain } from '../database/entities';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
-import { UserDto, UserRole } from '@lemail/shared-types';
+import { UserDto, UserRole, UserStorageUsageDto } from '@lemail/shared-types';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
 import { MailFolderService } from '../mail-folder/mail-folder.service';
 
@@ -23,23 +24,135 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Mailbox)
     private readonly mailboxRepository: Repository<Mailbox>,
+    @InjectRepository(Domain)
+    private readonly domainRepository: Repository<Domain>,
     private readonly mailboxCacheService: MailboxCacheService,
     private readonly mailFolderService: MailFolderService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
 
-  private toDto(user: User): UserDto {
+  private toDto(
+    user: User,
+    usage?: { usedBytes: number; usedMb: number; messageCount: number },
+  ): UserDto {
+    const quotaMb = user.mailboxQuotaMb ?? 512;
+    const usedBytes = usage?.usedBytes ?? 0;
+    const usedMb = usage?.usedMb ?? 0;
+    const messageCount = usage?.messageCount ?? 0;
+    const usagePercent =
+      quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 1000) / 10) : 0;
+
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
       isActive: user.isActive,
+      mailboxQuotaMb: quotaMb,
+      usedBytes,
+      usedMb,
+      usagePercent,
+      messageCount,
+      preferredLanguage: user.preferredLanguage || 'ko',
+      timezone: user.timezone || 'Asia/Seoul',
+      employeeId: user.employeeId || null,
       lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  async getUserStorageUsage(userId: string): Promise<UserStorageUsageDto> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    const quotaMb = user.mailboxQuotaMb ?? 512;
+    const usageMap = await this.getBatchUserMailUsage([userId]);
+    const usage = usageMap.get(userId);
+
+    const usedBytes = usage?.usedBytes ?? 0;
+    const usedMb = usage?.usedMb ?? 0;
+    const messageCount = usage?.messageCount ?? 0;
+    const usagePercent =
+      quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 1000) / 10) : 0;
+    const freeMb = Math.max(0, Math.round((quotaMb - usedMb) * 100) / 100);
+
+    return {
+      quotaMb,
+      usedBytes,
+      usedMb,
+      usagePercent,
+      messageCount,
+      freeMb,
+    };
+  }
+
+  private async getBatchUserMailUsage(userIds: string[]): Promise<
+    Map<string, { usedBytes: number; usedMb: number; messageCount: number }>
+  > {
+    const usageMap = new Map<
+      string,
+      { usedBytes: number; usedMb: number; messageCount: number }
+    >();
+
+    if (userIds.length === 0) return usageMap;
+
+    try {
+      // 1. user_mail 건수 및 첨부파일 용량
+      const rows = await this.dataSource.query(
+        `SELECT 
+          um.user_id AS userId,
+          COUNT(DISTINCT um.id) AS messageCount,
+          COALESCE(SUM(CAST(ma.size_bytes AS UNSIGNED)), 0) AS attachmentBytes
+         FROM user_mail um
+         LEFT JOIN mail_attachment ma ON ma.message_id = um.message_id
+         WHERE um.user_id IN (?)
+         GROUP BY um.user_id`,
+        [userIds],
+      );
+
+      // 2. 각 메일별 rawFilePath
+      const userMessageRows: Array<{ userId: string; rawFilePath: string; messageId: string }> =
+        await this.dataSource.query(
+          `SELECT DISTINCT um.user_id AS userId, um.message_id AS messageId, mm.raw_file_path AS rawFilePath
+           FROM user_mail um
+           LEFT JOIN mail_message mm ON mm.id = um.message_id
+           WHERE um.user_id IN (?)`,
+          [userIds],
+        );
+
+      const userEmlBytes = new Map<string, number>();
+      for (const r of userMessageRows) {
+        if (r.rawFilePath && existsSync(r.rawFilePath)) {
+          try {
+            const sz = statSync(r.rawFilePath).size;
+            userEmlBytes.set(r.userId, (userEmlBytes.get(r.userId) || 0) + sz);
+          } catch {}
+        }
+      }
+
+      for (const row of rows) {
+        const uId = row.userId;
+        const attBytes = Number(row.attachmentBytes) || 0;
+        const emlBytes = userEmlBytes.get(uId) || 0;
+        const totalBytes = attBytes + emlBytes;
+        const usedMb = Math.round((totalBytes / (1024 * 1024)) * 100) / 100;
+        const msgCount = Number(row.messageCount) || 0;
+
+        usageMap.set(uId, {
+          usedBytes: totalBytes,
+          usedMb,
+          messageCount: msgCount,
+        });
+      }
+    } catch (err) {
+      // 에러 발생 시 빈 맵 반환
+    }
+
+    return usageMap;
   }
 
   async findAll(query: UserQueryDto) {
@@ -50,7 +163,7 @@ export class UsersService {
 
     if (search) {
       queryBuilder.where(
-        '(user.email LIKE :search OR user.name LIKE :search)',
+        '(user.email LIKE :search OR user.name LIKE :search OR user.employee_id LIKE :search)',
         { search: `%${search}%` },
       );
     }
@@ -63,9 +176,11 @@ export class UsersService {
     queryBuilder.skip(skip).take(limit);
 
     const [users, total] = await queryBuilder.getManyAndCount();
+    const userIds = users.map((u) => u.id);
+    const usageMap = await this.getBatchUserMailUsage(userIds);
 
     return {
-      items: users.map((u) => this.toDto(u)),
+      items: users.map((u) => this.toDto(u, usageMap.get(u.id))),
       total,
       page,
       limit,
@@ -78,7 +193,8 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`사용자를 찾을 수 없습니다: ${id}`);
     }
-    return this.toDto(user);
+    const usageMap = await this.getBatchUserMailUsage([id]);
+    return this.toDto(user, usageMap.get(id));
   }
 
   async create(createUserDto: CreateUserDto): Promise<UserDto> {
@@ -97,6 +213,21 @@ export class UsersService {
       throw new BadRequestException('올바른 도메인이 포함된 이메일 주소를 입력해 주세요.');
     }
 
+    // 도메인 활성 상태 검증
+    const registeredDomain = await this.domainRepository.findOne({
+      where: { name: domain },
+    });
+    if (!registeredDomain) {
+      throw new BadRequestException(
+        `등록되지 않은 도메인(@${domain})입니다. '도메인 관리' 메뉴에서 도메인을 먼저 등록해 주세요.`,
+      );
+    }
+    if (!registeredDomain.isActive) {
+      throw new BadRequestException(
+        `비활성화된 도메인(@${domain})입니다. 도메인이 활성화되어 있어야 사용자를 등록할 수 있습니다.`,
+      );
+    }
+
     // Hash password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(createUserDto.password, saltRounds);
@@ -113,6 +244,10 @@ export class UsersService {
         passwordHash,
         role: createUserDto.role || UserRole.USER,
         isActive: true,
+        mailboxQuotaMb: createUserDto.mailboxQuotaMb ? Number(createUserDto.mailboxQuotaMb) : 512,
+        preferredLanguage: createUserDto.preferredLanguage || 'ko',
+        timezone: createUserDto.timezone || 'Asia/Seoul',
+        employeeId: createUserDto.employeeId?.trim() || null,
       });
       savedUser = await queryRunner.manager.save(newUser);
 
@@ -165,6 +300,22 @@ export class UsersService {
 
     if (updateUserDto.role !== undefined) {
       user.role = updateUserDto.role;
+    }
+
+    if (updateUserDto.mailboxQuotaMb !== undefined) {
+      user.mailboxQuotaMb = Number(updateUserDto.mailboxQuotaMb);
+    }
+
+    if (updateUserDto.preferredLanguage !== undefined) {
+      user.preferredLanguage = updateUserDto.preferredLanguage;
+    }
+
+    if (updateUserDto.timezone !== undefined) {
+      user.timezone = updateUserDto.timezone;
+    }
+
+    if (updateUserDto.employeeId !== undefined) {
+      user.employeeId = updateUserDto.employeeId?.trim() || null;
     }
 
     if (updateUserDto.password) {

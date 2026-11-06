@@ -29,4 +29,23 @@ export class UpdateUserDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiProperty({ example: 512, required: false, description: '메일 사서함 용량 (MB 단위)' })
+  @IsOptional()
+  mailboxQuotaMb?: number;
+
+  @ApiProperty({ example: 'ko', required: false, description: '선호 사용 언어' })
+  @IsString()
+  @IsOptional()
+  preferredLanguage?: string;
+
+  @ApiProperty({ example: 'Asia/Seoul', required: false, description: '타임존' })
+  @IsString()
+  @IsOptional()
+  timezone?: string;
+
+  @ApiProperty({ example: 'EMP1001', required: false, description: '사번 / 직원 ID' })
+  @IsString()
+  @IsOptional()
+  employeeId?: string;
 }

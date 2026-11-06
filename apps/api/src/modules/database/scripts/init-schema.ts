@@ -5,6 +5,17 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const schemaStatements = [
+  `CREATE TABLE IF NOT EXISTS \`domain\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`name\` VARCHAR(255) NOT NULL UNIQUE,
+    \`is_active\` BOOLEAN DEFAULT TRUE,
+    \`is_default\` BOOLEAN DEFAULT FALSE,
+    \`description\` VARCHAR(255) NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_domain_name\` (\`name\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
   `CREATE TABLE IF NOT EXISTS \`mailbox\` (
     \`id\` VARCHAR(36) PRIMARY KEY,
     \`email\` VARCHAR(255) NOT NULL UNIQUE,
@@ -20,11 +31,16 @@ const schemaStatements = [
     \`name\` VARCHAR(100) NOT NULL,
     \`role\` ENUM('SYSTEM_ADMIN', 'USER') NOT NULL DEFAULT 'USER',
     \`is_active\` BOOLEAN DEFAULT TRUE,
+    \`mailbox_quota_mb\` INT NOT NULL DEFAULT 512,
+    \`preferred_language\` VARCHAR(20) NOT NULL DEFAULT 'ko',
+    \`timezone\` VARCHAR(50) NOT NULL DEFAULT 'Asia/Seoul',
+    \`employee_id\` VARCHAR(50) NULL,
     \`last_login_at\` TIMESTAMP NULL,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX \`idx_user_email\` (\`email\`),
-    INDEX \`idx_user_role\` (\`role\`)
+    INDEX \`idx_user_role\` (\`role\`),
+    INDEX \`idx_user_employee_id\` (\`employee_id\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
   `CREATE TABLE IF NOT EXISTS \`mail_message\` (
@@ -108,6 +124,27 @@ async function run() {
     await conn.query(statement);
   }
   console.log('All tables created successfully!');
+
+  // Migrate user table columns if missing
+  const alterColumns = [
+    { name: 'mailbox_quota_mb', ddl: 'ALTER TABLE `user` ADD COLUMN `mailbox_quota_mb` INT NOT NULL DEFAULT 512 AFTER `is_active`;' },
+    { name: 'preferred_language', ddl: 'ALTER TABLE `user` ADD COLUMN `preferred_language` VARCHAR(20) NOT NULL DEFAULT "ko" AFTER `mailbox_quota_mb`;' },
+    { name: 'timezone', ddl: 'ALTER TABLE `user` ADD COLUMN `timezone` VARCHAR(50) NOT NULL DEFAULT "Asia/Seoul" AFTER `preferred_language`;' },
+    { name: 'employee_id', ddl: 'ALTER TABLE `user` ADD COLUMN `employee_id` VARCHAR(50) NULL AFTER `timezone`;' },
+  ];
+
+  for (const col of alterColumns) {
+    try {
+      await conn.query(col.ddl);
+      console.log(`Added column ${col.name} to user table.`);
+    } catch (err: any) {
+      if (err.errno === 1060) {
+        // Duplicate column name, already exists
+      } else {
+        console.warn(`Column migration note for ${col.name}: ${err.message}`);
+      }
+    }
+  }
 
   const [tables] = await conn.query('SHOW TABLES;');
   console.log('Current tables:', tables);

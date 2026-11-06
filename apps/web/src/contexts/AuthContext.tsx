@@ -10,6 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<{ success: boolean; message?: string; user?: UserDto }>;
   logout: () => void;
+  refreshStorageUsage: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
 }
@@ -39,7 +40,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setIsLoading(false);
+
+    if (storedToken) {
+      // Background fresh fetch of storage usage
+      fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((usage) => {
+          if (usage) {
+            setUser((prev) => {
+              if (!prev) return null;
+              const updated: UserDto = {
+                ...prev,
+                mailboxQuotaMb: usage.quotaMb ?? prev.mailboxQuotaMb,
+                usedBytes: usage.usedBytes ?? 0,
+                usedMb: usage.usedMb ?? 0,
+                usagePercent: usage.usagePercent ?? 0,
+                messageCount: usage.messageCount ?? 0,
+              };
+              localStorage.setItem('lemail_user', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
+
+  const refreshStorageUsage = async () => {
+    const currentToken = token || (typeof window !== 'undefined' ? localStorage.getItem('lemail_token') : null);
+    if (!currentToken) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
+        headers: { Authorization: `Bearer ${currentToken}` },
+      });
+      if (res.ok) {
+        const usage = await res.json();
+        setUser((prev) => {
+          if (!prev) return null;
+          const updated: UserDto = {
+            ...prev,
+            mailboxQuotaMb: usage.quotaMb ?? prev.mailboxQuotaMb,
+            usedBytes: usage.usedBytes ?? 0,
+            usedMb: usage.usedMb ?? 0,
+            usagePercent: usage.usagePercent ?? 0,
+            messageCount: usage.messageCount ?? 0,
+          };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('lemail_user', JSON.stringify(updated));
+          }
+          return updated;
+        });
+      }
+    } catch {}
+  };
 
   const login = async (email: string, pass: string): Promise<{ success: boolean; message?: string; user?: UserDto }> => {
     try {
@@ -58,6 +114,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       localStorage.setItem('lemail_token', data.accessToken);
       localStorage.setItem('lemail_user', JSON.stringify(data.user));
+
+      // Fetch storage stats right after login
+      fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
+        headers: { Authorization: `Bearer ${data.accessToken}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((usage) => {
+          if (usage) {
+            setUser((prev) => {
+              if (!prev) return null;
+              const updated: UserDto = {
+                ...prev,
+                mailboxQuotaMb: usage.quotaMb ?? prev.mailboxQuotaMb,
+                usedBytes: usage.usedBytes ?? 0,
+                usedMb: usage.usedMb ?? 0,
+                usagePercent: usage.usagePercent ?? 0,
+                messageCount: usage.messageCount ?? 0,
+              };
+              localStorage.setItem('lemail_user', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        })
+        .catch(() => {});
 
       return { success: true, user: data.user };
     } catch (err: any) {
@@ -81,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         logout,
+        refreshStorageUsage,
         isAuthenticated: !!token && !!user,
         isAdmin: user?.role === 'SYSTEM_ADMIN',
       }}

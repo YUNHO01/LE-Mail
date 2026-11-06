@@ -6,6 +6,7 @@ import { DatabaseModule } from './modules/database/database.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { SmtpIngestionModule } from './modules/smtp-ingestion/smtp-ingestion.module';
 import { WorkerPoolModule } from './modules/worker-pool/worker-pool.module';
+import { DomainModule } from './modules/domain/domain.module';
 import { MailboxModule } from './modules/mailbox/mailbox.module';
 import { MailModule } from './modules/mail/mail.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
@@ -28,6 +29,7 @@ import { AppService } from './app.service';
     QueueModule,
     SmtpIngestionModule,
     WorkerPoolModule,
+    DomainModule,
     MailboxModule,
     MailModule,
     MonitoringModule,

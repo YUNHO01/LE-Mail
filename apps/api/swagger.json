@@ -68,6 +68,190 @@
         ]
       }
     },
+    "/api/domains": {
+      "get": {
+        "operationId": "DomainController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "페이지 번호",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "페이지당 표시 수",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "도메인 검색어",
+            "schema": {
+              "example": "lineedge",
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "활성화 상태 필터",
+            "schema": {
+              "example": "true",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "도메인 목록 및 통계 반환"
+          }
+        },
+        "summary": "도메인 목록 조회 (페이징, 검색, 필터)",
+        "tags": [
+          "Domains"
+        ]
+      },
+      "post": {
+        "operationId": "DomainController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDomainDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "도메인 생성 완료"
+          },
+          "409": {
+            "description": "이미 존재하는 도메인 또는 유효하지 않은 도메인"
+          }
+        },
+        "summary": "신규 도메인 등록",
+        "tags": [
+          "Domains"
+        ]
+      }
+    },
+    "/api/domains/active": {
+      "get": {
+        "operationId": "DomainController_findActive",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "활성 도메인 목록"
+          }
+        },
+        "summary": "활성화된 도메인 목록 조회 (사서함/유저 등록용)",
+        "tags": [
+          "Domains"
+        ]
+      }
+    },
+    "/api/domains/{id}": {
+      "get": {
+        "operationId": "DomainController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "도메인 상세 정보"
+          },
+          "404": {
+            "description": "도메인을 찾을 수 없음"
+          }
+        },
+        "summary": "도메인 단일 상세 조회",
+        "tags": [
+          "Domains"
+        ]
+      },
+      "patch": {
+        "operationId": "DomainController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDomainDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "수정 완료"
+          }
+        },
+        "summary": "도메인 정보 수정 (활성화 상태, 기본 도메인 설정 등)",
+        "tags": [
+          "Domains"
+        ]
+      },
+      "delete": {
+        "operationId": "DomainController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "삭제 완료"
+          },
+          "409": {
+            "description": "사서함이 속해있거나 기본 도메인인 경우 삭제 불가"
+          }
+        },
+        "summary": "도메인 삭제",
+        "tags": [
+          "Domains"
+        ]
+      }
+    },
     "/api/mailboxes/statistics": {
       "get": {
         "operationId": "MailboxController_getStatistics",
@@ -487,6 +671,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "folderId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -497,7 +689,12 @@
             "description": "메일을 찾을 수 없음"
           }
         },
-        "summary": "메일 상세 조회 (본문 Text/HTML 및 첨부파일 목록)",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일 상세 조회 (본문 Text/HTML 및 첨부파일 목록, 자동 읽음 처리)",
         "tags": [
           "Mails"
         ]
@@ -513,14 +710,27 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "folderId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "삭제 완료"
+            "description": "삭제/이동 완료"
           }
         },
-        "summary": "메일 삭제 및 스토리지 파일 정리",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일 삭제 (일반함은 휴지통 이동, 휴지통은 본인 사서함 완전삭제 및 마지막 참조자일 때 물리 파일 삭제)",
         "tags": [
           "Mails"
         ]
@@ -706,6 +916,27 @@
           }
         ],
         "summary": "신규 사용자 등록 (관리자 전용)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/users/me/storage-usage": {
+      "get": {
+        "description": "현재 접속 중인 사용자의 메일 용량, 할당량, 사용률(%), 보관 메일 건수를 조회합니다.",
+        "operationId": "UsersController_getMyStorageUsage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "사용량 조회 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "현재 로그인한 사용자의 사서함 스토리지 사용량 조회",
         "tags": [
           "Users"
         ]
@@ -995,6 +1226,56 @@
           "password"
         ]
       },
+      "CreateDomainDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "lineedge.com",
+            "description": "도메인 이름"
+          },
+          "description": {
+            "type": "string",
+            "example": "본사 공식 메일 도메인",
+            "description": "도메인 설명"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": false,
+            "description": "기본 도메인 여부",
+            "default": false
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "활성화 여부",
+            "default": true
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateDomainDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "example": "변경할 설명",
+            "description": "도메인 설명"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": true,
+            "description": "기본 도메인 여부"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "활성화 여부"
+          }
+        }
+      },
       "CreateMailboxDto": {
         "type": "object",
         "properties": {
@@ -1183,13 +1464,39 @@
             ],
             "default": "USER",
             "description": "사용자 권한 (SYSTEM_ADMIN, USER)"
+          },
+          "mailboxQuotaMb": {
+            "type": "number",
+            "example": 512,
+            "default": 512,
+            "description": "메일 사서함 용량 (MB 단위)"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "example": "ko",
+            "default": "ko",
+            "description": "선호 사용 언어"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Seoul",
+            "default": "Asia/Seoul",
+            "description": "타임존"
+          },
+          "employeeId": {
+            "type": "string",
+            "example": "EMP1001",
+            "description": "사번 / 직원 ID"
           }
         },
         "required": [
           "email",
           "name",
           "password",
-          "role"
+          "role",
+          "mailboxQuotaMb",
+          "preferredLanguage",
+          "timezone"
         ]
       },
       "UpdateUserDto": {
@@ -1217,6 +1524,26 @@
             "type": "boolean",
             "example": true,
             "description": "계정 활성 여부"
+          },
+          "mailboxQuotaMb": {
+            "type": "number",
+            "example": 512,
+            "description": "메일 사서함 용량 (MB 단위)"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "example": "ko",
+            "description": "선호 사용 언어"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Seoul",
+            "description": "타임존"
+          },
+          "employeeId": {
+            "type": "string",
+            "example": "EMP1001",
+            "description": "사번 / 직원 ID"
           }
         }
       },

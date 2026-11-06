@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { Mailbox } from '../database/entities/mailbox.entity';
+import { Domain } from '../database/entities/domain.entity';
 
 @Injectable()
 export class MailboxCacheService implements OnModuleInit, OnModuleDestroy {
@@ -26,6 +27,8 @@ export class MailboxCacheService implements OnModuleInit, OnModuleDestroy {
     private readonly configService: ConfigService,
     @InjectRepository(Mailbox)
     private readonly mailboxRepo: Repository<Mailbox>,
+    @InjectRepository(Domain)
+    private readonly domainRepo: Repository<Domain>,
   ) {
     const ttlSec =
       this.configService.get<number>('smtp.cacheTtlSeconds') || 60;
@@ -56,15 +59,29 @@ export class MailboxCacheService implements OnModuleInit, OnModuleDestroy {
    */
   async refreshCache(): Promise<void> {
     try {
+      // 비활성화된 도메인 확인
+      const disabledDomains = await this.domainRepo.find({
+        where: { isActive: false },
+        select: { name: true },
+      });
+      const disabledDomainSet = new Set(
+        disabledDomains.map((d) => d.name.toLowerCase().trim()),
+      );
+
       const activeMailboxes = await this.mailboxRepo.find({
         where: { isActive: true },
-        select: { email: true },
+        select: { email: true, domain: true },
       });
 
       this.memoryCache.clear();
-      this.totalRegisteredCount = activeMailboxes.length;
 
-      const emails = activeMailboxes.map((m) => m.email.toLowerCase().trim());
+      // 도메인이 비활성화된 사서함은 제외
+      const validMailboxes = activeMailboxes.filter(
+        (m) => !disabledDomainSet.has((m.domain || '').toLowerCase().trim()),
+      );
+      this.totalRegisteredCount = validMailboxes.length;
+
+      const emails = validMailboxes.map((m) => m.email.toLowerCase().trim());
       for (const email of emails) {
         this.memoryCache.add(email);
       }

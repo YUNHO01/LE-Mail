@@ -94,9 +94,48 @@ export interface UserDto {
   name: string;
   role: UserRole;
   isActive: boolean;
+  mailboxQuotaMb: number;
+  usedBytes?: number;
+  usedMb?: number;
+  usagePercent?: number;
+  messageCount?: number;
+  preferredLanguage: string;
+  timezone: string;
+  employeeId: string | null;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UserStorageUsageDto {
+  quotaMb: number;
+  usedBytes: number;
+  usedMb: number;
+  usagePercent: number;
+  messageCount: number;
+  freeMb: number;
+}
+
+export interface CreateUserDto {
+  email: string;
+  name: string;
+  password: string;
+  role?: UserRole;
+  mailboxQuotaMb?: number;
+  preferredLanguage?: string;
+  timezone?: string;
+  employeeId?: string | null;
+}
+
+export interface UpdateUserDto {
+  name?: string;
+  password?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  mailboxQuotaMb?: number;
+  preferredLanguage?: string;
+  timezone?: string;
+  employeeId?: string | null;
 }
 
 export interface LoginResponseDto {
@@ -110,6 +149,30 @@ export interface MailboxDto {
   domain: string;
   isActive: boolean;
   createdAt: string;
+}
+
+export interface DomainDto {
+  id: string;
+  name: string;
+  isActive: boolean;
+  isDefault: boolean;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  mailboxCount?: number;
+}
+
+export interface CreateDomainDto {
+  name: string;
+  description?: string;
+  isDefault?: boolean;
+  isActive?: boolean;
+}
+
+export interface UpdateDomainDto {
+  description?: string;
+  isDefault?: boolean;
+  isActive?: boolean;
 }
 
 export interface MailRecipientDto {

@@ -26,7 +26,7 @@ import {
 function ComposeMailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, refreshStorageUsage } = useAuth();
 
   const [to, setTo] = useState<string[]>([]);
   const [cc, setCc] = useState<string[]>([]);
@@ -183,6 +183,8 @@ function ComposeMailContent() {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+
+      refreshStorageUsage?.();
 
       setStatusMessage({
         type: 'success',
@@ -350,79 +352,81 @@ function ComposeMailContent() {
         {/* Recipients Area */}
         <div className="space-y-1">
           {/* TO */}
-          <div className="relative">
-            <RecipientInput
-              label="받는사람"
-              recipients={to}
-              onChange={setTo}
-              placeholder="수신자 이메일 주소 입력 후 Enter"
-            />
-            <div className="absolute right-3 top-3 flex items-center gap-2 text-xs">
-              {!showCc && (
-                <button
-                  type="button"
-                  onClick={() => setShowCc(true)}
-                  className="font-medium text-slate-500 hover:text-sky-600 transition"
-                >
-                  참조
-                </button>
-              )}
-              {!showBcc && (
-                <button
-                  type="button"
-                  onClick={() => setShowBcc(true)}
-                  className="font-medium text-slate-500 hover:text-sky-600 transition"
-                >
-                  숨은참조
-                </button>
-              )}
-            </div>
-          </div>
+          <RecipientInput
+            label="받는사람"
+            recipients={to}
+            onChange={setTo}
+            placeholder="수신자 이메일 주소 입력 후 Enter"
+            rightAction={
+              (!showCc || !showBcc) && (
+                <div className="flex items-center gap-2 text-xs">
+                  {!showCc && (
+                    <button
+                      type="button"
+                      onClick={() => setShowCc(true)}
+                      className="font-medium text-slate-500 hover:text-sky-600 transition px-1 py-0.5 rounded hover:bg-slate-100"
+                    >
+                      참조
+                    </button>
+                  )}
+                  {!showBcc && (
+                    <button
+                      type="button"
+                      onClick={() => setShowBcc(true)}
+                      className="font-medium text-slate-500 hover:text-sky-600 transition px-1 py-0.5 rounded hover:bg-slate-100"
+                    >
+                      숨은참조
+                    </button>
+                  )}
+                </div>
+              )
+            }
+          />
 
           {/* CC */}
           {showCc && (
-            <div className="relative">
-              <RecipientInput
-                label="참조 (Cc)"
-                recipients={cc}
-                onChange={setCc}
-                placeholder="참조 이메일 주소 입력 후 Enter"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCc(false);
-                  setCc([]);
-                }}
-                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
-                title="참조 숨기기"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <RecipientInput
+              label="참조 (Cc)"
+              recipients={cc}
+              onChange={setCc}
+              placeholder="참조 이메일 주소 입력 후 Enter"
+              rightAction={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCc(false);
+                    setCc([]);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition"
+                  title="참조 숨기기"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
           )}
 
           {/* BCC */}
           {showBcc && (
-            <div className="relative">
-              <RecipientInput
-                label="숨은참조"
-                recipients={bcc}
-                onChange={setBcc}
-                placeholder="숨은참조 이메일 주소 입력 후 Enter"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBcc(false);
-                  setBcc([]);
-                }}
-                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
-                title="숨은참조 숨기기"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <RecipientInput
+              label="숨은참조"
+              recipients={bcc}
+              onChange={setBcc}
+              placeholder="숨은참조 이메일 주소 입력 후 Enter"
+              rightAction={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBcc(false);
+                    setBcc([]);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition"
+                  title="숨은참조 숨기기"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
           )}
 
           {/* SUBJECT */}

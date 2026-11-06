@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { User } from '../database/entities/user.entity';
 import { Mailbox } from '../database/entities/mailbox.entity';
+import { Domain } from '../database/entities/domain.entity';
 import { UserRole } from '@lemail/shared-types';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
 import { MailFolderService } from '../mail-folder/mail-folder.service';
@@ -18,6 +19,8 @@ export class SeedService implements OnApplicationBootstrap {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Mailbox)
     private readonly mailboxRepository: Repository<Mailbox>,
+    @InjectRepository(Domain)
+    private readonly domainRepository: Repository<Domain>,
     private readonly configService: ConfigService,
     private readonly mailboxCacheService: MailboxCacheService,
     private readonly mailFolderService: MailFolderService,
@@ -60,8 +63,43 @@ export class SeedService implements OnApplicationBootstrap {
         this.logger.log(`SYSTEM_ADMIN already exists: ${adminExists.email}`);
       }
 
+      // Ensure default domain exists
+      const domainName = (adminEmail.split('@')[1] || 'lineedge.com').toLowerCase().trim();
+      let defaultDomain = await this.domainRepository.findOne({
+        where: { name: domainName },
+      });
+
+      if (!defaultDomain) {
+        defaultDomain = this.domainRepository.create({
+          name: domainName,
+          isActive: true,
+          isDefault: true,
+          description: '기본 시스템 도메인',
+        });
+        await this.domainRepository.save(defaultDomain);
+        this.logger.log(`Default domain seeded: ${domainName}`);
+      }
+
+      // Also migrate any existing mailbox domains into domain table if not exists
+      const existingMailboxes = await this.mailboxRepository.find({ select: { domain: true } });
+      const uniqueDomains = Array.from(new Set(existingMailboxes.map((m) => m.domain?.toLowerCase().trim()).filter(Boolean)));
+      for (const d of uniqueDomains) {
+        const found = await this.domainRepository.findOne({ where: { name: d } });
+        if (!found) {
+          await this.domainRepository.save(
+            this.domainRepository.create({
+              name: d,
+              isActive: true,
+              isDefault: false,
+              description: '기존 사서함 연동 도메인',
+            }),
+          );
+          this.logger.log(`Migrated mailbox domain to domain table: ${d}`);
+        }
+      }
+
       // Ensure mailbox for admin exists
-      const domain = adminEmail.split('@')[1] || 'lineedge.com';
+      const domain = domainName;
       let mailbox = await this.mailboxRepository.findOne({
         where: { email: adminEmail },
       });

@@ -111,6 +111,14 @@ async function runPipelineTest() {
   if (existsSync(testEmlPath)) {
     unlinkSync(testEmlPath);
   }
+  const now = new Date();
+  const year = String(now.getFullYear());
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const datedAttDir = join(process.cwd(), 'mail-attachments', year, month, day, testId);
+  if (existsSync(datedAttDir)) {
+    rmSync(datedAttDir, { recursive: true, force: true });
+  }
   const attDir = join(process.cwd(), 'mail-attachments', testId);
   if (existsSync(attDir)) {
     rmSync(attDir, { recursive: true, force: true });

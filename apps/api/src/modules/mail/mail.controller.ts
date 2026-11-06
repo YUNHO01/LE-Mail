@@ -75,17 +75,24 @@ export class MailController {
     @CurrentUser() user: User,
     @Param('id') id: string,
     @Body('isRead') isRead: boolean,
+    @Body('folderId') folderId?: string,
   ) {
-    return this.mailService.markRead(user.id, id, isRead);
+    return this.mailService.markRead(user.id, id, Boolean(isRead), folderId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '메일 상세 조회 (본문 Text/HTML 및 첨부파일 목록)' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '메일 상세 조회 (본문 Text/HTML 및 첨부파일 목록, 자동 읽음 처리)' })
   @ApiParam({ name: 'id', description: '메일 고유 ID' })
   @ApiResponse({ status: 200, description: '메일 상세 정보 반환' })
   @ApiResponse({ status: 404, description: '메일을 찾을 수 없음' })
-  findOne(@Param('id') id: string) {
-    return this.mailService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+    @Query('folderId') folderId?: string,
+  ) {
+    return this.mailService.findOne(id, user?.id, folderId);
   }
 
   @Get(':id/raw')
@@ -111,10 +118,22 @@ export class MailController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '메일 삭제 및 스토리지 파일 정리' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      '메일 삭제 (일반함은 휴지통 이동, 휴지통은 본인 사서함 완전삭제 및 마지막 참조자일 때 물리 파일 삭제)',
+  })
   @ApiParam({ name: 'id', description: '메일 고유 ID' })
-  @ApiResponse({ status: 200, description: '삭제 완료' })
-  delete(@Param('id') id: string) {
+  @ApiResponse({ status: 200, description: '삭제/이동 완료' })
+  delete(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Query('folderId') folderId?: string,
+  ) {
+    if (user && user.id) {
+      return this.mailService.deleteUserMail(user.id, id, folderId);
+    }
     return this.mailService.delete(id);
   }
 }

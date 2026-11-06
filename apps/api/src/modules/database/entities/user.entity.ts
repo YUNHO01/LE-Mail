@@ -36,6 +36,19 @@ export class User {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ name: 'mailbox_quota_mb', type: 'int', default: 512 })
+  mailboxQuotaMb: number;
+
+  @Column({ name: 'preferred_language', type: 'varchar', length: 20, default: 'ko' })
+  preferredLanguage: string;
+
+  @Column({ type: 'varchar', length: 50, default: 'Asia/Seoul' })
+  timezone: string;
+
+  @Index('idx_user_employee_id')
+  @Column({ name: 'employee_id', type: 'varchar', length: 50, nullable: true })
+  employeeId: string | null;
+
   @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
   lastLoginAt: Date | null;
 

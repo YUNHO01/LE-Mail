@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import {
+  Domain,
   Mailbox,
   MailMessage,
   MailRecipient,
@@ -26,6 +27,7 @@ import {
           password: configService.get<string>('database.password'),
           database: configService.get<string>('database.database'),
           entities: [
+            Domain,
             Mailbox,
             MailMessage,
             MailRecipient,
@@ -43,6 +45,7 @@ import {
       },
     }),
     TypeOrmModule.forFeature([
+      Domain,
       Mailbox,
       MailMessage,
       MailRecipient,

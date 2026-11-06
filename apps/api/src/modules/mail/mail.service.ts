@@ -16,7 +16,7 @@ import { SendMailDto } from './dto/send-mail.dto';
 import { SaveDraftDto } from './dto/save-draft.dto';
 import { WorkerPoolService } from '../worker-pool/worker-pool.service';
 import { existsSync, unlinkSync, rmSync, mkdirSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { randomUUID } from 'crypto';
 import * as nodemailer from 'nodemailer';
 
@@ -162,52 +162,146 @@ export class MailService {
     return saved;
   }
 
-  async markRead(userId: string, messageId: string, isRead: boolean) {
-    let userMail = await this.userMailRepo.findOne({
-      where: { userId, messageId },
+  async markRead(
+    userId: string,
+    messageId: string,
+    isRead: boolean,
+    folderId?: string,
+  ) {
+    const whereClause: any = { userId, messageId };
+    if (folderId) {
+      whereClause.folderId = folderId;
+    }
+
+    const userMails = await this.userMailRepo.find({
+      where: whereClause,
     });
-    if (!userMail) {
+
+    if (userMails.length === 0) {
       // 받은편지함 찾기
       const inbox = await this.folderRepo.findOne({
         where: { userId, type: FolderType.INBOX },
       });
-      userMail = this.userMailRepo.create({
+      const newMail = this.userMailRepo.create({
         userId,
         messageId,
-        folderId: inbox ? inbox.id : '',
+        folderId: folderId || (inbox ? inbox.id : ''),
         isRead,
         isStarred: false,
       });
+      return this.userMailRepo.save(newMail);
     } else {
-      userMail.isRead = isRead;
+      for (const um of userMails) {
+        um.isRead = isRead;
+      }
+      await this.userMailRepo.save(userMails);
+      return userMails[0];
     }
-    return this.userMailRepo.save(userMail);
   }
 
-  async moveToTrashOrDelete(userId: string, messageId: string) {
-    const trashFolder = await this.folderRepo.findOne({
+  async moveToTrashOrDelete(userId: string, messageId: string, folderId?: string) {
+    return this.deleteUserMail(userId, messageId, folderId);
+  }
+
+  /**
+   * 사용자 메일 삭제 처리:
+   * 1. 일반 메일함에 있는 경우 -> 휴지통(TRASH)으로 이동 (본인만 이동)
+   * 2. 이미 휴지통에 있는 경우 -> 본인의 user_mail 레코드 완전 삭제
+   * 3. 휴지통에서 완전 삭제 시 다른 사용자의 참조(user_mail)가 아직 남아있으면 파일 및 메일 유지
+   * 4. 마지막 참조자가 휴지통에서 삭제 시 실제 원본 EML 및 첨부파일 디렉토리 완전 삭제(Purge)
+   */
+  async deleteUserMail(userId: string, messageId: string, folderId?: string) {
+    // 1. 해당 사용자의 휴지통 폴더 확보 (없으면 자동 생성)
+    let trashFolder = await this.folderRepo.findOne({
       where: { userId, type: FolderType.TRASH },
     });
+    if (!trashFolder) {
+      trashFolder = await this.folderRepo.save(
+        this.folderRepo.create({
+          id: randomUUID(),
+          userId,
+          name: '휴지통',
+          type: FolderType.TRASH,
+          isSystem: true,
+          sortOrder: 5,
+        }),
+      );
+    }
 
-    const userMail = await this.userMailRepo.findOne({
-      where: { userId, messageId },
+    // 2. 사용자의 해당 메일 매핑(user_mail) 조회
+    const whereClause: any = { userId, messageId };
+    if (folderId) {
+      whereClause.folderId = folderId;
+    }
+    const userMails = await this.userMailRepo.find({
+      where: whereClause,
     });
 
-    // 이미 휴지통에 있거나 휴지통이 없는 경우 영구 삭제
-    if (userMail && trashFolder && userMail.folderId === trashFolder.id) {
-      await this.userMailRepo.delete({ id: userMail.id });
-      return this.delete(messageId);
+    if (!userMails || userMails.length === 0) {
+      const message = await this.messageRepo.findOne({ where: { id: messageId } });
+      if (!message) {
+        throw new NotFoundException(`메일(ID: ${messageId})을 찾을 수 없습니다.`);
+      }
+      // 사용자의 매핑이 없으나 메일이 남아있는 경우, 다른 사용자의 참조가 없으면 정리
+      const remaining = await this.userMailRepo.count({ where: { messageId } });
+      if (remaining === 0) {
+        await this.purgeMail(messageId);
+      }
+      return { success: true, action: 'not_in_user_mailbox' };
     }
 
-    // 휴지통으로 이동
-    if (trashFolder) {
-      return this.moveMail(userId, messageId, trashFolder.id);
+    // 3. 현재 메일이 휴지통에 있는지 확인
+    const allInTrash = userMails.every((um) => um.folderId === trashFolder.id);
+
+    if (!allInTrash) {
+      // [요구사항 1] 일반메일함에서 삭제 시: 휴지통으로 이동 (본인 사서함만 이동)
+      for (const um of userMails) {
+        um.folderId = trashFolder.id;
+      }
+      await this.userMailRepo.save(userMails);
+      this.logger.log(
+        `[Delete] Moved mail ${messageId} to trash for user ${userId}`,
+      );
+      return { success: true, action: 'moved_to_trash' };
     }
 
-    return this.delete(messageId);
+    // [요구사항 2] 휴지통에서 삭제 시: 본인 사서함(user_mail)에서만 완전 삭제
+    const idsToDelete = userMails.map((um) => um.id);
+    await this.userMailRepo.delete({ id: In(idsToDelete) });
+    this.logger.log(
+      `[Delete] Permanently removed user_mail for user ${userId}, mail ${messageId}`,
+    );
+
+    // [요구사항 3] 다른 사용자가 아직 참조하고 있는지 확인
+    const remainingReferences = await this.userMailRepo.count({
+      where: { messageId },
+    });
+
+    if (remainingReferences > 0) {
+      this.logger.log(
+        `[Delete] Mail ${messageId} still referenced by ${remainingReferences} other user(s). Retaining files and MailMessage.`,
+      );
+      return {
+        success: true,
+        action: 'permanently_deleted_for_user',
+        remainingReferences,
+      };
+    }
+
+    // [요구사항 3] 마지막 참조자가 휴지통에서 완전 삭제 시: 실제 물리 파일 및 MailMessage 삭제
+    this.logger.log(
+      `[Delete] Mail ${messageId} has 0 remaining references. Purging raw files, attachments, and MailMessage entity.`,
+    );
+    await this.purgeMail(messageId);
+
+    return {
+      success: true,
+      action: 'purged_completely',
+      remainingReferences: 0,
+    };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId?: string, folderId?: string) {
     const message = await this.messageRepo.findOne({
       where: { id },
       relations: { recipients: true, attachments: true },
@@ -215,6 +309,36 @@ export class MailService {
 
     if (!message) {
       throw new NotFoundException(`Mail message with ID ${id} not found`);
+    }
+
+    let isRead = false;
+    let isStarred = false;
+
+    // 로그인한 사용자의 사서함 메일인 경우 조회 시 자동으로 읽음(isRead = true) 처리
+    if (userId) {
+      const whereClause: any = { userId, messageId: id };
+      if (folderId) {
+        whereClause.folderId = folderId;
+      }
+
+      const userMails = await this.userMailRepo.find({
+        where: whereClause,
+      });
+
+      if (userMails.length > 0) {
+        let changed = false;
+        for (const um of userMails) {
+          if (!um.isRead) {
+            um.isRead = true;
+            changed = true;
+          }
+        }
+        if (changed) {
+          await this.userMailRepo.save(userMails);
+        }
+        isRead = true;
+        isStarred = userMails.some((um) => um.isStarred);
+      }
     }
 
     let parsedContent: { text: string | null; html: string | null } = {
@@ -237,6 +361,8 @@ export class MailService {
 
     return {
       ...message,
+      isRead,
+      isStarred,
       body: parsedContent,
     };
   }
@@ -268,37 +394,67 @@ export class MailService {
     };
   }
 
-  async delete(id: string): Promise<{ success: boolean }> {
+  async purgeMail(id: string): Promise<{ success: boolean }> {
     const message = await this.messageRepo.findOne({
       where: { id },
       relations: { attachments: true },
     });
 
     if (!message) {
-      throw new NotFoundException(`Mail with ID ${id} not found`);
+      return { success: true };
     }
 
-    // 파일 정리
+    // 1. 원본 EML 파일 정리
     if (message.rawFilePath && existsSync(message.rawFilePath)) {
       try {
         unlinkSync(message.rawFilePath);
-      } catch (err) {
+        this.logger.log(`[Purge] Removed raw EML file: ${message.rawFilePath}`);
+      } catch (err: any) {
         this.logger.warn(`Failed to delete raw file: ${err.message}`);
       }
     }
 
-    const attDir = join(process.cwd(), 'mail-attachments', id);
-    if (existsSync(attDir)) {
+    // 2. 첨부파일 디렉토리 정리 (년/월/일 구조 및 기존 구조 모두 지원)
+    if (message.attachments && message.attachments.length > 0) {
+      for (const att of message.attachments) {
+        if (att.storagePath && existsSync(att.storagePath)) {
+          try {
+            unlinkSync(att.storagePath);
+          } catch (err: any) {
+            this.logger.warn(`Failed to delete attachment file: ${err.message}`);
+          }
+        }
+      }
+      const samplePath = message.attachments[0]?.storagePath;
+      if (samplePath) {
+        const attFolder = dirname(samplePath);
+        if (existsSync(attFolder)) {
+          try {
+            rmSync(attFolder, { recursive: true, force: true });
+            this.logger.log(`[Purge] Removed attachment folder: ${attFolder}`);
+          } catch (err: any) {
+            this.logger.warn(`Failed to delete attachment folder: ${err.message}`);
+          }
+        }
+      }
+    }
+
+    const legacyAttDir = join(process.cwd(), 'mail-attachments', id);
+    if (existsSync(legacyAttDir)) {
       try {
-        rmSync(attDir, { recursive: true, force: true });
-      } catch (err) {
-        this.logger.warn(`Failed to delete attachment directory: ${err.message}`);
+        rmSync(legacyAttDir, { recursive: true, force: true });
+      } catch (err: any) {
+        this.logger.warn(`Failed to delete legacy attachment directory: ${err.message}`);
       }
     }
 
     await this.messageRepo.delete(id);
-    this.logger.log(`Deleted mail message: ${id}`);
+    this.logger.log(`[Purge] Completely deleted MailMessage entity: ${id}`);
     return { success: true };
+  }
+
+  async delete(id: string): Promise<{ success: boolean }> {
+    return this.purgeMail(id);
   }
 
   async sendMail(user: User, dto: SendMailDto) {
@@ -308,8 +464,12 @@ export class MailService {
 
     const mailId = randomUUID();
     const now = new Date();
-    const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const archiveDir = join(process.cwd(), 'mail-archive', yearMonth);
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const archiveBaseDir =
+      process.env.MAIL_ARCHIVE_DIR || join(process.cwd(), 'mail-archive');
+    const archiveDir = join(archiveBaseDir, year, month, day);
     if (!existsSync(archiveDir)) {
       mkdirSync(archiveDir, { recursive: true });
     }
@@ -332,10 +492,12 @@ export class MailService {
       html: dto.bodyHtml || dto.bodyText || '',
     };
 
-    // 첨부파일 준비
+    // 첨부파일 준비 (년/월/일 계층 구조로 저장)
     const attEntities: MailAttachment[] = [];
     if (dto.attachments && dto.attachments.length > 0) {
-      const attDir = join(process.cwd(), 'mail-attachments', mailId);
+      const attBaseDir =
+        process.env.MAIL_ATTACHMENT_DIR || join(process.cwd(), 'mail-attachments');
+      const attDir = join(attBaseDir, year, month, day, mailId);
       if (!existsSync(attDir)) {
         mkdirSync(attDir, { recursive: true });
       }
@@ -609,8 +771,12 @@ export class MailService {
   async saveDraft(user: User, dto: SaveDraftDto) {
     const mailId = dto.draftId || randomUUID();
     const now = new Date();
-    const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const archiveDir = join(process.cwd(), 'mail-archive', yearMonth);
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const archiveBaseDir =
+      process.env.MAIL_ARCHIVE_DIR || join(process.cwd(), 'mail-archive');
+    const archiveDir = join(archiveBaseDir, year, month, day);
     if (!existsSync(archiveDir)) {
       mkdirSync(archiveDir, { recursive: true });
     }

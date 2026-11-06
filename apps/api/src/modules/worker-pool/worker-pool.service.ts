@@ -47,14 +47,18 @@ export class WorkerPoolService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Base64 버퍼로 전달된 첨부파일을 지정된 첨부파일 디렉토리에 저장하고 경로 반환
+   * Base64 버퍼로 전달된 첨부파일을 년/월/일 서브디렉토리에 저장하고 경로 반환
    */
   async saveAttachment(
     messageId: string,
     filename: string,
     contentBase64: string,
+    date: Date = new Date(),
   ): Promise<string> {
-    const subDir = resolve(this.attachmentDir, messageId);
+    const year = String(date.getFullYear());
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const subDir = resolve(this.attachmentDir, year, month, day, messageId);
     if (!existsSync(subDir)) {
       mkdirSync(subDir, { recursive: true });
     }

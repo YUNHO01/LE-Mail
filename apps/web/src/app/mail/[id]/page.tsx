@@ -16,6 +16,8 @@ import {
   Reply,
   ReplyAll,
   Forward,
+  Mail as MailIcon,
+  MailCheck,
 } from 'lucide-react';
 
 export default function MailDetailPage() {
@@ -33,6 +35,8 @@ export default function MailDetailPage() {
         setLoading(true);
         const data = await fetchApi<MailMessageDto>(`/mails/${id}`);
         setMail(data);
+        // 상세 열람 시 백엔드에서 읽음 처리되었으므로 폴더 카운트 동기화
+        window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       } catch (err: any) {
         alert(err.message || '메일을 불러올 수 없습니다.');
         router.push('/mail/inbox');
@@ -43,10 +47,26 @@ export default function MailDetailPage() {
     loadMail();
   }, [id, router]);
 
+  const handleToggleRead = async () => {
+    if (!mail) return;
+    const nextRead = !mail.isRead;
+    try {
+      await fetchApi(`/mails/${id}/read`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isRead: nextRead }),
+      });
+      setMail({ ...mail, isRead: nextRead });
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+    } catch (err: any) {
+      alert(err.message || '읽음 상태 변경 실패');
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirm('이 메일을 정말 삭제하시겠습니까?')) return;
     try {
       await fetchApi(`/mails/${id}`, { method: 'DELETE' });
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       router.push('/mail/inbox');
     } catch (err: any) {
       alert(err.message || '삭제 실패');
@@ -101,6 +121,27 @@ export default function MailDetailPage() {
           </button>
 
           <div className="h-4 w-px bg-slate-200 mx-1" />
+
+          <button
+            onClick={handleToggleRead}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
+              mail.isRead
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                : 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100'
+            }`}
+          >
+            {mail.isRead ? (
+              <>
+                <MailIcon className="h-3.5 w-3.5 text-slate-500" />
+                <span>안읽음으로 표시</span>
+              </>
+            ) : (
+              <>
+                <MailCheck className="h-3.5 w-3.5 text-sky-600" />
+                <span>읽음으로 표시</span>
+              </>
+            )}
+          </button>
 
           <a
             href={`/api/mails/${mail.id}/raw`}

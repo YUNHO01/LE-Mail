@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { MailFolderTree } from '../mail/MailFolderTree';
-import { Mail, Shield, ArrowRight, PenSquare } from 'lucide-react';
+import { Mail, Shield, ArrowRight, PenSquare, HardDrive, RefreshCw } from 'lucide-react';
 
 interface UserSidebarProps {
   sidebarOpen: boolean;
@@ -17,8 +17,26 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   setSidebarOpen,
 }) => {
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin, refreshStorageUsage } = useAuth();
   const isCompose = pathname === '/mail/compose';
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  const handleRefreshQuota = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshStorageUsage?.();
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
+
+  const quotaMb = user?.mailboxQuotaMb ?? 512;
+  const usedMb = user?.usedMb ?? 0;
+  const usagePercent =
+    user?.usagePercent ??
+    (quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 100)) : 0);
+  const messageCount = user?.messageCount ?? 0;
+  const freeMb = Math.max(0, Math.round((quotaMb - usedMb) * 10) / 10);
 
   return (
     <aside
@@ -82,15 +100,61 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           </div>
         </div>
 
-        {/* User Quota / Helper Footer */}
-        <div className="rounded-xl bg-slate-800/60 p-3 border border-slate-800 text-xs">
-          <div className="flex items-center justify-between text-slate-300 font-medium mb-1">
-            <span>메일함 스토리지</span>
-            <span className="text-sky-400 text-[11px]">무제한</span>
+        {/* User Quota / Storage Footer */}
+        <div className="rounded-xl bg-slate-800/80 p-3.5 border border-slate-700/60 text-xs shadow-inner">
+          <div className="flex items-center justify-between text-slate-200 font-medium mb-1.5">
+            <span className="flex items-center gap-1.5 font-semibold text-slate-200">
+              <HardDrive className="h-3.5 w-3.5 text-sky-400" />
+              <span>메일함 스토리지</span>
+            </span>
+            <span
+              className={`text-[11px] font-bold font-mono ${
+                usagePercent >= 90
+                  ? 'text-rose-400'
+                  : usagePercent >= 70
+                  ? 'text-amber-400'
+                  : 'text-sky-400'
+              }`}
+            >
+              {usagePercent}%
+            </span>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            LEMail 온프레미스 고성능 엔터프라이즈 사서함
-          </p>
+
+          {/* 게이지 바 */}
+          <div className="h-1.5 w-full bg-slate-700/80 rounded-full overflow-hidden mb-2">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                usagePercent >= 90
+                  ? 'bg-rose-500'
+                  : usagePercent >= 70
+                  ? 'bg-amber-500'
+                  : 'bg-gradient-to-r from-sky-400 to-sky-500'
+              }`}
+              style={{
+                width: `${Math.min(100, Math.max(usedMb > 0 ? 2 : 0, usagePercent))}%`,
+              }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span>
+              <strong className="text-slate-200 font-semibold">{usedMb} MB</strong> / {quotaMb} MB
+            </span>
+            <span>{freeMb} MB 남음</span>
+          </div>
+
+          <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between text-[10px] text-slate-400">
+            <span>메일 {messageCount.toLocaleString()}통 보관 중</span>
+            <button
+              type="button"
+              onClick={handleRefreshQuota}
+              disabled={isRefreshing}
+              title="스토리지 사용량 새로고침"
+              className="p-1 rounded hover:bg-slate-700/50 text-slate-400 hover:text-sky-400 transition"
+            >
+              <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin text-sky-400' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>

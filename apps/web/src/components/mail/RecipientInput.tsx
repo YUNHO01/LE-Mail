@@ -8,6 +8,7 @@ interface RecipientInputProps {
   recipients: string[];
   onChange: (recipients: string[]) => void;
   placeholder?: string;
+  rightAction?: React.ReactNode;
 }
 
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
@@ -17,6 +18,7 @@ export const RecipientInput: React.FC<RecipientInputProps> = ({
   recipients,
   onChange,
   placeholder = '이메일 주소 입력 후 Enter',
+  rightAction,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -87,8 +89,8 @@ export const RecipientInput: React.FC<RecipientInputProps> = ({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-3 border-b border-slate-200 py-2.5 px-3 focus-within:border-sky-500 focus-within:bg-sky-50/20 transition-all">
-        <label className="w-20 text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+      <div className="flex items-start gap-3 border-b border-slate-200 py-2.5 px-3 focus-within:border-sky-500 focus-within:bg-sky-50/20 transition-all">
+        <label className="w-20 text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0 pt-1.5">
           {label}
         </label>
         <div className="flex flex-wrap items-center gap-1.5 flex-1 min-h-[32px]">
@@ -122,6 +124,11 @@ export const RecipientInput: React.FC<RecipientInputProps> = ({
             className="flex-1 min-w-[200px] border-none bg-transparent py-1 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
           />
         </div>
+        {rightAction && (
+          <div className="shrink-0 flex items-center gap-2 pt-1 text-xs">
+            {rightAction}
+          </div>
+        )}
       </div>
 
       {error && (

@@ -159,8 +159,11 @@ export class InboundMailProcessor extends WorkerHost {
         }
       } else if (this.archiveDir) {
         if (existsSync(rawFilePath)) {
-          const dateFolder = new Date().toISOString().slice(0, 7); // yyyy-mm
-          const targetDir = join(this.archiveDir, dateFolder);
+          const now = new Date();
+          const year = String(now.getFullYear());
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const targetDir = join(this.archiveDir, year, month, day);
           if (!existsSync(targetDir)) {
             mkdirSync(targetDir, { recursive: true });
           }

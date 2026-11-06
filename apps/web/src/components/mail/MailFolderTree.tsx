@@ -63,7 +63,18 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
     if (!authLoading && isAuthenticated) {
       loadFolders();
     }
-  }, [isAuthenticated, authLoading]);
+
+    const handleRefresh = () => {
+      loadFolders();
+    };
+
+    window.addEventListener('mail:refresh-folders', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('mail:refresh-folders', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, [isAuthenticated, authLoading, pathname]);
 
   const toggleExpand = (folderId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -278,8 +289,10 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               <Send className="h-4 w-4" />
               <span>보낸편지함</span>
             </div>
-            {sent?.totalCount !== undefined && sent.totalCount > 0 && (
-              <span className="text-xs text-slate-400">{sent.totalCount}</span>
+            {sent?.unreadCount !== undefined && sent.unreadCount > 0 && (
+              <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-400 border border-sky-500/30">
+                {sent.unreadCount}
+              </span>
             )}
           </Link>
 
@@ -297,8 +310,10 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               <FileEdit className="h-4 w-4" />
               <span>임시보관함</span>
             </div>
-            {drafts?.totalCount !== undefined && drafts.totalCount > 0 && (
-              <span className="text-xs text-slate-400">{drafts.totalCount}</span>
+            {drafts?.unreadCount !== undefined && drafts.unreadCount > 0 && (
+              <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-300 border border-slate-700">
+                {drafts.unreadCount}
+              </span>
             )}
           </Link>
 
@@ -316,8 +331,10 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               <ShieldAlert className="h-4 w-4 text-amber-400" />
               <span>스팸메일함</span>
             </div>
-            {spam?.totalCount !== undefined && spam.totalCount > 0 && (
-              <span className="text-xs text-slate-400">{spam.totalCount}</span>
+            {spam?.unreadCount !== undefined && spam.unreadCount > 0 && (
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-400 border border-amber-500/30">
+                {spam.unreadCount}
+              </span>
             )}
           </Link>
 
@@ -335,8 +352,10 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               <Trash2 className="h-4 w-4" />
               <span>휴지통</span>
             </div>
-            {trash?.totalCount !== undefined && trash.totalCount > 0 && (
-              <span className="text-xs text-slate-400">{trash.totalCount}</span>
+            {trash?.unreadCount !== undefined && trash.unreadCount > 0 && (
+              <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-400 border border-slate-700">
+                {trash.unreadCount}
+              </span>
             )}
           </Link>
 
@@ -378,8 +397,10 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                {customRoot?.totalCount !== undefined && customRoot.totalCount > 0 && (
-                  <span className="text-xs text-slate-400 mr-1">{customRoot.totalCount}</span>
+                {customRoot?.unreadCount !== undefined && customRoot.unreadCount > 0 && (
+                  <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-400 border border-sky-500/30 mr-1">
+                    {customRoot.unreadCount}
+                  </span>
                 )}
                 {customRoot && (
                   <button

@@ -7,6 +7,7 @@ import {
   Activity,
   UserCog,
   Mail,
+  Globe,
   Layers,
   ShieldCheck,
   ArrowLeft,
@@ -40,8 +41,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       icon: UserCog,
     },
     {
+      href: '/admin/domains',
+      label: '도메인 관리',
+      icon: Globe,
+    },
+    {
       href: '/admin/mailboxes',
-      label: '사서함 / 도메인 관리',
+      label: '사서함 관리',
       icon: Mail,
     },
     {

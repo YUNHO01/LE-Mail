@@ -1,3 +1,4 @@
+export * from './domain.entity';
 export * from './mailbox.entity';
 export * from './mail-message.entity';
 export * from './mail-recipient.entity';

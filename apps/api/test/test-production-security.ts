@@ -133,6 +133,14 @@ async function runProductionSecurityTest() {
     if (existsSync(msg.rawFilePath)) {
       unlinkSync(msg.rawFilePath);
     }
+    const now = new Date();
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const datedAttDir = join(process.cwd(), 'mail-attachments', year, month, day, msg.id);
+    if (existsSync(datedAttDir)) {
+      rmSync(datedAttDir, { recursive: true, force: true });
+    }
     const attDir = join(process.cwd(), 'mail-attachments', msg.id);
     if (existsSync(attDir)) {
       rmSync(attDir, { recursive: true, force: true });

@@ -2,11 +2,13 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { Mailbox } from '../database/entities/mailbox.entity';
+import { Domain } from '../database/entities/domain.entity';
 import { CreateMailboxDto } from './dto/create-mailbox.dto';
 import { UpdateMailboxDto } from './dto/update-mailbox.dto';
 import { MailboxQueryDto } from './dto/mailbox-query.dto';
@@ -19,6 +21,8 @@ export class MailboxService {
   constructor(
     @InjectRepository(Mailbox)
     private readonly mailboxRepo: Repository<Mailbox>,
+    @InjectRepository(Domain)
+    private readonly domainRepo: Repository<Domain>,
     private readonly mailboxCache: MailboxCacheService,
   ) {}
 
@@ -72,22 +76,39 @@ export class MailboxService {
       where: { email: normalizedEmail },
     });
     if (existing) {
-      throw new ConflictException(`Email ${normalizedEmail} already exists`);
+      throw new ConflictException(`이미 존재하는 이메일 사서함입니다: ${normalizedEmail}`);
     }
 
-    const domain = dto.domain || normalizedEmail.split('@')[1];
-    if (!domain) {
-      throw new ConflictException('Invalid email address domain');
+    const domainName = (dto.domain || normalizedEmail.split('@')[1] || '').toLowerCase().trim();
+    if (!domainName) {
+      throw new BadRequestException('올바른 도메인이 포함된 이메일 주소를 입력해 주세요.');
+    }
+
+    // 도메인 등록 및 활성 상태 검증
+    const registeredDomain = await this.domainRepo.findOne({
+      where: { name: domainName },
+    });
+
+    if (!registeredDomain) {
+      throw new BadRequestException(
+        `등록되지 않은 도메인(@${domainName})입니다. '도메인 관리' 메뉴에서 도메인을 먼저 등록해 주세요.`,
+      );
+    }
+
+    if (!registeredDomain.isActive) {
+      throw new BadRequestException(
+        `비활성화된 도메인(@${domainName})입니다. 도메인을 활성화해야 사서함을 생성할 수 있습니다.`,
+      );
     }
 
     const mailbox = this.mailboxRepo.create({
       email: normalizedEmail,
-      domain,
+      domain: domainName,
       isActive: dto.isActive !== undefined ? dto.isActive : true,
     });
 
     const saved = await this.mailboxRepo.save(mailbox);
-    await this.mailboxCache.invalidate(); // 캐시 갱신
+    await this.mailboxCache.refreshCache(); // 캐시 갱신
     this.logger.log(`Created mailbox: ${saved.email}`);
     return saved;
   }

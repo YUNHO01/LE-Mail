@@ -23,7 +23,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserRole } from '@lemail/shared-types';
+import { UserRole, UserStorageUsageDto } from '@lemail/shared-types';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -41,6 +41,16 @@ export class UsersController {
   @ApiResponse({ status: 200, description: '사용자 목록 조회 성공' })
   async findAll(@Query() query: UserQueryDto) {
     return this.usersService.findAll(query);
+  }
+
+  @Get('me/storage-usage')
+  @ApiOperation({
+    summary: '현재 로그인한 사용자의 사서함 스토리지 사용량 조회',
+    description: '현재 접속 중인 사용자의 메일 용량, 할당량, 사용률(%), 보관 메일 건수를 조회합니다.',
+  })
+  @ApiResponse({ status: 200, description: '사용량 조회 성공' })
+  async getMyStorageUsage(@CurrentUser() user: any): Promise<UserStorageUsageDto> {
+    return this.usersService.getUserStorageUsage(user.id);
   }
 
   @Get(':id')

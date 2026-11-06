@@ -34,4 +34,23 @@ export class CreateUserDto {
   @IsEnum(UserRole, { message: '유효한 권한(SYSTEM_ADMIN, USER)을 지정해 주세요.' })
   @IsOptional()
   role?: UserRole;
+
+  @ApiProperty({ example: 512, default: 512, description: '메일 사서함 용량 (MB 단위)' })
+  @IsOptional()
+  mailboxQuotaMb?: number;
+
+  @ApiProperty({ example: 'ko', default: 'ko', description: '선호 사용 언어' })
+  @IsString()
+  @IsOptional()
+  preferredLanguage?: string;
+
+  @ApiProperty({ example: 'Asia/Seoul', default: 'Asia/Seoul', description: '타임존' })
+  @IsString()
+  @IsOptional()
+  timezone?: string;
+
+  @ApiProperty({ example: 'EMP1001', required: false, description: '사번 / 직원 ID' })
+  @IsString()
+  @IsOptional()
+  employeeId?: string;
 }

@@ -4,13 +4,17 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from '@nestjs/common';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
-
 import { ConfigService } from '@nestjs/config';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+
+  // 요청 본문(JSON 및 URL-encoded) 크기 제한 상향 (본문 서식 및 첨부파일 지원, 기본 100kb -> 50mb)
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // CORS 활성화 (Next.js 프론트엔드 연동)
   app.enableCors({
