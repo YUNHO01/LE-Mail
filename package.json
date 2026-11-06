@@ -5,7 +5,8 @@
   "packageManager": "yarn@1.22.22",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "services/*"
   ],
   "scripts": {
     "dev": "turbo run dev --parallel",
@@ -15,6 +16,8 @@
     "api:build": "yarn --cwd apps/api build",
     "web:dev": "yarn --cwd apps/web dev",
     "web:build": "yarn --cwd apps/web build",
+    "haraka:dev": "node services/haraka/index.js",
+    "haraka:start": "node services/haraka/index.js",
     "test:pipeline": "yarn --cwd apps/api test:pipeline",
     "test:smtp": "yarn --cwd apps/api test:smtp",
     "test:security": "yarn --cwd apps/api test:security",

@@ -3,6 +3,8 @@ dist/
 .next/
 out/
 build/
+.turbo/
+*.tsbuildinfo
 
 # Node
 node_modules/
@@ -14,6 +16,7 @@ yarn-error.log*
 mail-spool/
 mail-archive/
 mail-attachments/
+services/haraka/queue/
 
 # Env
 .env

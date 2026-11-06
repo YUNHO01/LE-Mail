@@ -47,6 +47,47 @@ export const RecipientType = {
 } as const;
 export type RecipientType = (typeof RecipientType)[keyof typeof RecipientType];
 
+export const FolderType = {
+  INBOX: 'INBOX',
+  SENT: 'SENT',
+  DRAFTS: 'DRAFTS',
+  SPAM: 'SPAM',
+  TRASH: 'TRASH',
+  CUSTOM: 'CUSTOM',
+} as const;
+export type FolderType = (typeof FolderType)[keyof typeof FolderType];
+
+export interface MailFolderDto {
+  id: string;
+  userId: string;
+  parentId: string | null;
+  name: string;
+  type: FolderType;
+  sortOrder: number;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
+  unreadCount?: number;
+  totalCount?: number;
+  children?: MailFolderDto[];
+}
+
+export interface CreateMailFolderDto {
+  name: string;
+  parentId?: string | null;
+  sortOrder?: number;
+}
+
+export interface UpdateMailFolderDto {
+  name?: string;
+  parentId?: string | null;
+  sortOrder?: number;
+}
+
+export interface MoveMailDto {
+  targetFolderId: string;
+}
+
 export interface UserDto {
   id: string;
   email: string;
@@ -99,6 +140,8 @@ export interface MailMessageDto {
   dmarcResult: DmarcResult;
   status: MailStatus;
   createdAt: string;
+  isRead?: boolean;
+  isStarred?: boolean;
   recipients?: MailRecipientDto[];
   attachments?: MailAttachmentDto[];
   body?: {
@@ -133,4 +176,38 @@ export interface SystemOverviewDto {
     failedMails: number;
     activeMailboxes: number;
   };
+}
+
+export interface SendMailAttachmentDto {
+  id?: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  storagePath?: string;
+}
+
+export interface SendMailDto {
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  bodyText?: string;
+  bodyHtml: string;
+  attachments?: SendMailAttachmentDto[];
+}
+
+export interface SaveDraftDto {
+  to?: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject?: string;
+  bodyText?: string;
+  bodyHtml?: string;
+  draftId?: string;
+}
+
+export interface SendMailResponseDto {
+  success: boolean;
+  messageId: string;
+  mailId: string;
 }

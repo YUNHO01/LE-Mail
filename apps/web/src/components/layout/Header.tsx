@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Menu, Search, Bell, ExternalLink, LogOut, LogIn, User } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Menu, ExternalLink, LogOut, LogIn, Shield, Mail } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Link from 'next/link';
 
@@ -11,7 +12,16 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ sidebarOpen, setSidebarOpen }) => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+
+  const isAdminRoute = pathname?.startsWith('/admin');
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   return (
     <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
@@ -23,47 +33,57 @@ export const Header: React.FC<HeaderProps> = ({ sidebarOpen, setSidebarOpen }) =
         >
           <Menu className="h-6 w-6" />
         </button>
-
-        <div className="relative hidden sm:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="메일 또는 사용자 검색..."
-            className="h-9 w-64 rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm outline-none transition focus:border-sky-500 focus:bg-white focus:ring-1 focus:ring-sky-500"
-          />
-        </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <a
-          href="http://localhost:9200/api/docs"
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          <span>Swagger Docs</span>
-          <ExternalLink className="h-3 w-3 text-slate-400" />
-        </a>
+        {/* 웹메일 화면에서 관리자 계정일 때 관리자 콘솔 전환 버튼 제공 */}
+        {!isAdminRoute && isAuthenticated && isAdmin && (
+          <Link
+            href="/admin/dashboard"
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-sm"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            <span>관리자 콘솔로 전환</span>
+          </Link>
+        )}
 
-        <div className="h-4 w-px bg-slate-200" />
+        {/* Swagger Docs는 관리자 콘솔에서만 표시 (사용자 웹메일에서는 숨김) */}
+        {isAdminRoute && (
+          <>
+            <a
+              href="http://localhost:9200/api/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <span>Swagger Docs</span>
+              <ExternalLink className="h-3 w-3 text-slate-400" />
+            </a>
+            <div className="h-4 w-px bg-slate-200" />
+          </>
+        )}
 
         {isAuthenticated && user ? (
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white uppercase shadow-sm">
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white uppercase shadow-sm ${
+                  user.role === 'SYSTEM_ADMIN' ? 'bg-indigo-600' : 'bg-sky-600'
+                }`}
+              >
                 {user.name ? user.name.slice(0, 2) : 'US'}
               </div>
-              <div className="hidden text-left md:block">
+              <div className="hidden text-left lg:block">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold text-slate-800">{user.name}</span>
                   <span
                     className={`rounded px-1.5 py-0.2 text-[10px] font-semibold ${
                       user.role === 'SYSTEM_ADMIN'
-                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                        ? 'bg-indigo-100 text-indigo-800 border border-indigo-300'
                         : 'bg-slate-100 text-slate-700'
                     }`}
                   >
-                    {user.role === 'SYSTEM_ADMIN' ? '관리자' : '사용자'}
+                    {user.role === 'SYSTEM_ADMIN' ? '관리자' : '일반사용자'}
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400">{user.email}</div>
@@ -71,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({ sidebarOpen, setSidebarOpen }) =
             </div>
 
             <button
-              onClick={logout}
+              onClick={handleLogout}
               title="로그아웃"
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition"
             >

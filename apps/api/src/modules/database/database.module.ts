@@ -7,6 +7,8 @@ import {
   MailRecipient,
   MailAttachment,
   User,
+  MailFolder,
+  UserMail,
 } from './entities';
 
 @Module({
@@ -23,7 +25,15 @@ import {
           username: configService.get<string>('database.username'),
           password: configService.get<string>('database.password'),
           database: configService.get<string>('database.database'),
-          entities: [Mailbox, MailMessage, MailRecipient, MailAttachment, User],
+          entities: [
+            Mailbox,
+            MailMessage,
+            MailRecipient,
+            MailAttachment,
+            User,
+            MailFolder,
+            UserMail,
+          ],
           synchronize: false,
           timezone: 'Z',
           extra: {
@@ -38,6 +48,8 @@ import {
       MailRecipient,
       MailAttachment,
       User,
+      MailFolder,
+      UserMail,
     ]),
   ],
   exports: [TypeOrmModule],

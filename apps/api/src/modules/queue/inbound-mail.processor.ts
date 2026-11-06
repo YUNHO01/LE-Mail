@@ -17,6 +17,8 @@ import {
   RecipientType,
 } from '../database/entities/mail-recipient.entity';
 import { MailAttachment } from '../database/entities/mail-attachment.entity';
+import { User, MailFolder, UserMail } from '../database/entities';
+import { FolderType } from '@lemail/shared-types';
 import { WorkerPoolService } from '../worker-pool/worker-pool.service';
 import {
   InboundMailJobData,
@@ -170,7 +172,38 @@ export class InboundMailProcessor extends WorkerHost {
         }
       }
 
-      // 6. 트랜잭션 커밋
+      // 6. 편지함(UserMail) 매핑 (수신자의 받은편지함 또는 스팸메일함)
+      const isSpam =
+        parsedData.spfResult === SpfResult.FAIL ||
+        parsedData.dmarcResult === DmarcResult.FAIL;
+      const targetFolderType = isSpam ? FolderType.SPAM : FolderType.INBOX;
+
+      for (const address of allToAddresses) {
+        const normEmail = address.toLowerCase().trim();
+        const targetUser = await queryRunner.manager.findOne(User, {
+          where: { email: normEmail },
+        });
+        if (targetUser) {
+          const folder = await queryRunner.manager.findOne(MailFolder, {
+            where: { userId: targetUser.id, type: targetFolderType },
+          });
+          if (folder) {
+            const userMail = queryRunner.manager.create(UserMail, {
+              userId: targetUser.id,
+              folderId: folder.id,
+              messageId: id,
+              isRead: false,
+              isStarred: false,
+            });
+            await queryRunner.manager.save(userMail);
+            this.logger.log(
+              `Mapped mail ${id} to folder [${folder.name}] for user ${targetUser.email}`,
+            );
+          }
+        }
+      }
+
+      // 7. 트랜잭션 커밋
       await queryRunner.commitTransaction();
       this.logger.log(`Successfully processed & persisted mail: ${id}`);
     } catch (error) {

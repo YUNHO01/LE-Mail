@@ -12,6 +12,7 @@ import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { SeedModule } from './modules/seed/seed.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { MailFolderModule } from './modules/mail-folder/mail-folder.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -32,6 +33,7 @@ import { AppService } from './app.service';
     MonitoringModule,
     AuthModule,
     UsersModule,
+    MailFolderModule,
     SeedModule,
   ],
   controllers: [AppController],

@@ -60,6 +60,37 @@ const schemaStatements = [
     \`storage_path\` VARCHAR(500) NOT NULL,
     CONSTRAINT \`fk_attachment_message\` FOREIGN KEY (\`message_id\`) REFERENCES \`mail_message\`(\`id\`) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`mail_folder\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`parent_id\` VARCHAR(36) NULL,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`type\` ENUM('INBOX', 'SENT', 'DRAFTS', 'SPAM', 'TRASH', 'CUSTOM') NOT NULL DEFAULT 'CUSTOM',
+    \`sort_order\` INT NOT NULL DEFAULT 0,
+    \`is_system\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`fk_folder_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE,
+    CONSTRAINT \`fk_folder_parent\` FOREIGN KEY (\`parent_id\`) REFERENCES \`mail_folder\`(\`id\`) ON DELETE CASCADE,
+    INDEX \`idx_folder_user_parent\` (\`user_id\`, \`parent_id\`),
+    INDEX \`idx_folder_user_type\` (\`user_id\`, \`type\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`user_mail\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`folder_id\` VARCHAR(36) NOT NULL,
+    \`message_id\` VARCHAR(36) NOT NULL,
+    \`is_read\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`is_starred\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT \`fk_user_mail_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE,
+    CONSTRAINT \`fk_user_mail_folder\` FOREIGN KEY (\`folder_id\`) REFERENCES \`mail_folder\`(\`id\`) ON DELETE CASCADE,
+    CONSTRAINT \`fk_user_mail_message\` FOREIGN KEY (\`message_id\`) REFERENCES \`mail_message\`(\`id\`) ON DELETE CASCADE,
+    INDEX \`idx_user_folder_created\` (\`user_id\`, \`folder_id\`, \`created_at\` DESC),
+    INDEX \`idx_user_message\` (\`user_id\`, \`message_id\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 async function run() {

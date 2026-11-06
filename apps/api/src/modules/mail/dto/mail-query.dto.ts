@@ -14,6 +14,9 @@ export class MailQueryDto {
   @ApiPropertyOptional({ example: 'meeting', description: '제목 및 발신자 검색어' })
   search?: string;
 
+  @ApiPropertyOptional({ description: '편지함 ID 필터 (특정 편지함의 메일 조회)' })
+  folderId?: string;
+
   @ApiPropertyOptional({ enum: MailStatus, description: '메일 상태 필터' })
   status?: MailStatus;
 

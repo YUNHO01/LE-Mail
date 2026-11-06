@@ -22,7 +22,11 @@ export default function LoginPage() {
     try {
       const res = await login(email, password);
       if (res.success) {
-        router.push('/admin/users');
+        if (res.user?.role === 'SYSTEM_ADMIN') {
+          router.push('/admin/users');
+        } else {
+          router.push('/mail/inbox');
+        }
       } else {
         setError(res.message || '로그인에 실패했습니다.');
       }

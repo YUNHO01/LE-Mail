@@ -261,6 +261,66 @@
         ]
       }
     },
+    "/api/mails/send": {
+      "post": {
+        "operationId": "MailController_sendMail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "메일 발송 성공 및 보낸편지함 저장"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "새 메일 작성 및 발송",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/drafts": {
+      "post": {
+        "operationId": "MailController_saveDraft",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "임시보관함 저장 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작성 중인 메일 임시저장",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
     "/api/mails": {
       "get": {
         "operationId": "MailController_findAll",
@@ -308,6 +368,15 @@
             }
           },
           {
+            "name": "folderId",
+            "required": false,
+            "in": "query",
+            "description": "편지함 ID 필터 (특정 편지함의 메일 조회)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "status",
             "required": false,
             "in": "query",
@@ -340,7 +409,67 @@
             "description": "메일 목록 및 페이징 정보"
           }
         },
-        "summary": "메일 목록 조회 (페이징, 사서함별, 검색)",
+        "summary": "메일 목록 조회 (페이징, 사서함별, 편지함별, 검색)",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/move": {
+      "patch": {
+        "operationId": "MailController_move",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "이동 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일을 다른 편지함으로 이동",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/read": {
+      "patch": {
+        "operationId": "MailController_markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "처리 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일 읽음/안읽음 처리",
         "tags": [
           "Mails"
         ]
@@ -689,6 +818,124 @@
           "Users"
         ]
       }
+    },
+    "/api/mail-folders": {
+      "get": {
+        "description": "로그인 사용자의 기본 편지함 및 계층형 트리 구조 편지함 목록과 안 읽은 메일 수를 조회합니다.",
+        "operationId": "MailFolderController_getTree",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "편지함 목록 조회 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "편지함 트리 목록 조회",
+        "tags": [
+          "MailFolders"
+        ]
+      },
+      "post": {
+        "description": "개인편지함 또는 특정 상위 편지함 하위에 새로운 하위 편지함을 생성합니다.",
+        "operationId": "MailFolderController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMailFolderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "편지함 생성 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "하위 편지함 생성",
+        "tags": [
+          "MailFolders"
+        ]
+      }
+    },
+    "/api/mail-folders/{id}": {
+      "patch": {
+        "description": "하위 편지함의 이름, 순서 또는 상위 편지함 위치(트리 재배치)를 변경합니다.",
+        "operationId": "MailFolderController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMailFolderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "편지함 수정 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "편지함 수정 (이름 변경 / 위치 이동)",
+        "tags": [
+          "MailFolders"
+        ]
+      },
+      "delete": {
+        "description": "하위 편지함을 삭제하고 소속된 메일을 휴지통으로 이동합니다. 시스템 기본 편지함은 삭제할 수 없습니다.",
+        "operationId": "MailFolderController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "편지함 삭제 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "편지함 삭제",
+        "tags": [
+          "MailFolders"
+        ]
+      }
     }
   },
   "info": {
@@ -782,6 +1029,134 @@
           }
         }
       },
+      "SendMailAttachmentInputDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string",
+            "description": "파일명"
+          },
+          "contentType": {
+            "type": "string",
+            "description": "MIME 타입"
+          },
+          "sizeBytes": {
+            "type": "number",
+            "description": "파일 크기 (bytes)"
+          },
+          "contentBase64": {
+            "type": "string",
+            "description": "서버 임시 경로 또는 base64 데이터"
+          }
+        },
+        "required": [
+          "filename",
+          "contentType",
+          "sizeBytes"
+        ]
+      },
+      "SendMailDto": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "description": "받는 사람 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cc": {
+            "description": "참조(Cc) 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bcc": {
+            "description": "숨은참조(Bcc) 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string",
+            "description": "메일 제목"
+          },
+          "bodyText": {
+            "type": "string",
+            "description": "메일 본문 (일반 텍스트)"
+          },
+          "bodyHtml": {
+            "type": "string",
+            "description": "메일 본문 (HTML)"
+          },
+          "attachments": {
+            "description": "첨부파일 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SendMailAttachmentInputDto"
+            }
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "bodyHtml"
+        ]
+      },
+      "SaveDraftDto": {
+        "type": "object",
+        "properties": {
+          "draftId": {
+            "type": "string",
+            "description": "기존 임시저장 메일 ID"
+          },
+          "to": {
+            "description": "받는 사람 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cc": {
+            "description": "참조(Cc) 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bcc": {
+            "description": "숨은참조(Bcc) 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string",
+            "description": "메일 제목"
+          },
+          "bodyText": {
+            "type": "string",
+            "description": "메일 본문 (일반 텍스트)"
+          },
+          "bodyHtml": {
+            "type": "string",
+            "description": "메일 본문 (HTML)"
+          },
+          "attachments": {
+            "description": "첨부파일 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SendMailAttachmentInputDto"
+            }
+          }
+        }
+      },
       "CreateUserDto": {
         "type": "object",
         "properties": {
@@ -842,6 +1217,49 @@
             "type": "boolean",
             "example": true,
             "description": "계정 활성 여부"
+          }
+        }
+      },
+      "CreateMailFolderDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "편지함 이름",
+            "example": "프로젝트 A"
+          },
+          "parentId": {
+            "type": "object",
+            "description": "상위 편지함 ID (트리 구조의 부모 폴더 ID)",
+            "example": "d3b07384-d113-406a-a664-d65e7be60c91"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서",
+            "example": 1
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateMailFolderDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "편지함 이름",
+            "example": "프로젝트 B"
+          },
+          "parentId": {
+            "type": "object",
+            "description": "상위 편지함 ID (트리 구조의 부모 변경/이동)",
+            "example": "d3b07384-d113-406a-a664-d65e7be60c91"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서",
+            "example": 2
           }
         }
       }

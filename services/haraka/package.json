@@ -1,0 +1,14 @@
+{
+  "name": "@lemail/haraka",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LEMail Outbound MTA powered by Haraka",
+  "scripts": {
+    "build": "exit 0",
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "Haraka": "^3.4.0"
+  }
+}

@@ -1,13 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserDto } from '@lemail/shared-types';
 
 interface AuthContextType {
   user: UserDto | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
+  login: (email: string, pass: string) => Promise<{ success: boolean; message?: string; user?: UserDto }>;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9200';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<UserDto | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, pass: string): Promise<{ success: boolean; message?: string }> => {
+  const login = async (email: string, pass: string): Promise<{ success: boolean; message?: string; user?: UserDto }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -57,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('lemail_token', data.accessToken);
       localStorage.setItem('lemail_user', JSON.stringify(data.user));
 
-      return { success: true };
+      return { success: true, user: data.user };
     } catch (err: any) {
       return { success: false, message: err.message || '서버 통신 오류가 발생했습니다.' };
     }
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     localStorage.removeItem('lemail_token');
     localStorage.removeItem('lemail_user');
+    router.push('/login');
   };
 
   return (

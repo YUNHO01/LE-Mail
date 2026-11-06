@@ -2,34 +2,67 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
-import { MailMessageDto } from '@lemail/shared-types';
-import { Inbox, Paperclip, Search, ShieldCheck, Trash2, Mail as MailIcon } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
+import { Inbox, Paperclip, Search, ShieldCheck, Trash2, Mail as MailIcon, LogIn, AlertCircle } from 'lucide-react';
 
 export default function MailInboxPage() {
+  const router = useRouter();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+
   const [mails, setMails] = useState<MailMessageDto[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
   const loadMails = async () => {
+    if (!isAuthenticated || !user?.email) {
+      setMails([]);
+      setTotal(0);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+
+      // 1. INBOX(받은편지함) 폴더 찾기
+      const folders = await fetchApi<MailFolderDto[]>('/mail-folders');
+      const inboxFolder = (folders || []).find((f) => f.type === FolderType.INBOX);
+
+      const queryParams = new URLSearchParams({
+        limit: '50',
+      });
+
+      if (inboxFolder) {
+        queryParams.append('folderId', inboxFolder.id);
+      } else {
+        queryParams.append('mailbox', user.email);
+      }
+
+      if (search.trim()) {
+        queryParams.append('search', search.trim());
+      }
+
       const res = await fetchApi<{ items: MailMessageDto[]; total: number }>(
-        `/mails?search=${encodeURIComponent(search)}&limit=50`,
+        `/mails?${queryParams.toString()}`,
       );
-      setMails(res.items);
-      setTotal(res.total);
+      setMails(res.items || []);
+      setTotal(res.total || 0);
     } catch (err: any) {
-      console.error('메일 목록 조회 오류:', err);
+      console.error('받은편지함 조회 오류:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadMails();
-  }, [search]);
+    if (!authLoading) {
+      loadMails();
+    }
+  }, [search, user?.email, isAuthenticated, authLoading]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -43,15 +76,45 @@ export default function MailInboxPage() {
     }
   };
 
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 px-6 text-center shadow-sm">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 mb-4">
+          <AlertCircle className="h-7 w-7" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">로그인이 필요한 서비스입니다</h2>
+        <p className="mt-1 text-sm text-slate-500 max-w-sm">
+          본인의 사서함 메일을 확인하시려면 먼저 계정으로 로그인해 주세요.
+        </p>
+        <Link
+          href="/login"
+          className="mt-6 flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 transition"
+        >
+          <LogIn className="h-4 w-4" />
+          <span>로그인 페이지로 이동</span>
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Inbox className="h-6 w-6 text-sky-600" />
-            <span>받은편지함</span>
-          </h1>
-          <p className="text-sm text-slate-500">수신된 이메일 목록을 열람하고 첨부파일을 다운로드합니다.</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <Inbox className="h-6 w-6 text-sky-600" />
+              <span>받은편지함</span>
+            </h1>
+            {user?.email && (
+              <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200">
+                {user.email}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            {user?.name ? `${user.name}님에게 수신된 메일 목록입니다.` : '수신된 이메일 목록을 열람하고 첨부파일을 다운로드합니다.'}
+          </p>
         </div>
 
         <div className="text-xs text-slate-500 font-medium">
@@ -75,10 +138,18 @@ export default function MailInboxPage() {
 
       {/* Mail List */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        {mails.length === 0 ? (
-          <div className="py-12 text-center text-slate-400">
-            <MailIcon className="mx-auto h-12 w-12 text-slate-300 mb-2" />
-            <p>{loading ? '메일을 불러오는 중...' : '받은 메일이 없습니다.'}</p>
+        {loading ? (
+          <div className="py-16 text-center text-slate-400">
+            <MailIcon className="mx-auto h-12 w-12 text-slate-300 animate-pulse mb-3" />
+            <p className="text-sm">메일을 불러오는 중...</p>
+          </div>
+        ) : mails.length === 0 ? (
+          <div className="py-16 text-center text-slate-400">
+            <MailIcon className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+            <p className="text-sm font-medium text-slate-600">수신된 메일이 없습니다.</p>
+            <p className="text-xs text-slate-400 mt-1">
+              외부에서 {user?.email || '사서함'} 주소로 메일을 발송하면 이곳에 표시됩니다.
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -102,23 +173,32 @@ export default function MailInboxPage() {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-slate-600 truncate mt-0.5 font-medium">
+                    <div className="text-sm font-medium text-slate-700 truncate mt-0.5">
                       {mail.subject || '(제목 없음)'}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 flex-shrink-0 text-xs text-slate-400 sm:self-center self-end">
-                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                    {mail.status}
-                  </span>
-                  <span>{new Date(mail.createdAt).toLocaleDateString()}</span>
+                <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    {mail.spfResult === 'PASS' && (
+                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 border border-emerald-200">
+                        SPF
+                      </span>
+                    )}
+                    {mail.dkimResult === 'PASS' && (
+                      <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 border border-sky-200">
+                        DKIM
+                      </span>
+                    )}
+                  </div>
+                  <span>{new Date(mail.createdAt).toLocaleString('ko-KR')}</span>
                   <button
                     onClick={(e) => handleDelete(e, mail.id)}
-                    className="p-1 text-slate-400 hover:text-rose-600 transition"
                     title="메일 삭제"
+                    className="p-1 rounded text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition opacity-0 group-hover:opacity-100"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </Link>

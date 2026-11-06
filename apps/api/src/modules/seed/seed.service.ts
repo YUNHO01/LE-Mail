@@ -7,6 +7,7 @@ import { User } from '../database/entities/user.entity';
 import { Mailbox } from '../database/entities/mailbox.entity';
 import { UserRole } from '@lemail/shared-types';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
+import { MailFolderService } from '../mail-folder/mail-folder.service';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -19,6 +20,7 @@ export class SeedService implements OnApplicationBootstrap {
     private readonly mailboxRepository: Repository<Mailbox>,
     private readonly configService: ConfigService,
     private readonly mailboxCacheService: MailboxCacheService,
+    private readonly mailFolderService: MailFolderService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -75,6 +77,12 @@ export class SeedService implements OnApplicationBootstrap {
       }
 
       await this.mailboxCacheService.invalidate();
+
+      // Ensure default folders for all existing users (including admin)
+      const count = await this.mailFolderService.ensureDefaultFoldersForAllUsers();
+      if (count > 0) {
+        this.logger.log(`Initialized default folders for existing users: ${count} folders created`);
+      }
     } catch (err: any) {
       this.logger.error(`Failed to seed system administrator: ${err.message}`, err.stack);
     }

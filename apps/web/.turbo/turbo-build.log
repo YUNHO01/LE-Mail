@@ -7,31 +7,37 @@ $ next build
  ✓ Compiled successfully
    Linting and checking validity of types ...
    Collecting page data ...
-   Generating static pages (0/10) ...
-   Generating static pages (2/10) 
-   Generating static pages (4/10) 
-   Generating static pages (7/10) 
- ✓ Generating static pages (10/10)
+   Generating static pages (0/15) ...
+   Generating static pages (3/15) 
+   Generating static pages (7/15) 
+   Generating static pages (11/15) 
+ ✓ Generating static pages (15/15)
    Finalizing page optimization ...
    Collecting build traces ...
 
 Route (app)                              Size     First Load JS
-┌ ○ /                                    138 B          87.4 kB
+┌ ○ /                                    1.11 kB        88.4 kB
 ├ ○ /_not-found                          873 B          88.1 kB
-├ ○ /admin/dashboard                     3.37 kB        90.6 kB
-├ ○ /admin/logs                          3 kB           90.2 kB
-├ ○ /admin/mailboxes                     3.4 kB         90.6 kB
-├ ○ /admin/users                         5.75 kB          93 kB
-├ ○ /login                               3.19 kB        90.4 kB
-├ ƒ /mail/[id]                           3.18 kB        90.4 kB
-└ ○ /mail/inbox                          2.1 kB           99 kB
+├ ○ /admin/dashboard                     3.43 kB        90.7 kB
+├ ○ /admin/logs                          3.06 kB        90.3 kB
+├ ○ /admin/mailboxes                     3.47 kB        90.7 kB
+├ ○ /admin/users                         5.95 kB        93.2 kB
+├ ○ /login                               3.28 kB        90.5 kB
+├ ƒ /mail/[id]                           3.57 kB        90.8 kB
+├ ○ /mail/compose                        8.52 kB         105 kB
+├ ○ /mail/drafts                         3.65 kB         100 kB
+├ ƒ /mail/folder/[id]                    3.69 kB         100 kB
+├ ○ /mail/inbox                          3.96 kB         101 kB
+├ ○ /mail/sent                           3.88 kB         100 kB
+├ ○ /mail/spam                           3.87 kB         100 kB
+└ ○ /mail/trash                          3.42 kB         100 kB
 + First Load JS shared by all            87.2 kB
-  ├ chunks/1dd3208c-43b9f6efce9e80cb.js  53.6 kB
-  ├ chunks/528-8dcbeaeef647f980.js       31.7 kB
+  ├ chunks/1dd3208c-78eb148e6ecd6228.js  53.6 kB
+  ├ chunks/528-9961024298edc161.js       31.7 kB
   └ other shared chunks (total)          1.89 kB
 
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
 
-Done in 26.15s.
+Done in 31.34s.

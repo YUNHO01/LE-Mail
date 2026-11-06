@@ -13,6 +13,9 @@ import {
   FileText,
   User,
   Clock,
+  Reply,
+  ReplyAll,
+  Forward,
 } from 'lucide-react';
 
 export default function MailDetailPage() {
@@ -73,6 +76,32 @@ export default function MailDetailPage() {
         </button>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push(`/mail/compose?mode=reply&replyId=${mail.id}`)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition"
+          >
+            <Reply className="h-3.5 w-3.5 text-slate-500" />
+            <span>답장</span>
+          </button>
+
+          <button
+            onClick={() => router.push(`/mail/compose?mode=replyAll&replyId=${mail.id}`)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition"
+          >
+            <ReplyAll className="h-3.5 w-3.5 text-slate-500" />
+            <span>전체답장</span>
+          </button>
+
+          <button
+            onClick={() => router.push(`/mail/compose?mode=forward&replyId=${mail.id}`)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition"
+          >
+            <Forward className="h-3.5 w-3.5 text-slate-500" />
+            <span>전달</span>
+          </button>
+
+          <div className="h-4 w-px bg-slate-200 mx-1" />
+
           <a
             href={`/api/mails/${mail.id}/raw`}
             target="_blank"
@@ -80,7 +109,7 @@ export default function MailDetailPage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition"
           >
             <Download className="h-3.5 w-3.5 text-slate-500" />
-            <span>원본 EML 다운로드</span>
+            <span>원본 EML</span>
           </a>
 
           <button
@@ -176,6 +205,24 @@ export default function MailDetailPage() {
           ) : (
             <p className="text-sm italic text-slate-400">본문 내용이 없습니다.</p>
           )}
+        </div>
+
+        {/* Bottom Quick Action Footer */}
+        <div className="flex items-center gap-3 border-t border-slate-100 bg-slate-50/50 px-6 py-4">
+          <button
+            onClick={() => router.push(`/mail/compose?mode=reply&replyId=${mail.id}`)}
+            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 transition"
+          >
+            <Reply className="h-4 w-4 text-slate-500" />
+            <span>답장</span>
+          </button>
+          <button
+            onClick={() => router.push(`/mail/compose?mode=forward&replyId=${mail.id}`)}
+            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 transition"
+          >
+            <Forward className="h-4 w-4 text-slate-500" />
+            <span>전달</span>
+          </button>
         </div>
       </div>
     </div>

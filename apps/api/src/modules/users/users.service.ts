@@ -14,6 +14,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 import { UserDto, UserRole } from '@lemail/shared-types';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
+import { MailFolderService } from '../mail-folder/mail-folder.service';
 
 @Injectable()
 export class UsersService {
@@ -23,6 +24,7 @@ export class UsersService {
     @InjectRepository(Mailbox)
     private readonly mailboxRepository: Repository<Mailbox>,
     private readonly mailboxCacheService: MailboxCacheService,
+    private readonly mailFolderService: MailFolderService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -130,6 +132,12 @@ export class UsersService {
         mailbox.isActive = true;
         await queryRunner.manager.save(mailbox);
       }
+
+      // Initialize default mail folders (받은편지함, 보낸편지함, 임시보관함, 스팸메일함, 휴지통, 개인편지함)
+      await this.mailFolderService.initDefaultFolders(
+        savedUser.id,
+        queryRunner.manager,
+      );
 
       await queryRunner.commitTransaction();
     } catch (err) {

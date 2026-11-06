@@ -1,26 +1,82 @@
 import {
   Controller,
   Get,
+  Post,
   Delete,
+  Patch,
+  Body,
   Param,
   Query,
   Res,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { MailService } from './mail.service';
 import { MailQueryDto } from './dto/mail-query.dto';
+import { SendMailDto } from './dto/send-mail.dto';
+import { SaveDraftDto } from './dto/save-draft.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../database/entities';
 
 @ApiTags('Mails')
 @Controller('mails')
 export class MailController {
   constructor(private readonly mailService: MailService) {}
 
+  @Post('send')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '새 메일 작성 및 발송' })
+  @ApiResponse({ status: 201, description: '메일 발송 성공 및 보낸편지함 저장' })
+  sendMail(@CurrentUser() user: User, @Body() dto: SendMailDto) {
+    return this.mailService.sendMail(user, dto);
+  }
+
+  @Post('drafts')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '작성 중인 메일 임시저장' })
+  @ApiResponse({ status: 201, description: '임시보관함 저장 성공' })
+  saveDraft(@CurrentUser() user: User, @Body() dto: SaveDraftDto) {
+    return this.mailService.saveDraft(user, dto);
+  }
+
   @Get()
-  @ApiOperation({ summary: '메일 목록 조회 (페이징, 사서함별, 검색)' })
+  @ApiOperation({ summary: '메일 목록 조회 (페이징, 사서함별, 편지함별, 검색)' })
   @ApiResponse({ status: 200, description: '메일 목록 및 페이징 정보' })
   findAll(@Query() query: MailQueryDto) {
     return this.mailService.findAll(query);
+  }
+
+  @Patch(':id/move')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '메일을 다른 편지함으로 이동' })
+  @ApiParam({ name: 'id', description: '메일 고유 ID' })
+  @ApiResponse({ status: 200, description: '이동 완료' })
+  move(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body('targetFolderId') targetFolderId: string,
+  ) {
+    return this.mailService.moveMail(user.id, id, targetFolderId);
+  }
+
+  @Patch(':id/read')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '메일 읽음/안읽음 처리' })
+  @ApiParam({ name: 'id', description: '메일 고유 ID' })
+  @ApiResponse({ status: 200, description: '처리 완료' })
+  markRead(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body('isRead') isRead: boolean,
+  ) {
+    return this.mailService.markRead(user.id, id, isRead);
   }
 
   @Get(':id')

@@ -3,13 +3,21 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailMessage } from '../database/entities/mail-message.entity';
 import { MailAttachment } from '../database/entities/mail-attachment.entity';
 import { MailRecipient } from '../database/entities/mail-recipient.entity';
+import { MailFolder, UserMail, User } from '../database/entities';
 import { MailService } from './mail.service';
 import { MailController } from './mail.controller';
 import { WorkerPoolModule } from '../worker-pool/worker-pool.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MailMessage, MailAttachment, MailRecipient]),
+    TypeOrmModule.forFeature([
+      MailMessage,
+      MailAttachment,
+      MailRecipient,
+      MailFolder,
+      UserMail,
+      User,
+    ]),
     WorkerPoolModule,
   ],
   controllers: [MailController],
