@@ -1,0 +1,22 @@
+Received: (LEMail MTA {pid} invoked for bounce); {date}
+Date: {date}
+From: MAILER-DAEMON@{me}
+To: {to}
+Auto-Submitted: auto-replied
+Subject: [발송 실패 안내] {subject}
+Message-Id: {msgid}
+
+안녕하세요, LEMail 메일 시스템(MAILER-DAEMON)입니다.
+
+발송하신 메일이 상대방 메일 서버로부터 지속적인 거부 또는 지연 응답을 받아
+설정된 최대 재시도(3회)를 초과하여 최종적으로 전송에 실패하였습니다.
+
+==================================================
+■ 보낸 제목: {subject}
+■ 수신 대상: {recipients}
+■ 실패 사유: {reason}
+==================================================
+
+{extended_reason}
+
+자세한 에러 코드는 아래 첨부된 기술 진단 보고서(Delivery Status) 및 원본 헤더를 확인해 주시기 바랍니다.
