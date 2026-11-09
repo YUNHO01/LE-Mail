@@ -62,6 +62,11 @@ export class ImapServer {
         this.handleNewConnection(socket, true);
       });
 
+      this.tlsServer.on('tlsClientError', (err, socket) => {
+        const client = `${socket.remoteAddress || 'unknown'}:${socket.remotePort || 0}`;
+        console.warn(`[ImapServer] TLS Client Handshake Error from ${client}: ${err.message}`);
+      });
+
       this.tlsServer.on('error', (err) => {
         console.error(`[ImapServer] TLS/IMAPS Server Error: ${err.message}`);
         reject(err);
@@ -77,13 +82,21 @@ export class ImapServer {
   }
 
   private handleNewConnection(socket: net.Socket | tls.TLSSocket, isTls: boolean) {
+    const clientEndpoint = `${socket.remoteAddress || 'unknown'}:${socket.remotePort || 0}`;
+    const connType = isTls ? 'IMAPS (Direct TLS)' : 'Plain/STARTTLS';
+    console.log(`[ImapServer] New connection attempt from ${clientEndpoint} [${connType}]`);
+
     if (!this.tlsCredentials) {
+      console.warn(`[ImapServer] Connection rejected for ${clientEndpoint}: Server TLS credentials not ready`);
       socket.write('* BYE Server TLS not ready\r\n');
       socket.end();
       return;
     }
 
     if (this.activeSessions.size >= this.config.maxConnections) {
+      console.warn(
+        `[ImapServer] Connection rejected for ${clientEndpoint}: Server busy (max connections: ${this.config.maxConnections})`,
+      );
       socket.write('* BYE Server is too busy, connection rejected\r\n');
       socket.end();
       return;

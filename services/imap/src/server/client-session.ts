@@ -85,6 +85,7 @@ export class ClientSession {
       `CAPABILITY ${caps.join(' ')}`,
     );
     this.write(welcome);
+    console.log(`[ClientSession ${this.id}] Welcome banner sent (TLS: ${this.isTls})`);
   }
 
   write(data: string) {
@@ -141,7 +142,23 @@ export class ClientSession {
     }
   }
 
+  private logCommandLine(rawLine: string) {
+    let sanitized = rawLine;
+    const loginMatch = rawLine.match(/^(\S+\s+LOGIN\s+\S+\s+)(.*)$/i);
+    if (loginMatch) {
+      sanitized = `${loginMatch[1]}********`;
+    } else {
+      const authMatch = rawLine.match(/^(\S+\s+AUTHENTICATE\s+PLAIN\s+)(.*)$/i);
+      if (authMatch && authMatch[2].length > 0) {
+        sanitized = `${authMatch[1]}********`;
+      }
+    }
+    console.log(`[ClientSession ${this.id}] C: ${sanitized}`);
+  }
+
   private async processLine(rawLine: string) {
+    this.logCommandLine(rawLine);
+
     // 1. If currently IDLE, client sends 'DONE' to finish idling
     if (this.isIdling) {
       if (rawLine.toUpperCase() === 'DONE') {
@@ -521,27 +538,53 @@ export class ClientSession {
   private getAttrString(attrs: any[], index: number, defaultValue = ''): string {
     if (!attrs || attrs.length <= index) return defaultValue;
     const item = attrs[index];
-    if (typeof item === 'string') return item;
-    if (item && item.value !== undefined) {
+    let val = '';
+    if (typeof item === 'string') {
+      val = item;
+    } else if (item && item.value !== undefined) {
       if (Array.isArray(item.value)) {
-        return item.value.map((v: any) => (v.value !== undefined ? v.value : v)).join(' ');
+        val = item.value.map((v: any) => (v.value !== undefined ? v.value : v)).join(' ');
+      } else {
+        val = String(item.value);
       }
-      return String(item.value);
+    } else {
+      val = String(item);
     }
-    return String(item);
+
+    val = val.trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    return val;
   }
 
   private getAttrList(attrs: any[], index: number): string[] {
     if (!attrs || attrs.length <= index) return [];
     const item = attrs[index];
+    let list: string[] = [];
     if (Array.isArray(item)) {
-      return item.map((v) => (v && v.value !== undefined ? String(v.value) : String(v)));
+      list = item.map((v) => (v && v.value !== undefined ? String(v.value) : String(v)));
+    } else if (item && Array.isArray(item.value)) {
+      list = item.value.map((v: any) => (v && v.value !== undefined ? String(v.value) : String(v)));
+    } else if (typeof item === 'string') {
+      list = [item];
+    } else {
+      list = [String(item.value || item)];
     }
-    if (item && Array.isArray(item.value)) {
-      return item.value.map((v: any) => (v && v.value !== undefined ? String(v.value) : String(v)));
-    }
-    if (typeof item === 'string') return [item];
-    return [String(item.value || item)];
+
+    return list.map((v) => {
+      const trimmed = v.trim();
+      if (
+        (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))
+      ) {
+        return trimmed.slice(1, -1);
+      }
+      return trimmed;
+    });
   }
 
   private handleCapability(tag: string) {
@@ -562,6 +605,7 @@ export class ClientSession {
   }
 
   private handleStartTls(tag: string) {
+    console.log(`[ClientSession ${this.id}] STARTTLS requested, upgrading socket to TLS...`);
     if (this.isTls) {
       this.write(ImapResponse.tagged(tag, 'BAD', 'Already in TLS / SSL mode'));
       return;
@@ -579,20 +623,27 @@ export class ClientSession {
       secureContext,
     });
 
+    tlsSocket.on('error', (err) => {
+      console.warn(`[ClientSession ${this.id}] TLS socket error during STARTTLS: ${err.message}`);
+    });
+
     this.socket.removeAllListeners();
     this.socket = tlsSocket;
     this.isTls = true;
     this.bindSocketEvents();
+    console.log(`[ClientSession ${this.id}] STARTTLS upgrade completed successfully`);
   }
 
   private handleError(err: any) {
     if (err.code === 'ECONNRESET' || err.code === 'EPIPE') {
+      console.log(`[ClientSession ${this.id}] Connection reset by client (${err.code})`);
       return;
     }
     console.warn(`[ClientSession ${this.id}] Socket error: ${err.message}`);
   }
 
   private async handleClose() {
+    console.log(`[ClientSession ${this.id}] Connection closed`);
     if (this.idleListener && this.user) {
       await RedisService.unsubscribeUser(this.user.id, this.idleListener).catch(() => {});
       this.idleListener = null;
@@ -604,6 +655,7 @@ export class ClientSession {
   }
 
   private handleTimeout() {
+    console.warn(`[ClientSession ${this.id}] Connection timed out after inactivity`);
     this.write(ImapResponse.untagged('BYE', 'Connection timed out'));
     this.socket.end();
   }

@@ -37,7 +37,10 @@ export class AuthHandler {
       return;
     }
 
-    const normEmail = username.trim().toLowerCase();
+    const cleanUsername = (username || '').trim().replace(/^["']|["']$/g, '');
+    const cleanPassword = (password || '').replace(/^["']|["']$/g, '');
+    const normEmail = cleanUsername.toLowerCase();
+    console.log(`[AuthHandler] Login attempt for account "${normEmail}" from ${session.id}`);
 
     try {
       const users = await DbService.query(
@@ -46,6 +49,7 @@ export class AuthHandler {
       );
 
       if (!users || users.length === 0) {
+        console.warn(`[AuthHandler] Login FAILED for "${normEmail}" from ${session.id}: User not found`);
         session.write(
           ImapResponse.tagged(
             tag,
@@ -59,6 +63,7 @@ export class AuthHandler {
 
       const user = users[0];
       if (!user.is_active) {
+        console.warn(`[AuthHandler] Login FAILED for "${normEmail}" from ${session.id}: Account is inactive or disabled`);
         session.write(
           ImapResponse.tagged(
             tag,
@@ -70,8 +75,9 @@ export class AuthHandler {
         return;
       }
 
-      const isMatch = await bcrypt.compare(password, user.password_hash);
+      const isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
       if (!isMatch) {
+        console.warn(`[AuthHandler] Login FAILED for "${normEmail}" from ${session.id}: Password mismatch`);
         session.write(
           ImapResponse.tagged(
             tag,
@@ -103,9 +109,9 @@ export class AuthHandler {
           `CAPABILITY ${CAPABILITIES_SECURE.join(' ')}`,
         ),
       );
-      console.log(`[AuthHandler] User ${user.email} successfully logged in via IMAP`);
+      console.log(`[AuthHandler] Login SUCCESS: User "${user.email}" (ID: ${user.id}) logged in via IMAP from ${session.id}`);
     } catch (err: any) {
-      console.error(`[AuthHandler] Error during LOGIN: ${err.message}`, err);
+      console.error(`[AuthHandler] Error during LOGIN for "${normEmail}" from ${session.id}: ${err.message}`, err);
       session.write(ImapResponse.tagged(tag, 'NO', 'Internal server error during authentication'));
     }
   }
@@ -130,8 +136,10 @@ export class AuthHandler {
         password = parts[1];
       }
 
+      console.log(`[AuthHandler] AUTHENTICATE PLAIN attempt for user: "${username}" from ${session.id}`);
       await this.handleLogin(session, tag, username, password);
     } catch (err: any) {
+      console.warn(`[AuthHandler] AUTHENTICATE PLAIN failed for ${session.id}: ${err.message}`);
       session.write(
         ImapResponse.tagged(
           tag,
