@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { DbService } from '../services/db.service';
 import { ClientSession } from '../server/client-session';
 import { ImapResponse } from '../protocol/imap-response';
+import { ImapUtils } from '../utils/imap-utils';
 
 export interface FolderRow {
   id: string;
@@ -17,19 +18,47 @@ export interface FolderRow {
 
 export class FolderHandler {
   static async resolveFolder(userId: string, mailboxName: string): Promise<FolderRow | null> {
-    const cleanName = mailboxName.replace(/^["']|["']$/g, '').trim();
-    const upper = cleanName.toUpperCase();
+    const rawClean = mailboxName.replace(/^["']|["']$/g, '').trim();
+    const decodedName = ImapUtils.decodeModifiedUtf7(rawClean).trim();
+    const cleanNormalized = decodedName.replace(/\s+/g, '');
+    const upper = decodedName.toUpperCase().replace(/\s+/g, '');
 
     let targetType: string | null = null;
-    if (upper === 'INBOX' || cleanName === '받은편지함') {
+    if (upper === 'INBOX' || cleanNormalized === '받은편지함') {
       targetType = 'INBOX';
-    } else if (upper === 'SENT' || upper === 'SENT MESSAGES' || cleanName === '보낸편지함') {
+    } else if (
+      upper === 'SENT' ||
+      upper === 'SENTITEMS' ||
+      upper === 'SENTMESSAGES' ||
+      cleanNormalized === '보낸편지함'
+    ) {
       targetType = 'SENT';
-    } else if (upper === 'DRAFTS' || cleanName === '임시보관함') {
+    } else if (
+      upper === 'DRAFTS' ||
+      upper === 'DRAFT' ||
+      cleanNormalized === '임시보관함' ||
+      cleanNormalized === '임시편지함'
+    ) {
       targetType = 'DRAFTS';
-    } else if (upper === 'TRASH' || cleanName === '휴지통') {
+    } else if (
+      upper === 'TRASH' ||
+      upper === 'DELETED' ||
+      upper === 'DELETEDITEMS' ||
+      upper === 'DELETEDMESSAGES' ||
+      cleanNormalized === '휴지통' ||
+      cleanNormalized === '지운편지함' ||
+      cleanNormalized === '지운항목'
+    ) {
       targetType = 'TRASH';
-    } else if (upper === 'JUNK' || upper === 'SPAM' || cleanName === '스팸메일함') {
+    } else if (
+      upper === 'JUNK' ||
+      upper === 'SPAM' ||
+      upper === 'JUNKEMAIL' ||
+      upper === 'JUNKE-MAIL' ||
+      cleanNormalized === '스팸메일함' ||
+      cleanNormalized === '스팸메일' ||
+      cleanNormalized === '정크메일'
+    ) {
       targetType = 'SPAM';
     }
 
@@ -41,10 +70,13 @@ export class FolderHandler {
       if (folders && folders.length > 0) return folders[0];
     }
 
-    // Lookup by exact or normalized name
+    // Lookup by exact or normalized name (both raw and decoded)
     const folders = await DbService.query<FolderRow[]>(
-      'SELECT * FROM mail_folder WHERE user_id = ? AND (name = ? OR LOWER(name) = LOWER(?)) LIMIT 1',
-      [userId, cleanName, cleanName],
+      `SELECT * FROM mail_folder 
+       WHERE user_id = ? 
+         AND (name = ? OR LOWER(name) = LOWER(?) OR name = ? OR LOWER(name) = LOWER(?)) 
+       LIMIT 1`,
+      [userId, decodedName, decodedName, rawClean, rawClean],
     );
 
     return folders && folders.length > 0 ? folders[0] : null;
@@ -249,12 +281,13 @@ export class FolderHandler {
     }
 
     const cleanName = mailboxName.replace(/^["']|["']$/g, '').trim();
-    if (cleanName.toUpperCase() === 'INBOX') {
+    const decodedName = ImapUtils.decodeModifiedUtf7(cleanName).trim();
+    if (decodedName.toUpperCase() === 'INBOX') {
       session.write(ImapResponse.tagged(tag, 'NO', 'Cannot create INBOX'));
       return;
     }
 
-    const existing = await this.resolveFolder(user.id, cleanName);
+    const existing = await this.resolveFolder(user.id, decodedName);
     if (existing) {
       session.write(ImapResponse.tagged(tag, 'NO', 'Mailbox already exists', 'ALREADYEXISTS'));
       return;
@@ -266,7 +299,7 @@ export class FolderHandler {
     await DbService.query(
       `INSERT INTO mail_folder (id, user_id, parent_id, name, type, sort_order, is_system, uidvalidity, uidnext, created_at, updated_at)
        VALUES (?, ?, NULL, ?, 'CUSTOM', 10, 0, ?, 1, NOW(), NOW())`,
-      [folderId, user.id, cleanName, nowSeconds],
+      [folderId, user.id, decodedName, nowSeconds],
     );
 
     session.write(ImapResponse.tagged(tag, 'OK', 'CREATE completed'));
@@ -322,8 +355,9 @@ export class FolderHandler {
     }
 
     const cleanNewName = newName.replace(/^["']|["']$/g, '').trim();
+    const decodedNewName = ImapUtils.decodeModifiedUtf7(cleanNewName).trim();
     await DbService.query('UPDATE mail_folder SET name = ?, updated_at = NOW() WHERE id = ?', [
-      cleanNewName,
+      decodedNewName,
       folder.id,
     ]);
 
@@ -335,15 +369,15 @@ export class FolderHandler {
       case 'INBOX':
         return 'INBOX';
       case 'SENT':
-        return 'Sent';
+        return ImapUtils.encodeModifiedUtf7(folder.name || '보낸편지함');
       case 'DRAFTS':
-        return 'Drafts';
+        return ImapUtils.encodeModifiedUtf7(folder.name || '임시보관함');
       case 'TRASH':
-        return 'Trash';
+        return ImapUtils.encodeModifiedUtf7(folder.name || '휴지통');
       case 'SPAM':
-        return 'Junk';
+        return ImapUtils.encodeModifiedUtf7(folder.name || '스팸메일함');
       default:
-        return folder.name;
+        return ImapUtils.encodeModifiedUtf7(folder.name);
     }
   }
 
@@ -361,6 +395,9 @@ export class FolderHandler {
         break;
       case 'SPAM':
         attrs.unshift('\\Junk');
+        break;
+      case 'INBOX':
+        attrs.unshift('\\Inbox');
         break;
     }
     return attrs;

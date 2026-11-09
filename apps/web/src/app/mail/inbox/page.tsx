@@ -188,6 +188,7 @@ export default function MailInboxPage() {
         onToggleRead={handleToggleRead}
         onBulkDelete={handleBulkDelete}
         onBulkToggleRead={handleBulkToggleRead}
+        onRefresh={loadMails}
         emptyMessage="수신된 메일이 없습니다."
         emptySubMessage={`외부에서 ${user?.email || '사서함'} 주소로 메일을 발송하면 이곳에 표시됩니다.`}
       />

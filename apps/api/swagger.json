@@ -505,6 +505,46 @@
         ]
       }
     },
+    "/api/mails/bulk-delete": {
+      "post": {
+        "operationId": "MailController_bulkDelete",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "일괄 삭제 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "선택한 메일 일괄 삭제 (일반삭제 또는 영구완전삭제)",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/bulk-move": {
+      "post": {
+        "operationId": "MailController_bulkMove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "일괄 이동 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "선택한 메일 일괄 편지함 이동",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
     "/api/mails": {
       "get": {
         "operationId": "MailController_findAll",
@@ -718,6 +758,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "permanent",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -730,7 +778,7 @@
             "bearer": []
           }
         ],
-        "summary": "메일 삭제 (일반함은 휴지통 이동, 휴지통은 본인 사서함 완전삭제 및 마지막 참조자일 때 물리 파일 삭제)",
+        "summary": "메일 삭제 (일반함은 휴지통 이동, permanent=true 또는 휴지통은 완전삭제 및 마지막 참조자일 때 물리 파일 삭제)",
         "tags": [
           "Mails"
         ]

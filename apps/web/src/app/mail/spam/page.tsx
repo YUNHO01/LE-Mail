@@ -60,6 +60,17 @@ export default function MailSpamPage() {
     if (!authLoading) {
       loadMails();
     }
+
+    const handleRefresh = () => {
+      loadMails();
+    };
+
+    window.addEventListener('mail:refresh-folders', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('mail:refresh-folders', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, [search, user?.email, isAuthenticated, authLoading]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -173,6 +184,7 @@ export default function MailSpamPage() {
         onToggleRead={handleToggleRead}
         onBulkDelete={handleBulkDelete}
         onBulkToggleRead={handleBulkToggleRead}
+        onRefresh={loadMails}
         emptyMessage="스팸메일함이 비어 있습니다."
         emptySubMessage="격리되거나 스팸으로 분류된 메일이 없습니다."
       />

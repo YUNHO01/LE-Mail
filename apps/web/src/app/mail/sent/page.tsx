@@ -62,6 +62,17 @@ export default function MailSentPage() {
     if (!authLoading) {
       loadMails();
     }
+
+    const handleRefresh = () => {
+      loadMails();
+    };
+
+    window.addEventListener('mail:refresh-folders', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('mail:refresh-folders', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, [search, user?.email, isAuthenticated, authLoading]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -131,6 +142,7 @@ export default function MailSentPage() {
         onSearchChange={setSearch}
         onDelete={handleDelete}
         onBulkDelete={handleBulkDelete}
+        onRefresh={loadMails}
         emptyMessage="보낸 메일이 없습니다."
         emptySubMessage="메일 쓰기 메뉴를 통해 새 메일을 발송하면 이곳에 표시됩니다."
       />

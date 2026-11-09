@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MailMessageDto } from '@lemail/shared-types';
+import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { fetchApi } from '@/lib/api';
 import {
   Search,
@@ -13,6 +13,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Paperclip,
   Trash2,
   Mail,
@@ -23,6 +24,10 @@ import {
   ShieldAlert,
   Send,
   RefreshCw,
+  Folder,
+  FolderInput,
+  Inbox,
+  FileEdit,
 } from 'lucide-react';
 
 export interface MailDataTableProps {
@@ -30,13 +35,17 @@ export interface MailDataTableProps {
   total: number;
   loading: boolean;
   type?: 'inbox' | 'sent' | 'drafts' | 'spam' | 'trash' | 'folder';
+  folderId?: string;
   folderName?: string;
   search: string;
   onSearchChange: (value: string) => void;
   onDelete?: (e: React.MouseEvent, mailId: string) => void;
   onToggleRead?: (e: React.MouseEvent, mailId: string, currentIsRead: boolean) => void;
   onBulkDelete?: (mailIds: string[]) => Promise<void>;
+  onBulkPermanentDelete?: (mailIds: string[]) => Promise<void>;
+  onBulkMove?: (mailIds: string[], targetFolderId: string) => Promise<void>;
   onBulkToggleRead?: (mailIds: string[], targetIsRead: boolean) => Promise<void>;
+  onRefresh?: () => void | Promise<void>;
   emptyMessage?: string;
   emptySubMessage?: string;
 }
@@ -46,13 +55,17 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   total,
   loading,
   type = 'inbox',
+  folderId,
   folderName,
   search,
   onSearchChange,
   onDelete,
   onToggleRead,
   onBulkDelete,
+  onBulkPermanentDelete,
+  onBulkMove,
   onBulkToggleRead,
+  onRefresh,
   emptyMessage = '메일이 없습니다.',
   emptySubMessage,
 }) => {
@@ -61,6 +74,199 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const [copied, setCopied] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  const [folders, setFolders] = useState<MailFolderDto[]>([]);
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const moveMenuRef = useRef<HTMLDivElement>(null);
+
+  const fetchFolders = async () => {
+    try {
+      const res = await fetchApi<MailFolderDto[]>('/mail-folders');
+      setFolders(res || []);
+    } catch (err) {
+      console.error('편지함 목록 조회 실패:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchFolders();
+    const handleRefresh = () => {
+      fetchFolders();
+    };
+    window.addEventListener('mail:refresh-folders', handleRefresh);
+    return () => {
+      window.removeEventListener('mail:refresh-folders', handleRefresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMoveOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moveMenuRef.current && !moveMenuRef.current.contains(e.target as Node)) {
+        setIsMoveOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMoveOpen]);
+
+  interface FlatFolderItem extends MailFolderDto {
+    depth: number;
+  }
+
+  const flattenedFolders = useMemo(() => {
+    const list: FlatFolderItem[] = [];
+    const walk = (nodes: MailFolderDto[], depth = 0) => {
+      for (const node of nodes) {
+        list.push({ ...node, depth });
+        if (node.children && node.children.length > 0) {
+          walk(node.children, depth + 1);
+        }
+      }
+    };
+    walk(folders);
+    return list;
+  }, [folders]);
+
+  const isCurrentFolder = (f: MailFolderDto) => {
+    if (folderId && f.id === folderId) return true;
+    if (type === 'inbox' && f.type === FolderType.INBOX) return true;
+    if (type === 'sent' && f.type === FolderType.SENT) return true;
+    if (type === 'drafts' && f.type === FolderType.DRAFTS) return true;
+    if (type === 'spam' && f.type === FolderType.SPAM) return true;
+    if (type === 'trash' && f.type === FolderType.TRASH) return true;
+    return false;
+  };
+
+  const getFolderIcon = (folderType: FolderType) => {
+    switch (folderType) {
+      case FolderType.INBOX:
+        return <Inbox className="h-3.5 w-3.5 text-sky-600 shrink-0" />;
+      case FolderType.SENT:
+        return <Send className="h-3.5 w-3.5 text-sky-600 shrink-0" />;
+      case FolderType.DRAFTS:
+        return <FileEdit className="h-3.5 w-3.5 text-amber-600 shrink-0" />;
+      case FolderType.SPAM:
+        return <ShieldAlert className="h-3.5 w-3.5 text-rose-500 shrink-0" />;
+      case FolderType.TRASH:
+        return <Trash2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />;
+      case FolderType.CUSTOM:
+      default:
+        return <Folder className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
+    }
+  };
+
+  const handleBulkMove = async (targetFolder: MailFolderDto) => {
+    if (selectedIds.length === 0) return;
+    setIsMoveOpen(false);
+    try {
+      if (onBulkMove) {
+        await onBulkMove(selectedIds, targetFolder.id);
+      } else {
+        await fetchApi('/mails/bulk-move', {
+          method: 'POST',
+          body: JSON.stringify({
+            ids: selectedIds,
+            targetFolderId: targetFolder.id,
+          }),
+        });
+      }
+      const count = selectedIds.length;
+      setSelectedIds([]);
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      if (onRefresh) {
+        await onRefresh();
+      }
+      alert(`${count}개의 메일을 [${targetFolder.name}] 편지함으로 이동했습니다.`);
+    } catch (err: any) {
+      alert(err.message || '편지함 이동 실패');
+    }
+  };
+
+  const handleBulkPermanentDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (
+      !confirm(
+        `선택한 ${selectedIds.length}개의 메일을 휴지통으로 이동하지 않고 영구히 완전히 삭제하시겠습니까?\n삭제된 메일은 복구할 수 없습니다.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      if (onBulkPermanentDelete) {
+        await onBulkPermanentDelete(selectedIds);
+      } else {
+        await fetchApi('/mails/bulk-delete', {
+          method: 'POST',
+          body: JSON.stringify({
+            ids: selectedIds,
+            permanent: true,
+            folderId,
+          }),
+        });
+      }
+      setSelectedIds([]);
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (err: any) {
+      alert(err.message || '완전 삭제 실패');
+    }
+  };
+
+  const handleBulkDeleteAction = async () => {
+    if (selectedIds.length === 0) return;
+    if (onBulkDelete) {
+      await onBulkDelete(selectedIds);
+      setSelectedIds([]);
+    } else {
+      if (!confirm(`선택한 ${selectedIds.length}개의 메일을 삭제하시겠습니까?`)) return;
+      try {
+        await fetchApi('/mails/bulk-delete', {
+          method: 'POST',
+          body: JSON.stringify({
+            ids: selectedIds,
+            permanent: false,
+            folderId,
+          }),
+        });
+        setSelectedIds([]);
+        window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } catch (err: any) {
+        alert(err.message || '메일 삭제 실패');
+      }
+    }
+  };
+
+  const handleBulkReadAction = async () => {
+    if (selectedIds.length === 0) return;
+    if (onBulkToggleRead) {
+      await onBulkToggleRead(selectedIds, true);
+    } else {
+      try {
+        await Promise.all(
+          selectedIds.map((id) =>
+            fetchApi(`/mails/${id}/read`, {
+              method: 'PATCH',
+              body: JSON.stringify({ isRead: true, folderId }),
+            }),
+          ),
+        );
+        window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } catch (err: any) {
+        alert(err.message || '읽음 처리 실패');
+      }
+    }
+  };
 
   const isSent = type === 'sent';
   const isSpam = type === 'spam';
@@ -227,7 +433,6 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   // Extract display name or local part from email
   const extractPersonInfo = (senderOrRecipients: string) => {
     if (!senderOrRecipients) return { name: '(없음)', address: '' };
-    // Example: "홍길동 <hong@example.com>" or "hong@example.com"
     const match = senderOrRecipients.match(/^(.*?)(?:<(.+?)>)?$/);
     if (match) {
       const name = match[1].trim() || match[2] || senderOrRecipients;
@@ -239,7 +444,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
 
   return (
     <div className="rounded-2xl border border-slate-200/90 bg-white shadow-sm overflow-hidden transition">
-      {/* 1. 상단 툴바: 검색창 (좌) + Copy / Excel / Print 버튼 (우) */}
+      {/* 1. 상단 툴바: 검색창 (좌) + 다중선택 액션군 + Copy / Excel / Print 버튼 (우) */}
       <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white">
         {/* 검색창 */}
         <div className="relative w-full sm:max-w-xs">
@@ -253,32 +458,106 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           />
         </div>
 
-        {/* 우측 유틸리티 버튼군 (Copy, Excel, Print) */}
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        {/* 우측 유틸리티 버튼군 */}
+        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap sm:flex-nowrap">
           {/* 다중 선택 일괄 액션 (선택되었을 때만 표시) */}
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-slate-200">
               <span className="text-xs font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
                 {selectedIds.length}개 선택
               </span>
-              {onBulkToggleRead && (
+
+              {/* 읽음 버튼 */}
+              <button
+                type="button"
+                onClick={handleBulkReadAction}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
+              >
+                읽음
+              </button>
+
+              {/* 이동 버튼 + 드롭다운 */}
+              <div className="relative" ref={moveMenuRef}>
                 <button
                   type="button"
-                  onClick={() => onBulkToggleRead(selectedIds, true)}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
+                  onClick={() => setIsMoveOpen((prev) => !prev)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition inline-flex items-center gap-1"
+                  title="선택한 메일을 다른 편지함으로 이동"
                 >
-                  읽음
+                  <FolderInput className="h-3.5 w-3.5 text-slate-500" />
+                  <span>이동</span>
+                  <ChevronDown className="h-3 w-3 text-slate-400" />
                 </button>
-              )}
-              {onBulkDelete && (
-                <button
-                  type="button"
-                  onClick={() => onBulkDelete(selectedIds)}
-                  className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 shadow-sm hover:bg-rose-100 transition"
-                >
-                  삭제
-                </button>
-              )}
+
+                {isMoveOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-60 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] font-semibold text-slate-400 flex items-center justify-between">
+                      <span>이동할 편지함 선택</span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        {flattenedFolders.length}개 폴더
+                      </span>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto py-1 divide-y divide-slate-50">
+                      {flattenedFolders.length === 0 ? (
+                        <div className="px-4 py-3 text-center text-xs text-slate-400">
+                          편지함을 불러오는 중...
+                        </div>
+                      ) : (
+                        flattenedFolders.map((f) => {
+                          const isCurrent = isCurrentFolder(f);
+                          return (
+                            <button
+                              key={f.id}
+                              type="button"
+                              disabled={isCurrent}
+                              onClick={() => handleBulkMove(f)}
+                              style={{ paddingLeft: `${f.depth * 14 + 12}px` }}
+                              className={`w-full pr-3 py-1.5 text-left text-xs flex items-center justify-between transition ${
+                                isCurrent
+                                  ? 'text-slate-300 cursor-not-allowed bg-slate-50/50'
+                                  : 'text-slate-700 hover:bg-sky-50 hover:text-sky-800'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2 truncate">
+                                {getFolderIcon(f.type)}
+                                <span className={`truncate ${isCurrent ? 'text-slate-400' : ''}`}>
+                                  {f.name}
+                                </span>
+                              </span>
+                              {isCurrent && (
+                                <span className="text-[10px] text-slate-400 font-normal shrink-0 ml-1">
+                                  (현재)
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 삭제 버튼 (기본: 휴지통 이동) */}
+              <button
+                type="button"
+                onClick={handleBulkDeleteAction}
+                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 shadow-sm hover:bg-rose-100 transition"
+                title={type === 'trash' ? '휴지통에서 삭제' : '휴지통으로 이동'}
+              >
+                삭제
+              </button>
+
+              {/* 완전삭제 버튼 (휴지통으로 이동하지 않고 바로 삭제) */}
+              <button
+                type="button"
+                onClick={handleBulkPermanentDelete}
+                className="rounded-lg border border-red-300 bg-red-100/70 px-2.5 py-1.5 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-200/80 transition inline-flex items-center gap-1"
+                title="휴지통으로 이동하지 않고 즉시 영구 삭제"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                <span>완전삭제</span>
+              </button>
             </div>
           )}
 
@@ -446,7 +725,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                       </div>
                     </td>
 
-                    {/* 3. 상태 뱃지 (레퍼런스의 '정상 출근' 스타일 파스텔톤 라운드 뱃지) */}
+                    {/* 3. 상태 뱃지 */}
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       {isSpam ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200">
@@ -554,7 +833,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
         </table>
       </div>
 
-      {/* 3. 하단 페이징 및 카운트 바 (레퍼런스 이미지의 '총 2건 중 1 - 2건 표시' + '< 1 >') */}
+      {/* 3. 하단 페이징 및 카운트 바 */}
       <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
         <div>
           총 <span className="font-semibold text-slate-800">{mails.length}</span>건 중{' '}

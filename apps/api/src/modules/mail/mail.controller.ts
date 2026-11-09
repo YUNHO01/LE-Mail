@@ -44,6 +44,33 @@ export class MailController {
     return this.mailService.saveDraft(user, dto);
   }
 
+  @Post('bulk-delete')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '선택한 메일 일괄 삭제 (일반삭제 또는 영구완전삭제)' })
+  @ApiResponse({ status: 200, description: '일괄 삭제 완료' })
+  bulkDelete(
+    @CurrentUser() user: User,
+    @Body('ids') ids: string[],
+    @Body('permanent') permanent?: boolean,
+    @Body('folderId') folderId?: string,
+  ) {
+    return this.mailService.bulkDelete(user.id, ids || [], folderId, Boolean(permanent));
+  }
+
+  @Post('bulk-move')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '선택한 메일 일괄 편지함 이동' })
+  @ApiResponse({ status: 200, description: '일괄 이동 완료' })
+  bulkMove(
+    @CurrentUser() user: User,
+    @Body('ids') ids: string[],
+    @Body('targetFolderId') targetFolderId: string,
+  ) {
+    return this.mailService.bulkMove(user.id, ids || [], targetFolderId);
+  }
+
   @Get()
   @ApiOperation({ summary: '메일 목록 조회 (페이징, 사서함별, 편지함별, 검색)' })
   @ApiResponse({ status: 200, description: '메일 목록 및 페이징 정보' })
@@ -122,7 +149,7 @@ export class MailController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
-      '메일 삭제 (일반함은 휴지통 이동, 휴지통은 본인 사서함 완전삭제 및 마지막 참조자일 때 물리 파일 삭제)',
+      '메일 삭제 (일반함은 휴지통 이동, permanent=true 또는 휴지통은 완전삭제 및 마지막 참조자일 때 물리 파일 삭제)',
   })
   @ApiParam({ name: 'id', description: '메일 고유 ID' })
   @ApiResponse({ status: 200, description: '삭제/이동 완료' })
@@ -130,9 +157,15 @@ export class MailController {
     @CurrentUser() user: User,
     @Param('id') id: string,
     @Query('folderId') folderId?: string,
+    @Query('permanent') permanent?: string,
   ) {
     if (user && user.id) {
-      return this.mailService.deleteUserMail(user.id, id, folderId);
+      return this.mailService.deleteUserMail(
+        user.id,
+        id,
+        folderId,
+        permanent === 'true' || permanent === '1',
+      );
     }
     return this.mailService.delete(id);
   }

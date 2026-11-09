@@ -162,7 +162,7 @@ export class MailService {
       throw new NotFoundException('대상 편지함을 찾을 수 없습니다.');
     }
 
-    let userMail = await this.userMailRepo.findOne({
+    const userMails = await this.userMailRepo.find({
       where: { userId, messageId },
     });
 
@@ -170,9 +170,9 @@ export class MailService {
     targetFolder.uidnext = nextUid + 1;
     await this.folderRepo.save(targetFolder);
 
-    if (!userMail) {
+    if (userMails.length === 0) {
       // 기존 매핑이 없으면 새로 생성
-      userMail = this.userMailRepo.create({
+      const userMail = this.userMailRepo.create({
         userId,
         messageId,
         folderId: targetFolder.id,
@@ -183,16 +183,35 @@ export class MailService {
         isAnswered: false,
         isDraft: false,
       });
+      const saved = await this.userMailRepo.save(userMail);
+      this.logger.log(
+        `Created and moved mail ${messageId} to folder [${targetFolder.name}] (${targetFolder.id}, UID: ${nextUid}) for user ${userId}`,
+      );
+      return saved;
     } else {
-      userMail.folderId = targetFolder.id;
-      userMail.uid = nextUid;
+      for (const um of userMails) {
+        um.folderId = targetFolder.id;
+        um.uid = nextUid;
+      }
+      const saved = await this.userMailRepo.save(userMails);
+      this.logger.log(
+        `Moved mail ${messageId} to folder [${targetFolder.name}] (${targetFolder.id}, UID: ${nextUid}) for user ${userId}`,
+      );
+      return saved[0];
     }
+  }
 
-    const saved = await this.userMailRepo.save(userMail);
-    this.logger.log(
-      `Moved mail ${messageId} to folder [${targetFolder.name}] (${targetFolder.id}, UID: ${nextUid}) for user ${userId}`,
-    );
-    return saved;
+  async bulkMove(
+    userId: string,
+    messageIds: string[],
+    targetFolderId: string,
+  ) {
+    const results: any[] = [];
+    for (const messageId of messageIds) {
+      const res = await this.moveMail(userId, messageId, targetFolderId);
+      results.push(res);
+    }
+    return { success: true, count: results.length, details: results };
   }
 
   async markRead(
@@ -248,11 +267,16 @@ export class MailService {
   /**
    * 사용자 메일 삭제 처리:
    * 1. 일반 메일함에 있는 경우 -> 휴지통(TRASH)으로 이동 (본인만 이동)
-   * 2. 이미 휴지통에 있는 경우 -> 본인의 user_mail 레코드 완전 삭제
-   * 3. 휴지통에서 완전 삭제 시 다른 사용자의 참조(user_mail)가 아직 남아있으면 파일 및 메일 유지
-   * 4. 마지막 참조자가 휴지통에서 삭제 시 실제 원본 EML 및 첨부파일 디렉토리 완전 삭제(Purge)
+   * 2. 이미 휴지통에 있거나 permanent=true인 경우 -> 본인의 user_mail 레코드 완전 삭제
+   * 3. 삭제 시 다른 사용자의 참조(user_mail)가 아직 남아있으면 파일 및 메일 유지
+   * 4. 마지막 참조자가 삭제 시 실제 원본 EML 및 첨부파일 디렉토리 완전 삭제(Purge)
    */
-  async deleteUserMail(userId: string, messageId: string, folderId?: string) {
+  async deleteUserMail(
+    userId: string,
+    messageId: string,
+    folderId?: string,
+    permanent: boolean = false,
+  ) {
     // 1. 해당 사용자의 휴지통 폴더 확보 (없으면 자동 생성)
     let trashFolder = await this.folderRepo.findOne({
       where: { userId, type: FolderType.TRASH },
@@ -295,8 +319,8 @@ export class MailService {
     // 3. 현재 메일이 휴지통에 있는지 확인
     const allInTrash = userMails.every((um) => um.folderId === trashFolder.id);
 
-    if (!allInTrash) {
-      // [요구사항 1] 일반메일함에서 삭제 시: 휴지통으로 이동 (본인 사서함만 이동)
+    // [완전삭제가 아니며, 휴지통이 아닐 때] -> 휴지통으로 이동
+    if (!permanent && !allInTrash) {
       for (const um of userMails) {
         um.folderId = trashFolder.id;
       }
@@ -307,11 +331,11 @@ export class MailService {
       return { success: true, action: 'moved_to_trash' };
     }
 
-    // [요구사항 2] 휴지통에서 삭제 시: 본인 사서함(user_mail)에서만 완전 삭제
+    // [완전삭제이거나 이미 휴지통에 있는 경우]: 본인 사서함(user_mail)에서만 완전 삭제
     const idsToDelete = userMails.map((um) => um.id);
     await this.userMailRepo.delete({ id: In(idsToDelete) });
     this.logger.log(
-      `[Delete] Permanently removed user_mail for user ${userId}, mail ${messageId}`,
+      `[Delete] Permanently removed user_mail for user ${userId}, mail ${messageId} (permanent=${permanent})`,
     );
 
     // [요구사항 3] 다른 사용자가 아직 참조하고 있는지 확인
@@ -330,7 +354,7 @@ export class MailService {
       };
     }
 
-    // [요구사항 3] 마지막 참조자가 휴지통에서 완전 삭제 시: 실제 물리 파일 및 MailMessage 삭제
+    // [요구사항 4] 마지막 참조자가 삭제 시: 실제 물리 파일 및 MailMessage 삭제
     this.logger.log(
       `[Delete] Mail ${messageId} has 0 remaining references. Purging raw files, attachments, and MailMessage entity.`,
     );
@@ -341,6 +365,20 @@ export class MailService {
       action: 'purged_completely',
       remainingReferences: 0,
     };
+  }
+
+  async bulkDelete(
+    userId: string,
+    messageIds: string[],
+    folderId?: string,
+    permanent: boolean = false,
+  ) {
+    const results: any[] = [];
+    for (const messageId of messageIds) {
+      const res = await this.deleteUserMail(userId, messageId, folderId, permanent);
+      results.push(res);
+    }
+    return { success: true, count: results.length, details: results };
   }
 
   async findOne(id: string, userId?: string, folderId?: string) {

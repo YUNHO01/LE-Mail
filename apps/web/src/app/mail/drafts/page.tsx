@@ -60,6 +60,17 @@ export default function MailDraftsPage() {
     if (!authLoading) {
       loadMails();
     }
+
+    const handleRefresh = () => {
+      loadMails();
+    };
+
+    window.addEventListener('mail:refresh-folders', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('mail:refresh-folders', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, [search, user?.email, isAuthenticated, authLoading]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -129,6 +140,7 @@ export default function MailDraftsPage() {
         onSearchChange={setSearch}
         onDelete={handleDelete}
         onBulkDelete={handleBulkDelete}
+        onRefresh={loadMails}
         emptyMessage="임시보관함이 비어 있습니다."
         emptySubMessage="작성 중인 임시 저장 메일이 없습니다."
       />

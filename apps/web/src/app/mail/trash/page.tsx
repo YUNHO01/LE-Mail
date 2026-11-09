@@ -60,6 +60,17 @@ export default function MailTrashPage() {
     if (!authLoading) {
       loadMails();
     }
+
+    const handleRefresh = () => {
+      loadMails();
+    };
+
+    window.addEventListener('mail:refresh-folders', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('mail:refresh-folders', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, [search, user?.email, isAuthenticated, authLoading]);
 
   const handleDeletePermanent = async (e: React.MouseEvent, id: string) => {
@@ -130,6 +141,7 @@ export default function MailTrashPage() {
         onSearchChange={setSearch}
         onDelete={handleDeletePermanent}
         onBulkDelete={handleBulkDelete}
+        onRefresh={loadMails}
         emptyMessage="휴지통이 비어 있습니다."
         emptySubMessage="삭제된 메일이 없습니다."
       />

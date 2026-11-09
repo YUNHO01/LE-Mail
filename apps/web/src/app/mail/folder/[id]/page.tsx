@@ -74,6 +74,17 @@ export default function FolderMailsPage() {
     if (!authLoading) {
       loadData();
     }
+
+    const handleRefresh = () => {
+      loadData();
+    };
+
+    window.addEventListener('mail:refresh-folders', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('mail:refresh-folders', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, [folderId, search, isAuthenticated, authLoading]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -183,6 +194,7 @@ export default function FolderMailsPage() {
         total={total}
         loading={loading}
         type="folder"
+        folderId={folderId}
         folderName={folderName}
         search={search}
         onSearchChange={setSearch}
@@ -190,6 +202,7 @@ export default function FolderMailsPage() {
         onToggleRead={handleToggleRead}
         onBulkDelete={handleBulkDelete}
         onBulkToggleRead={handleBulkToggleRead}
+        onRefresh={loadData}
         emptyMessage="보관된 메일이 없습니다."
         emptySubMessage="이 편지함으로 이동된 메일이 이곳에 표시됩니다."
       />

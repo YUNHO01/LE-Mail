@@ -14,6 +14,7 @@ export const CAPABILITIES_PLAIN = [
   'ENABLE',
   'UNSELECT',
   'UIDPLUS',
+  'SPECIAL-USE',
 ];
 
 export const CAPABILITIES_SECURE = [
@@ -24,6 +25,7 @@ export const CAPABILITIES_SECURE = [
   'ENABLE',
   'UNSELECT',
   'UIDPLUS',
+  'SPECIAL-USE',
 ];
 
 export const SERVER_NAME = 'LEMail IMAP4rev1 Server Ready';

@@ -164,4 +164,52 @@ export class ImapUtils {
     }
     return tokens;
   }
+
+  /**
+   * Encode Unicode string to IMAP Modified UTF-7 (RFC 3501 Section 5.1.3)
+   */
+  static encodeModifiedUtf7(str: string): string {
+    if (!str) return '';
+    let res = '';
+    let nonAscii = '';
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      if (c >= 0x20 && c <= 0x7e) {
+        if (nonAscii) {
+          const b = Buffer.from(nonAscii, 'utf16le');
+          b.swap16();
+          res += '&' + b.toString('base64').replace(/\//g, ',').replace(/=+$/, '') + '-';
+          nonAscii = '';
+        }
+        if (c === 0x26) {
+          res += '&-';
+        } else {
+          res += str[i];
+        }
+      } else {
+        nonAscii += str[i];
+      }
+    }
+    if (nonAscii) {
+      const b = Buffer.from(nonAscii, 'utf16le');
+      b.swap16();
+      res += '&' + b.toString('base64').replace(/\//g, ',').replace(/=+$/, '') + '-';
+    }
+    return res;
+  }
+
+  /**
+   * Decode IMAP Modified UTF-7 to Unicode string (RFC 3501 Section 5.1.3)
+   */
+  static decodeModifiedUtf7(str: string): string {
+    if (!str) return '';
+    return str.replace(/&([A-Za-z0-9+,]*)-/g, (_match, b64) => {
+      if (b64 === '') return '&';
+      let std = b64.replace(/,/g, '/');
+      while (std.length % 4 !== 0) std += '=';
+      const buf = Buffer.from(std, 'base64');
+      buf.swap16();
+      return buf.toString('utf16le');
+    });
+  }
 }
