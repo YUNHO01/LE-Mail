@@ -2,6 +2,7 @@ Received: (LEMail MTA {pid} invoked for bounce); {date}
 Date: {date}
 From: MAILER-DAEMON@{me}
 To: {to}
+MIME-Version: 1.0
 Auto-Submitted: auto-replied
 Subject: [발송 실패 안내] {subject}
 Message-Id: {msgid}

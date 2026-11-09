@@ -88,7 +88,7 @@ export class ClientSession {
     console.log(`[ClientSession ${this.id}] Welcome banner sent (TLS: ${this.isTls})`);
   }
 
-  write(data: string) {
+  write(data: string | Buffer) {
     if (this.socket.writable) {
       this.socket.write(data);
     }

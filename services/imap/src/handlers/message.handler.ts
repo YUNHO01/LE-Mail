@@ -206,7 +206,7 @@ export class MessageHandler {
         // e.g. * 1 FETCH (FLAGS (\Seen) RFC822.SIZE 1234 BODY[] {1234}\r\n<literal>)
         responseParts.push(`${bodyItemName} {${bodyLiteral.length}}`);
         session.write(`* ${msg.seq} FETCH (${responseParts.join(' ')}\r\n`);
-        session.write(bodyLiteral.toString('utf8'));
+        session.write(bodyLiteral);
         session.write(')\r\n');
       } else {
         session.write(`* ${msg.seq} FETCH (${responseParts.join(' ')})\r\n`);

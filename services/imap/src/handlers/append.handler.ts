@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { simpleParser } from 'mailparser';
+import * as libmime from 'libmime';
 import { DbService } from '../services/db.service';
 import { ClientSession } from '../server/client-session';
 import { ImapResponse } from '../protocol/imap-response';
@@ -51,21 +53,76 @@ export class AppendHandler {
     const targetFilePath = path.join(targetDir, `${mailId}.eml`);
     fs.writeFileSync(targetFilePath, literalData);
 
-    // Parse simple headers from raw EML
-    const rawText = literalData.toString('utf8', 0, Math.min(literalData.length, 8192));
-    const headerEnd = rawText.indexOf('\r\n\r\n');
-    const headerBlock = headerEnd !== -1 ? rawText.substring(0, headerEnd) : rawText;
+    // Parse headers with mailparser for robust multi-encoding support (RFC 2047, KS_C_5601-1987, EUC-KR, UTF-8, etc.)
+    let subject = '(No Subject)';
+    let from = user.email;
+    let messageIdHeader = `<${mailId}@lemail.local>`;
+    const toRecipients: string[] = [];
 
-    const fromMatch = headerBlock.match(/^From:\s*(.+)$/im);
-    const subjectMatch = headerBlock.match(/^Subject:\s*(.+)$/im);
-    const msgIdMatch = headerBlock.match(/^Message-ID:\s*(.+)$/im);
-    const toMatch = headerBlock.match(/^To:\s*(.+)$/im);
+    try {
+      const parsed = await simpleParser(literalData);
+      if (parsed.subject) {
+        subject = parsed.subject.trim();
+      }
+      if (parsed.from && parsed.from.text) {
+        from = parsed.from.text.trim();
+      }
+      if (parsed.messageId) {
+        messageIdHeader = parsed.messageId.trim();
+      }
+      if (parsed.to) {
+        const toList = Array.isArray(parsed.to) ? parsed.to : [parsed.to];
+        for (const t of toList) {
+          if (t.value && Array.isArray(t.value)) {
+            for (const addr of t.value) {
+              if (addr.address) toRecipients.push(addr.address.trim());
+            }
+          } else if (t.text) {
+            toRecipients.push(t.text.trim());
+          }
+        }
+      }
+    } catch (parseErr) {
+      console.warn('[AppendHandler] simpleParser failed, falling back to regex & libmime:', parseErr);
+      const rawText = literalData.toString('utf8', 0, Math.min(literalData.length, 8192));
+      const headerEnd = rawText.indexOf('\r\n\r\n');
+      const headerBlock = headerEnd !== -1 ? rawText.substring(0, headerEnd) : rawText;
 
-    const from = fromMatch ? fromMatch[1].trim() : user.email;
-    const subject = subjectMatch ? subjectMatch[1].trim() : '(No Subject)';
-    const messageIdHeader = msgIdMatch
-      ? msgIdMatch[1].trim()
-      : `<${mailId}@lemail.local>`;
+      const fromMatch = headerBlock.match(/^From:\s*(.+)$/im);
+      const subjectMatch = headerBlock.match(/^Subject:\s*(.+)$/im);
+      const msgIdMatch = headerBlock.match(/^Message-ID:\s*(.+)$/im);
+      const toMatch = headerBlock.match(/^To:\s*(.+)$/im);
+
+      if (subjectMatch) {
+        try {
+          subject = libmime.decodeWords(subjectMatch[1].trim());
+        } catch {
+          subject = subjectMatch[1].trim();
+        }
+      }
+      if (fromMatch) {
+        try {
+          from = libmime.decodeWords(fromMatch[1].trim());
+        } catch {
+          from = fromMatch[1].trim();
+        }
+      }
+      if (msgIdMatch) {
+        messageIdHeader = msgIdMatch[1].trim();
+      }
+      if (toMatch) {
+        toRecipients.push(toMatch[1].trim());
+      }
+    }
+
+    // 만약 파싱된 subject에 여전히 MIME encoded-words (=?...?=)가 남아있다면 재차 디코딩 보장
+    if (subject.includes('=?')) {
+      try {
+        subject = libmime.decodeWords(subject);
+      } catch {
+        // ignore
+      }
+    }
 
     // Flags parsing
     const upperFlags = flagsRaw.toUpperCase();
@@ -83,11 +140,11 @@ export class AppendHandler {
     );
 
     // 2. Insert recipient if present
-    if (toMatch) {
+    for (const toAddr of toRecipients) {
       await DbService.query(
         `INSERT INTO mail_recipient (message_id, type, address)
          VALUES (?, 'TO', ?)`,
-        [mailId, toMatch[1].trim()],
+        [mailId, toAddr],
       );
     }
 

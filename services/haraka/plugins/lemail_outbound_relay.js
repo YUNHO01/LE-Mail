@@ -12,6 +12,15 @@ try {
   // ignore
 }
 
+// 발송 실패(Bounce) 메일 Outlook 한글 인코딩(RFC 2047 / UTF-8) 패치 적용
+try {
+  const path = require('path');
+  const { applyBouncePatch } = require(path.resolve(__dirname, '../patch-bounce'));
+  applyBouncePatch();
+} catch (e) {
+  // ignore
+}
+
 // 사내 로컬 수신자 도메인 정의
 const LOCAL_DOMAINS = new Set([
   'lineedge.com',

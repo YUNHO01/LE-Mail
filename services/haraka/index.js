@@ -27,6 +27,14 @@ if (!fs.existsSync(queueDir)) {
 // Haraka 환경 변수 설정
 process.env.HARAKA = path.resolve(__dirname);
 
+// 발송 실패(Bounce) 메일 Outlook 한글 인코딩(RFC 2047 / UTF-8) 패치 적용
+try {
+  const { applyBouncePatch } = require('./patch-bounce');
+  applyBouncePatch();
+} catch (e) {
+  console.warn('[LEMail Haraka] Failed to initialize bounce patch:', e.message);
+}
+
 try {
   const server = require('Haraka/server');
   console.log('[LEMail Haraka] Starting Haraka Outbound MTA on 127.0.0.1:2526...');

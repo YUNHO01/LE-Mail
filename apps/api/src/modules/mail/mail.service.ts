@@ -19,6 +19,7 @@ import { existsSync, unlinkSync, rmSync, mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { randomUUID } from 'crypto';
 import * as nodemailer from 'nodemailer';
+import * as libmime from 'libmime';
 
 @Injectable()
 export class MailService {
@@ -39,6 +40,16 @@ export class MailService {
     private readonly userRepo: Repository<User>,
     private readonly workerPool: WorkerPoolService,
   ) {}
+
+  decodeMimeWords(str: string | null | undefined): string {
+    if (!str) return '';
+    if (!str.includes('=?')) return str;
+    try {
+      return libmime.decodeWords(str);
+    } catch {
+      return str;
+    }
+  }
 
   async findAll(query: MailQueryDto, currentUserId?: string) {
     const page = Math.max(1, Number(query.page) || 1);
@@ -111,6 +122,7 @@ export class MailService {
         const um = umMap.get(m.id);
         return {
           ...m,
+          subject: this.decodeMimeWords(m.subject),
           uid: um?.uid,
           isRead: um?.isRead ?? false,
           isStarred: um?.isStarred ?? false,
@@ -128,8 +140,13 @@ export class MailService {
       };
     }
 
+    const decodedItems = items.map((m) => ({
+      ...m,
+      subject: this.decodeMimeWords(m.subject),
+    }));
+
     return {
-      items,
+      items: decodedItems,
       total,
       page,
       limit,
@@ -379,6 +396,9 @@ export class MailService {
           text: parsed.text,
           html: parsed.html,
         };
+        if (parsed.subject) {
+          message.subject = parsed.subject;
+        }
       } catch (err) {
         this.logger.warn(`Failed to parse body for mail ${id}: ${err.message}`);
       }
@@ -386,6 +406,7 @@ export class MailService {
 
     return {
       ...message,
+      subject: this.decodeMimeWords(message.subject),
       isRead,
       isStarred,
       body: parsedContent,
