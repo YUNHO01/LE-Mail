@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { fetchApi } from '@/lib/api';
 import { DomainDto } from '@lemail/shared-types';
+import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
 import {
   Globe,
   Plus,
@@ -260,107 +261,65 @@ export default function DomainsPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Globe className="h-6 w-6 text-indigo-600" />
-            <span>도메인 관리</span>
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            메일 수신 및 발송에 사용할 서비스 도메인을 등록하고 DNS 연동 상태를 관리합니다.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition active:scale-95 self-start sm:self-auto"
-        >
-          <Plus className="h-4 w-4" />
-          <span>신규 도메인 등록</span>
-        </button>
-      </div>
+      <PageHeader
+        title="도메인 관리"
+        icon={<Globe className="h-6 w-6 text-sky-600" />}
+        subtitle="메일 수신 및 발송에 사용할 서비스 도메인을 등록하고 DNS 연동 상태를 관리합니다."
+        action={
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>신규 도메인 등록</span>
+          </button>
+        }
+      />
 
       {/* Main Table Container */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white shadow-sm overflow-hidden transition">
-        {/* 상단 툴바: 검색창 + 상태 필터 / 버튼군 */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white">
-          {/* 좌측: 검색창 및 상태 필터 */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:max-w-md">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="도메인명 또는 설명 검색..."
-                className="h-9 w-full rounded-xl border border-slate-200/90 bg-slate-50/70 pl-9 pr-4 text-xs font-normal outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              />
-            </div>
-
+      <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
+        {/* 상단 툴바: 상태 필터 -> 검색창 / 버튼군 */}
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar">
+          {/* 좌측: [상태 필터] -> [검색창] (ams 표준 순서 준수) */}
+          <div className="flex flex-wrap items-center gap-2.5">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="h-9 rounded-xl border border-slate-200/90 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition focus:border-sky-500 shadow-xs"
             >
               <option value="all">모든 상태</option>
               <option value="active">Active (수신 허용)</option>
               <option value="disabled">Disabled (차단)</option>
             </select>
+
+            <div className="w-60">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="도메인명 또는 설명 검색..."
+                size="md"
+              />
+            </div>
           </div>
 
           {/* 우측: 유틸리티 버튼군 */}
           <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-            {/* Copy 버튼 */}
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-              title="현재 목록 클립보드 복사"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-emerald-600" />
-                  <span className="text-emerald-700 font-bold">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
-
-            {/* Excel 버튼 */}
-            <button
-              type="button"
-              onClick={handleExcelExport}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-              title="CSV/Excel 파일로 다운로드"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Excel</span>
-            </button>
-
-            {/* Print 버튼 */}
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-              title="인쇄 미리보기"
-            >
-              <Printer className="h-3.5 w-3.5 text-slate-500" />
-              <span>Print</span>
-            </button>
-
-            {/* 새로고침 버튼 */}
-            <button
-              type="button"
-              onClick={loadDomains}
-              title="새로고침"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            <TableUtilityButtons
+              onCopy={handleCopy}
+              onExcel={handleExcelExport}
+              onPrint={handlePrint}
+              copied={copied}
+              extraActions={
+                <button
+                  type="button"
+                  onClick={loadDomains}
+                  title="새로고침"
+                  className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              }
+            />
           </div>
         </div>
 
@@ -369,22 +328,22 @@ export default function DomainsPage() {
           <table className="w-full border-collapse text-left text-xs">
             {/* 테이블 헤더 */}
             <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-600 font-semibold select-none">
-                <th className="w-10 px-4 py-3.5 text-center">
+              <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+                <th className="w-10 px-4 py-3 text-center">
                   <input
                     type="checkbox"
                     checked={allCurrentSelected}
                     onChange={handleSelectAll}
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
                     title="전체 선택"
                   />
                 </th>
-                <th className="w-28 px-4 py-3.5 whitespace-nowrap">등록일자</th>
-                <th className="px-4 py-3.5 whitespace-nowrap">도메인 정보</th>
-                <th className="w-32 px-4 py-3.5 text-center whitespace-nowrap">연동 사서함</th>
-                <th className="w-32 px-4 py-3.5 text-center whitespace-nowrap">DNS 설정</th>
-                <th className="w-36 px-4 py-3.5 text-center whitespace-nowrap">수신 상태</th>
-                <th className="w-24 px-4 py-3.5 text-right whitespace-nowrap">관리</th>
+                <th className="w-28 px-4 py-3 whitespace-nowrap">등록일자</th>
+                <th className="px-4 py-3 whitespace-nowrap">도메인 정보</th>
+                <th className="w-32 px-4 py-3 text-center whitespace-nowrap">연동 사서함</th>
+                <th className="w-32 px-4 py-3 text-center whitespace-nowrap">DNS 설정</th>
+                <th className="w-36 px-4 py-3 text-center whitespace-nowrap">수신 상태</th>
+                <th className="w-24 px-4 py-3 text-right whitespace-nowrap">관리</th>
               </tr>
             </thead>
 

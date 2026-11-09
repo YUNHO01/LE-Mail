@@ -30,6 +30,7 @@ import {
   IdCard,
 } from 'lucide-react';
 import { UserDto, UserRole, DomainDto } from '@lemail/shared-types';
+import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9200';
 
@@ -518,25 +519,20 @@ export default function UsersManagementPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Users className="h-6 w-6 text-sky-600" />
-            <span>사용자 계정 관리</span>
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            메일 시스템 접속 계정과 사서함 할당량, 언어, 사번 등 조직원 프로필을 관리합니다.
-          </p>
-        </div>
-
-        <button
-          onClick={openCreateModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 transition active:scale-95 self-start sm:self-auto"
-        >
-          <UserPlus className="h-4 w-4" />
-          <span>신규 사용자 등록</span>
-        </button>
-      </div>
+      <PageHeader
+        title="사용자 계정 관리"
+        icon={<Users className="h-6 w-6 text-sky-600" />}
+        subtitle="메일 시스템 접속 계정과 사서함 할당량, 언어, 사번 등 조직원 프로필을 관리합니다."
+        action={
+          <button
+            onClick={openCreateModal}
+            className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>신규 사용자 등록</span>
+          </button>
+        }
+      />
 
       {/* Alert Message Box */}
       {message && (
@@ -565,105 +561,66 @@ export default function UsersManagementPage() {
       )}
 
       {/* Main Table Container */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white shadow-sm overflow-hidden transition">
-        {/* 상단 툴바: 검색창 + 역할 필터 / 유틸리티 버튼군 */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white">
-          {/* 검색 및 필터 */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:max-w-md"
-          >
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="이름, 사번 또는 이메일 검색..."
-                className="h-9 w-full rounded-xl border border-slate-200/90 bg-slate-50/70 pl-9 pr-4 text-xs font-normal outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
-              />
-            </div>
-
+      <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
+        {/* 상단 툴바: 필터 (좌: 역할 -> 검색) / 유틸리티 버튼군 (우) */}
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar">
+          {/* 좌측 필터 그룹: [상태/권한] -> [검색창] (ams 표준 순서 준수) */}
+          <div className="flex flex-wrap items-center gap-2.5">
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="h-9 rounded-xl border border-slate-200/90 bg-slate-50/70 px-3 text-xs text-slate-700 outline-none transition focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition focus:border-sky-500 shadow-xs"
             >
               <option value="">모든 권한</option>
               <option value={UserRole.USER}>일반 사용자</option>
               <option value={UserRole.SYSTEM_ADMIN}>시스템 관리자</option>
             </select>
-          </form>
 
-          {/* 우측 버튼군 */}
+            <div className="w-60">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="이름, 사번 또는 이메일 검색..."
+                size="md"
+              />
+            </div>
+          </div>
+
+          {/* 우측 액션 및 유틸리티 버튼군 */}
           <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
             {/* 선택 삭제 버튼 */}
             {selectedIds.length > 0 && (
-              <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-slate-200">
-                <span className="text-xs font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+              <div className="flex items-center gap-1.5 mr-1 pr-2 border-r border-slate-200">
+                <span className="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
                   {selectedIds.length}명 선택
                 </span>
                 <button
                   type="button"
                   onClick={handleBulkDelete}
-                  className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 shadow-sm hover:bg-rose-100 transition"
+                  className="btn btn-sm btn-secondary text-xs font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
                 >
                   선택 삭제
                 </button>
               </div>
             )}
 
-            {/* Copy 버튼 */}
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-              title="현재 목록 클립보드 복사"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-emerald-600" />
-                  <span className="text-emerald-700 font-bold">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
-
-            {/* Excel 버튼 */}
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-              title="CSV/Excel 파일로 다운로드"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Excel</span>
-            </button>
-
-            {/* Print 버튼 */}
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-              title="인쇄 미리보기"
-            >
-              <Printer className="h-3.5 w-3.5 text-slate-500" />
-              <span>Print</span>
-            </button>
-
-            {/* 새로고침 버튼 */}
-            <button
-              type="button"
-              onClick={fetchUsers}
-              title="새로고침"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            {/* 표준 3종 유틸리티 버튼 (Copy, Excel, Print) */}
+            <TableUtilityButtons
+              onCopy={handleCopy}
+              onExcel={handleExportExcel}
+              onPrint={handlePrint}
+              copied={copied}
+              extraActions={
+                <button
+                  type="button"
+                  onClick={fetchUsers}
+                  title="새로고침"
+                  className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              }
+            />
           </div>
         </div>
 
@@ -671,8 +628,8 @@ export default function UsersManagementPage() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-600 font-semibold select-none">
-                <th className="w-10 px-4 py-3.5 text-center">
+              <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+                <th className="w-10 px-4 py-3 text-center">
                   <input
                     type="checkbox"
                     checked={allCurrentSelected}
@@ -681,14 +638,14 @@ export default function UsersManagementPage() {
                     title="전체 선택"
                   />
                 </th>
-                <th className="w-24 px-4 py-3.5 whitespace-nowrap">등록일자</th>
-                <th className="px-4 py-3.5 whitespace-nowrap">사용자 프로필 (이름/사번/계정)</th>
-                <th className="w-48 px-4 py-3.5 whitespace-nowrap">메일 용량 (사용량 / 사용률)</th>
-                <th className="w-32 px-4 py-3.5 text-center whitespace-nowrap">언어 / 타임존</th>
-                <th className="w-28 px-4 py-3.5 text-center whitespace-nowrap">권한</th>
-                <th className="w-24 px-4 py-3.5 text-center whitespace-nowrap">계정 상태</th>
-                <th className="w-28 px-4 py-3.5 text-center whitespace-nowrap">최종 로그인</th>
-                <th className="w-24 px-4 py-3.5 text-right whitespace-nowrap">관리</th>
+                <th className="w-24 px-4 py-3 whitespace-nowrap">등록일자</th>
+                <th className="px-4 py-3 whitespace-nowrap">사용자 프로필 (이름/사번/계정)</th>
+                <th className="w-48 px-4 py-3 whitespace-nowrap">메일 용량 (사용량 / 사용률)</th>
+                <th className="w-32 px-4 py-3 text-center whitespace-nowrap">언어 / 타임존</th>
+                <th className="w-28 px-4 py-3 text-center whitespace-nowrap">권한</th>
+                <th className="w-24 px-4 py-3 text-center whitespace-nowrap">계정 상태</th>
+                <th className="w-28 px-4 py-3 text-center whitespace-nowrap">최종 로그인</th>
+                <th className="w-24 px-4 py-3 text-right whitespace-nowrap">관리</th>
               </tr>
             </thead>
 

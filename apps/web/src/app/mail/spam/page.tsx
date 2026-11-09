@@ -7,6 +7,7 @@ import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { ShieldAlert, LogIn, AlertCircle } from 'lucide-react';
+import { PageHeader } from '@/components/common';
 import { MailDataTable } from '@/components/mail/MailDataTable';
 
 export default function MailSpamPage() {
@@ -161,16 +162,11 @@ export default function MailSpamPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <ShieldAlert className="h-6 w-6 text-amber-500" />
-          <span>스팸메일함</span>
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          보안 인증(SPF/DKIM/DMARC) 실패 또는 스팸으로 분류된 메일 목록입니다.
-        </p>
-      </div>
+      <PageHeader
+        title="스팸메일함"
+        icon={<ShieldAlert className="h-6 w-6 text-amber-500" />}
+        subtitle="보안 인증(SPF/DKIM/DMARC) 실패 또는 스팸으로 분류된 메일 목록입니다."
+      />
 
       {/* Mail Data Table */}
       <MailDataTable

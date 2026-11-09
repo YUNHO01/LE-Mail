@@ -7,6 +7,7 @@ import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { Inbox, LogIn, AlertCircle } from 'lucide-react';
+import { PageHeader } from '@/components/common';
 import { MailDataTable } from '@/components/mail/MailDataTable';
 
 export default function MailInboxPage() {
@@ -164,17 +165,15 @@ export default function MailInboxPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Inbox className="h-6 w-6 text-sky-600" />
-          <span>받은편지함</span>
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          {user?.name
+      <PageHeader
+        title="받은편지함"
+        icon={<Inbox className="h-6 w-6 text-sky-600" />}
+        subtitle={
+          user?.name
             ? `${user.name}님에게 수신된 메일 목록입니다.`
-            : '수신된 이메일 목록을 열람하고 첨부파일을 다운로드합니다.'}
-        </p>
-      </div>
+            : '수신된 이메일 목록을 열람하고 첨부파일을 다운로드합니다.'
+        }
+      />
 
       {/* Mail Data Table */}
       <MailDataTable

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { fetchApi } from '@/lib/api';
+import { SearchInput, TableUtilityButtons } from '@/components/common';
 import {
   Search,
   Copy,
@@ -443,18 +444,16 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-white shadow-sm overflow-hidden transition">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
       {/* 1. 상단 툴바: 검색창 (좌) + 다중선택 액션군 + Copy / Excel / Print 버튼 (우) */}
-      <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white">
+      <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar">
         {/* 검색창 */}
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
+        <div className="w-full sm:w-64">
+          <SearchInput
             value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={onSearchChange}
             placeholder="사원명, 사번, 부서, 제목 검색..."
-            className="h-9 w-full rounded-xl border border-slate-200/90 bg-slate-50/70 pl-9 pr-4 text-xs font-normal outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
+            size="md"
           />
         </div>
 
@@ -462,8 +461,8 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
         <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap sm:flex-nowrap">
           {/* 다중 선택 일괄 액션 (선택되었을 때만 표시) */}
           {selectedIds.length > 0 && (
-            <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-slate-200">
-              <span className="text-xs font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+            <div className="flex items-center gap-1.5 mr-1 pr-2 border-r border-slate-200">
+              <span className="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
                 {selectedIds.length}개 선택
               </span>
 
@@ -471,7 +470,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
               <button
                 type="button"
                 onClick={handleBulkReadAction}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
+                className="btn btn-sm btn-secondary text-xs font-medium"
               >
                 읽음
               </button>
@@ -481,12 +480,12 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsMoveOpen((prev) => !prev)}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition inline-flex items-center gap-1"
+                  className="btn btn-sm btn-secondary text-xs font-medium inline-flex items-center gap-1"
                   title="선택한 메일을 다른 편지함으로 이동"
                 >
-                  <FolderInput className="h-3.5 w-3.5 text-slate-500" />
+                  <FolderInput className="w-3.5 h-3.5 text-slate-500" />
                   <span>이동</span>
-                  <ChevronDown className="h-3 w-3 text-slate-400" />
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
                 </button>
 
                 {isMoveOpen && (
@@ -542,7 +541,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
               <button
                 type="button"
                 onClick={handleBulkDeleteAction}
-                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 shadow-sm hover:bg-rose-100 transition"
+                className="btn btn-sm btn-secondary text-xs font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
                 title={type === 'trash' ? '휴지통에서 삭제' : '휴지통으로 이동'}
               >
                 삭제
@@ -552,56 +551,22 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
               <button
                 type="button"
                 onClick={handleBulkPermanentDelete}
-                className="rounded-lg border border-red-300 bg-red-100/70 px-2.5 py-1.5 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-200/80 transition inline-flex items-center gap-1"
+                className="btn btn-sm btn-danger text-xs font-medium inline-flex items-center gap-1"
                 title="휴지통으로 이동하지 않고 즉시 영구 삭제"
               >
-                <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                <Trash2 className="w-3.5 h-3.5" />
                 <span>완전삭제</span>
               </button>
             </div>
           )}
 
-          {/* Copy 버튼 */}
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-            title="현재 목록 클립보드 복사"
-          >
-            {copied ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="text-emerald-700 font-bold">Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="h-3.5 w-3.5 text-slate-500" />
-                <span>Copy</span>
-              </>
-            )}
-          </button>
-
-          {/* Excel 버튼 */}
-          <button
-            type="button"
-            onClick={handleExcelExport}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-            title="CSV/Excel 파일로 다운로드"
-          >
-            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Excel</span>
-          </button>
-
-          {/* Print 버튼 */}
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-            title="인쇄 미리보기"
-          >
-            <Printer className="h-3.5 w-3.5 text-slate-500" />
-            <span>Print</span>
-          </button>
+          {/* Table Utility 3종 버튼 (Copy, Excel, Print) */}
+          <TableUtilityButtons
+            onCopy={handleCopy}
+            onExcel={handleExcelExport}
+            onPrint={handlePrint}
+            copied={copied}
+          />
         </div>
       </div>
 
@@ -610,8 +575,8 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
         <table className="w-full border-collapse text-left text-xs">
           {/* 테이블 헤더 */}
           <thead>
-            <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-600 font-semibold select-none">
-              <th className="w-10 px-4 py-3.5 text-center">
+            <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+              <th className="w-10 px-4 py-3 text-center">
                 <input
                   type="checkbox"
                   checked={allCurrentSelected}
@@ -620,17 +585,17 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   title="전체 선택"
                 />
               </th>
-              <th className="w-28 px-4 py-3.5 whitespace-nowrap">일자</th>
-              <th className="w-56 px-4 py-3.5 whitespace-nowrap">
+              <th className="w-28 px-4 py-3 whitespace-nowrap">일자</th>
+              <th className="w-56 px-4 py-3 whitespace-nowrap">
                 {isSent ? '수신 정보' : '사원 정보'}
               </th>
-              <th className="w-24 px-4 py-3.5 text-center whitespace-nowrap">상태</th>
-              <th className="px-4 py-3.5 whitespace-nowrap">제목</th>
-              <th className="w-24 px-4 py-3.5 whitespace-nowrap text-center">
+              <th className="w-24 px-4 py-3 text-center whitespace-nowrap">상태</th>
+              <th className="px-4 py-3 whitespace-nowrap">제목</th>
+              <th className="w-24 px-4 py-3 whitespace-nowrap text-center">
                 {isSent ? '발송 시각' : '수신 시각'}
               </th>
-              <th className="w-48 px-4 py-3.5 whitespace-nowrap">비고</th>
-              <th className="w-20 px-4 py-3.5 text-right whitespace-nowrap">관리</th>
+              <th className="w-48 px-4 py-3 whitespace-nowrap">비고</th>
+              <th className="w-20 px-4 py-3 text-right whitespace-nowrap">관리</th>
             </tr>
           </thead>
 
@@ -867,7 +832,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   onClick={() => setPage(p)}
                   className={`h-7 w-7 rounded-lg text-xs font-semibold transition ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-sm'
+                      ? 'bg-sky-600 text-white shadow-xs'
                       : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                 >

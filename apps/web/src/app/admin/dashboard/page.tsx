@@ -3,7 +3,16 @@
 import React, { useEffect, useState } from 'react';
 import { fetchApi } from '@/lib/api';
 import { SystemOverviewDto } from '@lemail/shared-types';
-import { Activity, Server, Mail, Inbox, AlertTriangle, CheckCircle, RefreshCw, Layers } from 'lucide-react';
+import {
+  Activity,
+  Server,
+  Mail,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+  Layers,
+  Radio,
+} from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState<SystemOverviewDto | null>(null);
@@ -34,7 +43,7 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">시스템 모니터링 대시보드</h1>
-          <p className="text-sm text-slate-500">SMTP 수신 엔진, BullMQ 작업 큐 및 리소스 상태를 실시간 감시합니다.</p>
+          <p className="text-sm text-slate-500">SMTP 수신 엔진, IMAP 세션, BullMQ 작업 큐 및 리소스 상태를 실시간 감시합니다.</p>
         </div>
         <button
           onClick={loadData}
@@ -53,24 +62,56 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1: 수신 메일 총계 */}
+      {/* KPI Cards (5-Column Responsive Grid) */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {/* Card 1: IMAP 활성 연결 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-500">총 수신 메일</span>
+            <span className="text-sm font-medium text-slate-500">IMAP 활성 연결</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+              <Radio className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-slate-900">{data?.imap?.activeConnections ?? 0}</span>
+            <span className="text-xs text-slate-500">세션</span>
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-xs font-medium">
+            {data?.imap?.isHealthy ? (
+              <span className="flex items-center gap-1 text-emerald-600">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                정상 가동 (포트 993/1143)
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-amber-600">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                서비스 오프라인
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Card 2: 금일 수신 메일 */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">금일 수신 메일</span>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
               <Mail className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">{data?.mailSummary.totalMails ?? '-'}</span>
+            <span className="text-2xl font-bold text-slate-900">{data?.todayMails?.todayTotal ?? 0}</span>
             <span className="text-xs text-slate-500">건</span>
           </div>
-          <p className="mt-1 text-xs text-emerald-600 font-medium">정상 처리: {data?.mailSummary.processedMails ?? '-'}</p>
+          <p className="mt-1 text-xs text-emerald-600 font-medium">
+            정상 처리: {data?.todayMails?.todayProcessed ?? 0}건
+            {(data?.todayMails?.todayFailed ?? 0) > 0 && (
+              <span className="text-rose-500 ml-1">(실패 {data?.todayMails?.todayFailed}건)</span>
+            )}
+          </p>
         </div>
 
-        {/* Card 2: 큐 대기/활성 */}
+        {/* Card 3: 큐 대기/활성 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-500">BullMQ 큐 대기열</span>
@@ -85,7 +126,7 @@ export default function AdminDashboardPage() {
           <p className="mt-1 text-xs text-slate-500">진행 중(Active): {data?.queue.counts.active ?? 0}</p>
         </div>
 
-        {/* Card 3: 활성 사서함 수 */}
+        {/* Card 4: 활성 사서함 수 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-500">활성 사서함</span>
@@ -100,7 +141,7 @@ export default function AdminDashboardPage() {
           <p className="mt-1 text-xs text-slate-500">Early Reject $O(1)$ 검증 적용</p>
         </div>
 
-        {/* Card 4: 메모리 사용량 */}
+        {/* Card 5: 메모리 사용량 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-500">Node Heap / RSS</span>

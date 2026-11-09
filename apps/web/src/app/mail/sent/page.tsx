@@ -6,6 +6,7 @@ import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { Send, LogIn, AlertCircle } from 'lucide-react';
+import { PageHeader } from '@/components/common';
 import { MailDataTable } from '@/components/mail/MailDataTable';
 
 export default function MailSentPage() {
@@ -122,15 +123,15 @@ export default function MailSentPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Send className="h-6 w-6 text-sky-600" />
-          <span>보낸편지함</span>
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          {user?.name ? `${user.name}님이 성공적으로 발송한 메일 목록입니다.` : '발송된 메일 목록을 확인합니다.'}
-        </p>
-      </div>
+      <PageHeader
+        title="보낸편지함"
+        icon={<Send className="h-6 w-6 text-sky-600" />}
+        subtitle={
+          user?.name
+            ? `${user.name}님이 성공적으로 발송한 메일 목록입니다.`
+            : '발송된 메일 목록을 확인합니다.'
+        }
+      />
 
       {/* Mail Data Table */}
       <MailDataTable

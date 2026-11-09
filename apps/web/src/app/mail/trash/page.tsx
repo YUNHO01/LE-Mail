@@ -7,6 +7,7 @@ import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { Trash2, LogIn, AlertCircle } from 'lucide-react';
+import { PageHeader } from '@/components/common';
 import { MailDataTable } from '@/components/mail/MailDataTable';
 
 export default function MailTrashPage() {
@@ -120,16 +121,11 @@ export default function MailTrashPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Trash2 className="h-6 w-6 text-slate-600" />
-          <span>휴지통</span>
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          삭제된 메일 목록입니다. 휴지통에서 삭제 시 영구 삭제됩니다.
-        </p>
-      </div>
+      <PageHeader
+        title="휴지통"
+        icon={<Trash2 className="h-6 w-6 text-slate-600" />}
+        subtitle="삭제된 메일 목록입니다. 휴지통에서 삭제 시 영구 삭제됩니다."
+      />
 
       {/* Mail Data Table */}
       <MailDataTable

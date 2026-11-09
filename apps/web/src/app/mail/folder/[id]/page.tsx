@@ -11,6 +11,7 @@ import {
   LogIn,
   AlertCircle,
 } from 'lucide-react';
+import { PageHeader } from '@/components/common';
 import { MailDataTable } from '@/components/mail/MailDataTable';
 
 export default function FolderMailsPage() {
@@ -177,16 +178,11 @@ export default function FolderMailsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <FolderOpen className="h-6 w-6 text-amber-500" />
-          <span>{folderName}</span>
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          {folderName} 편지함에 보관된 메일 목록입니다.
-        </p>
-      </div>
+      <PageHeader
+        title={folderName}
+        icon={<FolderOpen className="h-6 w-6 text-amber-500" />}
+        subtitle={`${folderName} 편지함에 보관된 메일 목록입니다.`}
+      />
 
       {/* Mail Data Table */}
       <MailDataTable

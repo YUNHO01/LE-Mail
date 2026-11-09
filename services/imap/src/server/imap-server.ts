@@ -3,6 +3,7 @@ import * as tls from 'tls';
 import { ImapServerConfig } from '../config/imap-config';
 import { TlsManager, TlsCredentials } from './tls-manager';
 import { ClientSession } from './client-session';
+import { RedisService } from '../services/redis.service';
 
 export class ImapServer {
   private config: ImapServerConfig;
@@ -10,6 +11,7 @@ export class ImapServer {
   private tlsServer?: tls.Server;
   private tlsCredentials?: TlsCredentials;
   private activeSessions = new Map<string, ClientSession>();
+  private metricsInterval?: NodeJS.Timeout;
 
   constructor(config: ImapServerConfig) {
     this.config = config;
@@ -22,9 +24,23 @@ export class ImapServer {
     );
 
     await Promise.all([this.startPlainServer(), this.startTlsServer()]);
+    this.startMetricsReporter();
     console.log(
       `[ImapServer] LEMail IMAP services started successfully: Plain/STARTTLS on port ${this.config.port}, IMAPS on port ${this.config.securePort}`,
     );
+  }
+
+  private startMetricsReporter(): void {
+    this.reportMetrics();
+    this.metricsInterval = setInterval(() => {
+      this.reportMetrics();
+    }, 5000);
+  }
+
+  private reportMetrics(): void {
+    RedisService.publishMetrics(this.activeSessions.size, this.config.maxConnections).catch((err) => {
+      console.warn(`[ImapServer] Failed to report metrics: ${err.message}`);
+    });
   }
 
   private startPlainServer(): Promise<void> {
@@ -110,15 +126,23 @@ export class ImapServer {
       this.tlsCredentials,
       () => {
         this.activeSessions.delete(session.id);
+        this.reportMetrics();
       },
     );
 
     this.activeSessions.set(session.id, session);
+    this.reportMetrics();
     session.sendWelcome();
   }
 
   async stop(): Promise<void> {
     console.log('[ImapServer] Shutting down IMAP server...');
+    if (this.metricsInterval) {
+      clearInterval(this.metricsInterval);
+      this.metricsInterval = undefined;
+    }
+    await RedisService.clearMetrics();
+
     for (const [, session] of this.activeSessions) {
       session.write('* BYE Server shutting down\r\n');
     }
@@ -141,6 +165,7 @@ export class ImapServer {
     });
 
     await Promise.all([closePlain, closeTls]);
+    await RedisService.close();
     console.log('[ImapServer] IMAP server stopped cleanly.');
   }
 

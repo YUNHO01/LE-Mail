@@ -20,8 +20,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
             <div className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
                 <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-                <main className="flex-1 px-4 sm:px-6 py-6 w-full">
-                    <div className="w-full">{children}</div>
+                <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8 w-full">
+                    <div className="w-full space-y-6">{children}</div>
                 </main>
             </div>
         </div>

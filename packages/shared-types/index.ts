@@ -227,6 +227,18 @@ export interface QueueCounts {
   delayed: number;
 }
 
+export interface ImapStatsDto {
+  activeConnections: number;
+  maxConnections: number;
+  isHealthy: boolean;
+}
+
+export interface TodayMailStatsDto {
+  todayTotal: number;
+  todayProcessed: number;
+  todayFailed: number;
+}
+
 export interface SystemOverviewDto {
   uptimeSeconds: number;
   memory: {
@@ -239,10 +251,12 @@ export interface SystemOverviewDto {
     isPaused: boolean;
     counts: QueueCounts;
   };
+  imap: ImapStatsDto;
+  todayMails: TodayMailStatsDto;
   mailSummary: {
-    totalMails: number;
-    processedMails: number;
-    failedMails: number;
+    totalMails?: number;
+    processedMails?: number;
+    failedMails?: number;
     activeMailboxes: number;
   };
 }

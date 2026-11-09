@@ -11,7 +11,27 @@ export type MailboxEventListener = (event: {
 
 export class RedisService {
   private static subscriber: Redis | null = null;
+  private static client: Redis | null = null;
   private static listeners = new Map<string, Set<MailboxEventListener>>();
+
+  static getClient(): Redis {
+    if (!this.client) {
+      const host = process.env.REDIS_HOST || '127.0.0.1';
+      const port = parseInt(process.env.REDIS_PORT || '6379', 10);
+      const password = process.env.REDIS_PASSWORD || undefined;
+
+      this.client = new Redis({
+        host,
+        port,
+        password,
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+      });
+
+      console.log('[RedisService] Redis Command client initialized.');
+    }
+    return this.client;
+  }
 
   static getSubscriber(): Redis {
     if (!this.subscriber) {
@@ -83,12 +103,51 @@ export class RedisService {
     }
   }
 
+  static async publishMetrics(activeSessions: number, maxConnections: number): Promise<void> {
+    try {
+      const client = this.getClient();
+      if (client.status !== 'ready' && client.status !== 'connecting') {
+        await client.connect().catch((err) => {
+          console.warn(`[RedisService] Redis connect error: ${err.message}`);
+        });
+      }
+      await client
+        .pipeline()
+        .set('imap:stats:active_connections', activeSessions.toString())
+        .set('imap:stats:max_connections', maxConnections.toString())
+        .set('imap:stats:heartbeat', Date.now().toString(), 'EX', 15)
+        .exec();
+    } catch (err: any) {
+      console.warn(`[RedisService] Failed to publish metrics: ${err.message}`);
+    }
+  }
+
+  static async clearMetrics(): Promise<void> {
+    try {
+      const client = this.getClient();
+      if (client.status === 'ready') {
+        await client
+          .pipeline()
+          .set('imap:stats:active_connections', '0')
+          .del('imap:stats:heartbeat')
+          .exec();
+      }
+    } catch (err: any) {
+      console.warn(`[RedisService] Failed to clear metrics: ${err.message}`);
+    }
+  }
+
   static async close(): Promise<void> {
     if (this.subscriber) {
       await this.subscriber.quit().catch(() => {});
       this.subscriber = null;
       this.listeners.clear();
       console.log('[RedisService] Redis Pub/Sub client closed.');
+    }
+    if (this.client) {
+      await this.client.quit().catch(() => {});
+      this.client = null;
+      console.log('[RedisService] Redis Command client closed.');
     }
   }
 }

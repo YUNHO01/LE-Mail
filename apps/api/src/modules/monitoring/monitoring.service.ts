@@ -1,15 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
+import Redis from 'ioredis';
 import { INBOUND_MAIL_QUEUE_NAME } from '../queue/interfaces/inbound-mail.interface';
 import { MailMessage, MailStatus } from '../database/entities/mail-message.entity';
 import { Mailbox } from '../database/entities/mailbox.entity';
+import { SystemOverviewDto, ImapStatsDto, QueueCounts } from '@lemail/shared-types';
 
 @Injectable()
-export class MonitoringService {
+export class MonitoringService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(MonitoringService.name);
+  private redisClient: Redis | null = null;
+
   constructor(
+    private readonly configService: ConfigService,
     @InjectQueue(INBOUND_MAIL_QUEUE_NAME)
     private readonly inboundQueue: Queue,
     @InjectRepository(MailMessage)
@@ -17,6 +24,26 @@ export class MonitoringService {
     @InjectRepository(Mailbox)
     private readonly mailboxRepo: Repository<Mailbox>,
   ) {}
+
+  onModuleInit() {
+    const redisHost = this.configService.get<string>('redis.host') || '127.0.0.1';
+    const redisPort = this.configService.get<number>('redis.port') || 6379;
+    const redisPassword = this.configService.get<string>('redis.password') || undefined;
+
+    this.redisClient = new Redis({
+      host: redisHost,
+      port: redisPort,
+      password: redisPassword,
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+    });
+  }
+
+  async onModuleDestroy() {
+    if (this.redisClient) {
+      await this.redisClient.quit().catch(() => {});
+    }
+  }
 
   async getQueueStats() {
     const jobCounts = await this.inboundQueue.getJobCounts(
@@ -29,16 +56,80 @@ export class MonitoringService {
 
     const isPaused = await this.inboundQueue.isPaused();
 
+    const counts: QueueCounts = {
+      waiting: jobCounts.waiting || 0,
+      active: jobCounts.active || 0,
+      completed: jobCounts.completed || 0,
+      failed: jobCounts.failed || 0,
+      delayed: jobCounts.delayed || 0,
+    };
+
     return {
       queueName: INBOUND_MAIL_QUEUE_NAME,
       isPaused,
-      counts: jobCounts,
+      counts,
     };
   }
 
-  async getSystemOverview() {
+  async getSystemOverview(): Promise<SystemOverviewDto> {
     const queueStats = await this.getQueueStats();
 
+    // 1. IMAP 실시간 메트릭 및 Heartbeat 확인 (Redis 조회)
+    let imapStats: ImapStatsDto = {
+      activeConnections: 0,
+      maxConnections: 1000,
+      isHealthy: false,
+    };
+
+    if (this.redisClient) {
+      try {
+        if (this.redisClient.status !== 'ready' && this.redisClient.status !== 'connecting') {
+          await this.redisClient.connect().catch((err) => {
+            this.logger.warn(`Redis connect error: ${err.message}`);
+          });
+        }
+
+        const [activeConnStr, maxConnStr, heartbeatStr] = await this.redisClient.mget(
+          'imap:stats:active_connections',
+          'imap:stats:max_connections',
+          'imap:stats:heartbeat',
+        );
+
+        const isHealthy =
+          !!heartbeatStr && Date.now() - parseInt(heartbeatStr, 10) < 15000;
+        imapStats = {
+          activeConnections: isHealthy ? parseInt(activeConnStr || '0', 10) : 0,
+          maxConnections: parseInt(maxConnStr || '1000', 10),
+          isHealthy,
+        };
+      } catch (err: any) {
+        this.logger.warn(`Failed to fetch IMAP metrics from Redis: ${err.message}`);
+      }
+    }
+
+    // 2. 금일(00:00 이후) 메일 수신 통계 집계
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [todayTotal, todayProcessed, todayFailed] = await Promise.all([
+      this.messageRepo.count({
+        where: { createdAt: MoreThanOrEqual(todayStart) },
+      }),
+      this.messageRepo.count({
+        where: {
+          status: MailStatus.PROCESSED,
+          createdAt: MoreThanOrEqual(todayStart),
+        },
+      }),
+      this.messageRepo.count({
+        where: {
+          status: MailStatus.FAILED,
+          createdAt: MoreThanOrEqual(todayStart),
+        },
+      }),
+    ]);
+
+    // 3. 기존 메일박스 및 전체 통계 (하위 호환성 유지)
     const [totalMails, processedMails, failedMails] = await Promise.all([
       this.messageRepo.count(),
       this.messageRepo.count({ where: { status: MailStatus.PROCESSED } }),
@@ -59,6 +150,12 @@ export class MonitoringService {
         heapTotalMb: Math.round(memoryUsage.heapTotal / 1024 / 1024),
       },
       queue: queueStats,
+      imap: imapStats,
+      todayMails: {
+        todayTotal,
+        todayProcessed,
+        todayFailed,
+      },
       mailSummary: {
         totalMails,
         processedMails,

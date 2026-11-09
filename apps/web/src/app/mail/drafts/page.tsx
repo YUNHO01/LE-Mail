@@ -7,6 +7,7 @@ import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { FileEdit, LogIn, AlertCircle } from 'lucide-react';
+import { PageHeader } from '@/components/common';
 import { MailDataTable } from '@/components/mail/MailDataTable';
 
 export default function MailDraftsPage() {
@@ -119,16 +120,11 @@ export default function MailDraftsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <FileEdit className="h-6 w-6 text-sky-600" />
-          <span>임시보관함</span>
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          작성 중 임시 저장된 메일 목록입니다.
-        </p>
-      </div>
+      <PageHeader
+        title="임시보관함"
+        icon={<FileEdit className="h-6 w-6 text-sky-600" />}
+        subtitle="작성 중 임시 저장된 메일 목록입니다."
+      />
 
       {/* Mail Data Table */}
       <MailDataTable
