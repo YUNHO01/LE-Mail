@@ -16,7 +16,7 @@ import { SendMailDto } from './dto/send-mail.dto';
 import { SaveDraftDto } from './dto/save-draft.dto';
 import { WorkerPoolService } from '../worker-pool/worker-pool.service';
 import { existsSync, unlinkSync, rmSync, mkdirSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { randomUUID } from 'crypto';
 import * as nodemailer from 'nodemailer';
 import * as libmime from 'libmime';
@@ -551,8 +551,10 @@ export class MailService {
     const year = String(now.getFullYear());
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    const archiveBaseDir =
-      process.env.MAIL_ARCHIVE_DIR || join(process.cwd(), 'mail-archive');
+    const archiveBaseDir = resolve(
+      process.cwd(),
+      process.env.MAIL_ARCHIVE_DIR || 'mail-archive',
+    );
     const archiveDir = join(archiveBaseDir, year, month, day);
     if (!existsSync(archiveDir)) {
       mkdirSync(archiveDir, { recursive: true });
@@ -579,8 +581,10 @@ export class MailService {
     // 첨부파일 준비 (년/월/일 계층 구조로 저장)
     const attEntities: MailAttachment[] = [];
     if (dto.attachments && dto.attachments.length > 0) {
-      const attBaseDir =
-        process.env.MAIL_ATTACHMENT_DIR || join(process.cwd(), 'mail-attachments');
+      const attBaseDir = resolve(
+        process.cwd(),
+        process.env.MAIL_ATTACHMENT_DIR || 'mail-attachments',
+      );
       const attDir = join(attBaseDir, year, month, day, mailId);
       if (!existsSync(attDir)) {
         mkdirSync(attDir, { recursive: true });
@@ -874,8 +878,10 @@ export class MailService {
     const year = String(now.getFullYear());
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    const archiveBaseDir =
-      process.env.MAIL_ARCHIVE_DIR || join(process.cwd(), 'mail-archive');
+    const archiveBaseDir = resolve(
+      process.cwd(),
+      process.env.MAIL_ARCHIVE_DIR || 'mail-archive',
+    );
     const archiveDir = join(archiveBaseDir, year, month, day);
     if (!existsSync(archiveDir)) {
       mkdirSync(archiveDir, { recursive: true });

@@ -16,7 +16,63 @@ export interface FolderRow {
   uidnext: number;
 }
 
+export interface EnrichedFolder extends FolderRow {
+  fullPath: string;
+  encodedPath: string;
+  hasChildren: boolean;
+}
+
 export class FolderHandler {
+  /**
+   * Build hierarchical enriched folders with full path and hasChildren flags
+   */
+  static getEnrichedFolders(folders: FolderRow[]): EnrichedFolder[] {
+    const folderMap = new Map<string, FolderRow>();
+    const childrenMap = new Map<string, FolderRow[]>();
+
+    for (const f of folders) {
+      folderMap.set(f.id, f);
+      if (f.parent_id) {
+        const list = childrenMap.get(f.parent_id) || [];
+        list.push(f);
+        childrenMap.set(f.parent_id, list);
+      }
+    }
+
+    const getPathSegments = (folder: FolderRow): string[] => {
+      const segments: string[] = [];
+      let curr: FolderRow | undefined = folder;
+      const visited = new Set<string>();
+
+      while (curr && !visited.has(curr.id)) {
+        visited.add(curr.id);
+        if (curr.type === 'INBOX') {
+          segments.unshift('INBOX');
+        } else {
+          segments.unshift(curr.name);
+        }
+        curr = curr.parent_id ? folderMap.get(curr.parent_id) : undefined;
+      }
+      return segments;
+    };
+
+    return folders.map((f) => {
+      const segments = getPathSegments(f);
+      const fullPath = segments.join('/');
+      const encodedPath = segments
+        .map((seg) => (seg === 'INBOX' ? 'INBOX' : ImapUtils.encodeModifiedUtf7(seg)))
+        .join('/');
+      const hasChildren = (childrenMap.get(f.id)?.length || 0) > 0;
+
+      return {
+        ...f,
+        fullPath,
+        encodedPath,
+        hasChildren,
+      };
+    });
+  }
+
   static async resolveFolder(userId: string, mailboxName: string): Promise<FolderRow | null> {
     const rawClean = mailboxName.replace(/^["']|["']$/g, '').trim();
     const decodedName = ImapUtils.decodeModifiedUtf7(rawClean).trim();
@@ -70,16 +126,39 @@ export class FolderHandler {
       if (folders && folders.length > 0) return folders[0];
     }
 
-    // Lookup by exact or normalized name (both raw and decoded)
-    const folders = await DbService.query<FolderRow[]>(
-      `SELECT * FROM mail_folder 
-       WHERE user_id = ? 
-         AND (name = ? OR LOWER(name) = LOWER(?) OR name = ? OR LOWER(name) = LOWER(?)) 
-       LIMIT 1`,
-      [userId, decodedName, decodedName, rawClean, rawClean],
+    // Load all user folders and match fullPath, encodedPath, or leaf name
+    const allFolders = await DbService.query<FolderRow[]>(
+      'SELECT * FROM mail_folder WHERE user_id = ?',
+      [userId],
     );
+    const enriched = this.getEnrichedFolders(allFolders);
 
-    return folders && folders.length > 0 ? folders[0] : null;
+    // 1. Exact match on fullPath or encodedPath
+    for (const f of enriched) {
+      if (
+        f.fullPath.toLowerCase() === decodedName.toLowerCase() ||
+        f.encodedPath.toLowerCase() === rawClean.toLowerCase() ||
+        f.encodedPath.toLowerCase() === decodedName.toLowerCase()
+      ) {
+        return f;
+      }
+    }
+
+    // 2. Leaf name match
+    const leafName = decodedName.includes('/')
+      ? decodedName.substring(decodedName.lastIndexOf('/') + 1).trim()
+      : decodedName;
+
+    for (const f of enriched) {
+      if (
+        f.name.toLowerCase() === leafName.toLowerCase() ||
+        f.name.toLowerCase() === decodedName.toLowerCase()
+      ) {
+        return f;
+      }
+    }
+
+    return null;
   }
 
   static async handleList(
@@ -87,6 +166,7 @@ export class FolderHandler {
     tag: string,
     reference = '',
     pattern = '*',
+    isSpecialUse = false,
   ): Promise<void> {
     const user = session.getUser();
     if (!user) {
@@ -94,10 +174,11 @@ export class FolderHandler {
       return;
     }
 
-    const cleanPattern = pattern.replace(/^["']|["']$/g, '');
+    const cleanRef = reference.replace(/^["']|["']$/g, '').trim();
+    const cleanPattern = pattern.replace(/^["']|["']$/g, '').trim();
 
     // Delimiter query: LIST "" ""
-    if (cleanPattern === '') {
+    if (cleanRef === '' && cleanPattern === '') {
       session.write('* LIST (\\Noselect) "/" ""\r\n');
       session.write(ImapResponse.tagged(tag, 'OK', 'LIST completed'));
       return;
@@ -108,11 +189,28 @@ export class FolderHandler {
       [user.id],
     );
 
-    for (const f of folders) {
-      const displayName = this.getFolderDisplayName(f);
-      const attributes = this.getFolderAttributes(f);
+    const enriched = this.getEnrichedFolders(folders);
 
-      session.write(`* LIST (${attributes.join(' ')}) "/" "${displayName}"\r\n`);
+    for (const f of enriched) {
+      // In SPECIAL-USE only request (RFC 6154), return only mailboxes with special-use attributes
+      if (isSpecialUse && f.type === 'CUSTOM') {
+        continue;
+      }
+
+      const decodedRef = ImapUtils.decodeModifiedUtf7(cleanRef);
+      const decodedPattern = ImapUtils.decodeModifiedUtf7(cleanPattern);
+
+      const matches =
+        cleanPattern === '*' ||
+        cleanPattern === '' ||
+        this.matchesPattern(f.fullPath, decodedPattern, decodedRef) ||
+        this.matchesPattern(f.encodedPath, cleanPattern, cleanRef) ||
+        this.matchesPattern(f.fullPath, cleanPattern, cleanRef);
+
+      if (!matches) continue;
+
+      const attributes = this.getFolderAttributes(f);
+      session.write(`* LIST (${attributes.join(' ')}) "/" "${f.encodedPath}"\r\n`);
     }
 
     session.write(ImapResponse.tagged(tag, 'OK', 'LIST completed'));
@@ -123,6 +221,7 @@ export class FolderHandler {
     tag: string,
     reference = '',
     pattern = '*',
+    isSpecialUse = false,
   ): Promise<void> {
     const user = session.getUser();
     if (!user) {
@@ -130,8 +229,10 @@ export class FolderHandler {
       return;
     }
 
-    const cleanPattern = pattern.replace(/^["']|["']$/g, '');
-    if (cleanPattern === '') {
+    const cleanRef = reference.replace(/^["']|["']$/g, '').trim();
+    const cleanPattern = pattern.replace(/^["']|["']$/g, '').trim();
+
+    if (cleanRef === '' && cleanPattern === '') {
       session.write('* LSUB (\\Noselect) "/" ""\r\n');
       session.write(ImapResponse.tagged(tag, 'OK', 'LSUB completed'));
       return;
@@ -142,10 +243,27 @@ export class FolderHandler {
       [user.id],
     );
 
-    for (const f of folders) {
-      const displayName = this.getFolderDisplayName(f);
+    const enriched = this.getEnrichedFolders(folders);
+
+    for (const f of enriched) {
+      if (isSpecialUse && f.type === 'CUSTOM') {
+        continue;
+      }
+
+      const decodedRef = ImapUtils.decodeModifiedUtf7(cleanRef);
+      const decodedPattern = ImapUtils.decodeModifiedUtf7(cleanPattern);
+
+      const matches =
+        cleanPattern === '*' ||
+        cleanPattern === '' ||
+        this.matchesPattern(f.fullPath, decodedPattern, decodedRef) ||
+        this.matchesPattern(f.encodedPath, cleanPattern, cleanRef) ||
+        this.matchesPattern(f.fullPath, cleanPattern, cleanRef);
+
+      if (!matches) continue;
+
       const attributes = this.getFolderAttributes(f);
-      session.write(`* LSUB (${attributes.join(' ')}) "/" "${displayName}"\r\n`);
+      session.write(`* LSUB (${attributes.join(' ')}) "/" "${f.encodedPath}"\r\n`);
     }
 
     session.write(ImapResponse.tagged(tag, 'OK', 'LSUB completed'));
@@ -293,13 +411,27 @@ export class FolderHandler {
       return;
     }
 
+    let parentId: string | null = null;
+    let folderLeafName = decodedName;
+
+    if (decodedName.includes('/')) {
+      const lastSlash = decodedName.lastIndexOf('/');
+      const parentPath = decodedName.substring(0, lastSlash).trim();
+      folderLeafName = decodedName.substring(lastSlash + 1).trim();
+
+      const parentFolder = await this.resolveFolder(user.id, parentPath);
+      if (parentFolder) {
+        parentId = parentFolder.id;
+      }
+    }
+
     const folderId = randomUUID();
     const nowSeconds = Math.floor(Date.now() / 1000);
 
     await DbService.query(
       `INSERT INTO mail_folder (id, user_id, parent_id, name, type, sort_order, is_system, uidvalidity, uidnext, created_at, updated_at)
-       VALUES (?, ?, NULL, ?, 'CUSTOM', 10, 0, ?, 1, NOW(), NOW())`,
-      [folderId, user.id, decodedName, nowSeconds],
+       VALUES (?, ?, ?, ?, 'CUSTOM', 10, 0, ?, 1, NOW(), NOW())`,
+      [folderId, user.id, parentId, folderLeafName, nowSeconds],
     );
 
     session.write(ImapResponse.tagged(tag, 'OK', 'CREATE completed'));
@@ -356,12 +488,46 @@ export class FolderHandler {
 
     const cleanNewName = newName.replace(/^["']|["']$/g, '').trim();
     const decodedNewName = ImapUtils.decodeModifiedUtf7(cleanNewName).trim();
+    const newLeafName = decodedNewName.includes('/')
+      ? decodedNewName.substring(decodedNewName.lastIndexOf('/') + 1).trim()
+      : decodedNewName;
+
     await DbService.query('UPDATE mail_folder SET name = ?, updated_at = NOW() WHERE id = ?', [
-      decodedNewName,
+      newLeafName,
       folder.id,
     ]);
 
     session.write(ImapResponse.tagged(tag, 'OK', 'RENAME completed'));
+  }
+
+  private static matchesPattern(folderPath: string, pattern: string, reference = ''): boolean {
+    if (!pattern && !reference) return false;
+
+    let fullPattern = pattern;
+    if (reference) {
+      if (reference.endsWith('/')) {
+        fullPattern = reference + pattern;
+      } else {
+        fullPattern = reference + '/' + pattern;
+      }
+    }
+
+    if (fullPattern === '*' || fullPattern === '%*' || fullPattern === '%') {
+      if (fullPattern === '%') {
+        return !folderPath.includes('/');
+      }
+      return true;
+    }
+
+    const regexStr =
+      '^' +
+      fullPattern
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*')
+        .replace(/%/g, '[^/]*') +
+      '$';
+
+    return new RegExp(regexStr, 'i').test(folderPath);
   }
 
   private static getFolderDisplayName(folder: FolderRow): string {
@@ -381,8 +547,8 @@ export class FolderHandler {
     }
   }
 
-  private static getFolderAttributes(folder: FolderRow): string[] {
-    const attrs: string[] = ['\\HasNoChildren'];
+  private static getFolderAttributes(folder: EnrichedFolder): string[] {
+    const attrs: string[] = folder.hasChildren ? ['\\HasChildren'] : ['\\HasNoChildren'];
     switch (folder.type) {
       case 'SENT':
         attrs.unshift('\\Sent');

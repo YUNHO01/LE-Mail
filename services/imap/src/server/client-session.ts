@@ -306,17 +306,15 @@ export class ClientSession {
       // --- Mailbox / Folders (Requires Authentication) ---
       case 'LIST': {
         if (!this.requireAuth(tag)) break;
-        const ref = this.getAttrString(attrs, 0, '');
-        const pat = this.getAttrString(attrs, 1, '*');
-        await FolderHandler.handleList(this, tag, ref, pat);
+        const { ref, pat, isSpecialUse } = this.parseListParameters(attrs);
+        await FolderHandler.handleList(this, tag, ref, pat, isSpecialUse);
         break;
       }
 
       case 'LSUB': {
         if (!this.requireAuth(tag)) break;
-        const ref = this.getAttrString(attrs, 0, '');
-        const pat = this.getAttrString(attrs, 1, '*');
-        await FolderHandler.handleLsub(this, tag, ref, pat);
+        const { ref, pat, isSpecialUse } = this.parseListParameters(attrs);
+        await FolderHandler.handleLsub(this, tag, ref, pat, isSpecialUse);
         break;
       }
 
@@ -585,6 +583,33 @@ export class ClientSession {
       }
       return trimmed;
     });
+  }
+
+  private parseListParameters(attrs: any[]): { ref: string; pat: string; isSpecialUse: boolean } {
+    let isSpecialUse = false;
+    let refIdx = 0;
+    let patIdx = 1;
+
+    if (attrs && attrs.length >= 3) {
+      const first = attrs[0];
+      const firstStr = (typeof first === 'string' ? first : first?.value || '').toString().trim();
+      if (
+        firstStr.startsWith('(') ||
+        Array.isArray(first) ||
+        Array.isArray(first?.value) ||
+        firstStr.toUpperCase().includes('SPECIAL-USE')
+      ) {
+        isSpecialUse = firstStr.toUpperCase().includes('SPECIAL-USE');
+        refIdx = 1;
+        patIdx = 2;
+      }
+    }
+
+    return {
+      ref: this.getAttrString(attrs, refIdx, ''),
+      pat: this.getAttrString(attrs, patIdx, '*'),
+      isSpecialUse,
+    };
   }
 
   private handleCapability(tag: string) {

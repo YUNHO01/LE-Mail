@@ -14,8 +14,10 @@ import { ParsedMailResult } from './mail-parser.worker';
 export class WorkerPoolService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WorkerPoolService.name);
   private pool: Piscina;
-  private readonly attachmentDir =
-    process.env.MAIL_ATTACHMENT_DIR || './mail-attachments';
+  private readonly attachmentDir = resolve(
+    process.cwd(),
+    process.env.MAIL_ATTACHMENT_DIR || 'mail-attachments',
+  );
 
   onModuleInit() {
     if (!existsSync(this.attachmentDir)) {
