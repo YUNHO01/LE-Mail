@@ -49,6 +49,7 @@ export interface MailDataTableProps {
   onRefresh?: () => void | Promise<void>;
   emptyMessage?: string;
   emptySubMessage?: string;
+  searchPlaceholder?: string;
 }
 
 export const MailDataTable: React.FC<MailDataTableProps> = ({
@@ -69,6 +70,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   onRefresh,
   emptyMessage = '메일이 없습니다.',
   emptySubMessage,
+  searchPlaceholder,
 }) => {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -443,6 +445,10 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     return { name: senderOrRecipients, address: '' };
   };
 
+  const effectivePlaceholder =
+    searchPlaceholder ||
+    (isSent || isDraft ? '수신자, 제목 검색...' : '보낸사람, 제목 검색...');
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
       {/* 1. 상단 툴바: 검색창 (좌) + 다중선택 액션군 + Copy / Excel / Print 버튼 (우) */}
@@ -452,7 +458,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           <SearchInput
             value={search}
             onChange={onSearchChange}
-            placeholder="사원명, 사번, 부서, 제목 검색..."
+            placeholder={effectivePlaceholder}
             size="md"
           />
         </div>

@@ -59,7 +59,7 @@ export const TableUtilityButtons: React.FC<TableUtilityButtonsProps> = ({
           type="button"
           onClick={onCopy}
           disabled={isCopyDisabled}
-          className="btn btn-sm btn-secondary flex items-center gap-1.5 text-xs font-medium border-slate-200 hover:border-slate-300 disabled:opacity-50 active:scale-95 transition"
+          className="btn btn-sm btn-secondary flex items-center gap-1.5 text-sm font-medium text-gray-800 border-gray-300 hover:border-gray-400 disabled:opacity-50 active:scale-95 transition"
           title={copyTitle}
         >
           {copied ? (
@@ -69,7 +69,7 @@ export const TableUtilityButtons: React.FC<TableUtilityButtonsProps> = ({
             </>
           ) : (
             <>
-              <Copy className="w-3.5 h-3.5 text-slate-500" />
+              <Copy className="w-3.5 h-3.5 text-gray-500" />
               <span>Copy</span>
             </>
           )}
@@ -81,7 +81,7 @@ export const TableUtilityButtons: React.FC<TableUtilityButtonsProps> = ({
           type="button"
           onClick={onExcel}
           disabled={isExcelDisabled}
-          className="btn btn-sm btn-secondary flex items-center gap-1.5 text-xs font-medium border-slate-200 hover:border-slate-300 disabled:opacity-50 active:scale-95 transition"
+          className="btn btn-sm btn-secondary flex items-center gap-1.5 text-sm font-medium text-gray-800 border-gray-300 hover:border-gray-400 disabled:opacity-50 active:scale-95 transition"
           title={excelTitle}
         >
           <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
@@ -93,10 +93,10 @@ export const TableUtilityButtons: React.FC<TableUtilityButtonsProps> = ({
         type="button"
         onClick={handleDefaultPrint}
         disabled={isPrintDisabled}
-        className="btn btn-sm btn-secondary flex items-center gap-1.5 text-xs font-medium border-slate-200 hover:border-slate-300 disabled:opacity-50 active:scale-95 transition"
+        className="btn btn-sm btn-secondary flex items-center gap-1.5 text-sm font-medium text-gray-800 border-gray-300 hover:border-gray-400 disabled:opacity-50 active:scale-95 transition"
         title={printTitle}
       >
-        <Printer className="w-3.5 h-3.5 text-sky-600" />
+        <Printer className="w-3.5 h-3.5 text-blue-600" />
         <span>Print</span>
       </button>
     </div>
