@@ -95,6 +95,9 @@ export class MailMessage {
   })
   status: MailStatus;
 
+  @Column({ name: 'failure_reason', type: 'text', nullable: true })
+  failureReason: string | null;
+
   @Index('idx_created_at')
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

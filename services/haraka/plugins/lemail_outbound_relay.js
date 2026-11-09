@@ -28,6 +28,15 @@ const LOCAL_DOMAINS = new Set([
   'lemail-mta'
 ]);
 
+function getAddr(addrObj) {
+  if (!addrObj) return '';
+  if (typeof addrObj === 'string') return addrObj;
+  if (typeof addrObj.address === 'function') return addrObj.address();
+  if (addrObj.address) return addrObj.address;
+  if (typeof addrObj.format === 'function') return addrObj.format();
+  return String(addrObj);
+}
+
 /**
  * LEMail Outbound Relay Plugin for Haraka
  * 1. 로컬 LEMail 백엔드(127.0.0.1)에서 요청된 메일에 대해 릴레이를 허용하고
@@ -53,16 +62,16 @@ exports.hook_connect = function (next, connection) {
 exports.hook_rcpt = function (next, connection, params) {
   const rcpt = params[0];
   if (connection.relaying) {
-    this.loginfo(`[LEMail Relay] Accepted recipient for relay: ${rcpt.address()}`);
+    this.loginfo(`[LEMail Relay] Accepted recipient for relay: ${getAddr(rcpt)}`);
     return next(OK);
   }
-  this.logwarn(`[LEMail Relay] Rejected relay attempt from ${connection.remote.ip} to ${rcpt.address()}`);
+  this.logwarn(`[LEMail Relay] Rejected relay attempt from ${connection.remote.ip} to ${getAddr(rcpt)}`);
   return next(DENY, 'Relay access denied');
 };
 
 exports.hook_queue = function (next, connection) {
   if (connection.relaying) {
-    this.loginfo(`[LEMail Relay] Enqueueing outbound message from ${connection.transaction.mail_from.address()} to Haraka Outbound Spool`);
+    this.loginfo(`[LEMail Relay] Enqueueing outbound message from ${getAddr(connection.transaction.mail_from)} to Haraka Outbound Spool`);
     const outbound = this.haraka_require('outbound');
     return outbound.send_trans_email(connection.transaction, next);
   }

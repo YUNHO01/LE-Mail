@@ -204,6 +204,7 @@ export interface MailMessageDto {
   dkimResult: DkimResult;
   dmarcResult: DmarcResult;
   status: MailStatus;
+  failureReason?: string | null;
   createdAt: string;
   uid?: number;
   isRead?: boolean;
@@ -237,6 +238,10 @@ export interface TodayMailStatsDto {
   todayTotal: number;
   todayProcessed: number;
   todayFailed: number;
+  todayInboundTotal?: number;
+  todayInboundFailed?: number;
+  todayOutboundTotal?: number;
+  todayOutboundFailed?: number;
 }
 
 export interface SystemOverviewDto {
@@ -293,4 +298,24 @@ export interface SendMailResponseDto {
   success: boolean;
   messageId: string;
   mailId: string;
+  failureReason?: string | null;
+}
+
+export interface RetryMailResponseDto {
+  success: boolean;
+  mailId: string;
+  messageId?: string | null;
+  status: MailStatus;
+  failureReason?: string | null;
+}
+
+export interface BulkRetryResponseDto {
+  total: number;
+  succeeded: number;
+  failed: number;
+  results: {
+    mailId: string;
+    success: boolean;
+    failureReason?: string | null;
+  }[];
 }

@@ -54,6 +54,7 @@ const schemaStatements = [
     \`dkim_result\` ENUM('PASS', 'FAIL', 'NONE') DEFAULT 'NONE',
     \`dmarc_result\` ENUM('PASS', 'FAIL', 'NONE') DEFAULT 'NONE',
     \`status\` ENUM('QUEUED', 'PROCESSED', 'FAILED') DEFAULT 'QUEUED',
+    \`failure_reason\` TEXT NULL,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX \`idx_sender\` (\`sender\`),
     INDEX \`idx_created_at\` (\`created_at\`)
@@ -149,6 +150,27 @@ async function run() {
         // Duplicate column name, already exists
       } else {
         console.warn(`Column migration note for ${col.name}: ${err.message}`);
+      }
+    }
+  }
+
+  // Migrate mail_message columns (failure_reason for outbound mail tracking)
+  const messageColumns = [
+    {
+      name: 'failure_reason',
+      ddl: 'ALTER TABLE `mail_message` ADD COLUMN `failure_reason` TEXT NULL AFTER `status`;',
+    },
+  ];
+
+  for (const col of messageColumns) {
+    try {
+      await conn.query(col.ddl);
+      console.log(`Added column ${col.name} to mail_message table.`);
+    } catch (err: any) {
+      if (err.errno === 1060) {
+        // Already exists
+      } else {
+        console.warn(`Column migration note for mail_message.${col.name}: ${err.message}`);
       }
     }
   }

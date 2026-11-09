@@ -6,7 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual } from 'typeorm';
 import Redis from 'ioredis';
 import { INBOUND_MAIL_QUEUE_NAME } from '../queue/interfaces/inbound-mail.interface';
-import { MailMessage, MailStatus } from '../database/entities/mail-message.entity';
+import { MailMessage, MailStatus, Direction } from '../database/entities/mail-message.entity';
 import { Mailbox } from '../database/entities/mailbox.entity';
 import { SystemOverviewDto, ImapStatsDto, QueueCounts } from '@lemail/shared-types';
 
@@ -107,11 +107,19 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    // 2. 금일(00:00 이후) 메일 수신 통계 집계
+    // 2. 금일(00:00 이후) 메일 통계 집계 (수신 및 발송)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [todayTotal, todayProcessed, todayFailed] = await Promise.all([
+    const [
+      todayTotal,
+      todayProcessed,
+      todayFailed,
+      todayInboundTotal,
+      todayInboundFailed,
+      todayOutboundTotal,
+      todayOutboundFailed,
+    ] = await Promise.all([
       this.messageRepo.count({
         where: { createdAt: MoreThanOrEqual(todayStart) },
       }),
@@ -123,6 +131,32 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       }),
       this.messageRepo.count({
         where: {
+          status: MailStatus.FAILED,
+          createdAt: MoreThanOrEqual(todayStart),
+        },
+      }),
+      this.messageRepo.count({
+        where: {
+          direction: Direction.INBOUND,
+          createdAt: MoreThanOrEqual(todayStart),
+        },
+      }),
+      this.messageRepo.count({
+        where: {
+          direction: Direction.INBOUND,
+          status: MailStatus.FAILED,
+          createdAt: MoreThanOrEqual(todayStart),
+        },
+      }),
+      this.messageRepo.count({
+        where: {
+          direction: Direction.OUTBOUND,
+          createdAt: MoreThanOrEqual(todayStart),
+        },
+      }),
+      this.messageRepo.count({
+        where: {
+          direction: Direction.OUTBOUND,
           status: MailStatus.FAILED,
           createdAt: MoreThanOrEqual(todayStart),
         },
@@ -155,6 +189,10 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
         todayTotal,
         todayProcessed,
         todayFailed,
+        todayInboundTotal,
+        todayInboundFailed,
+        todayOutboundTotal,
+        todayOutboundFailed,
       },
       mailSummary: {
         totalMails,

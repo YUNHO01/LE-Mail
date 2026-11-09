@@ -10,7 +10,7 @@ import { MailMessage, Direction, SpfResult, DkimResult, DmarcResult, MailStatus 
 import { MailAttachment } from '../database/entities/mail-attachment.entity';
 import { MailRecipient, RecipientType } from '../database/entities/mail-recipient.entity';
 import { MailFolder, UserMail, User } from '../database/entities';
-import { FolderType } from '@lemail/shared-types';
+import { FolderType, RetryMailResponseDto, BulkRetryResponseDto } from '@lemail/shared-types';
 import { MailQueryDto } from './dto/mail-query.dto';
 import { SendMailDto } from './dto/send-mail.dto';
 import { SaveDraftDto } from './dto/save-draft.dto';
@@ -772,103 +772,335 @@ export class MailService {
       externalTo.length > 0 || externalCc.length > 0 || externalBcc.length > 0;
 
     if (hasExternalRecipients) {
-      const relayEnabled = process.env.SMTP_RELAY_ENABLED === 'true';
+      const delivery = await this.deliverOutbound({
+        mailId,
+        sender: user.email,
+        senderName: user.name,
+        externalTo,
+        externalCc,
+        externalBcc,
+        subject: dto.subject,
+        bodyText: dto.bodyText,
+        bodyHtml: dto.bodyHtml,
+        attachments: mailOptions.attachments,
+        rawFilePath: emlPath,
+      });
 
-      if (relayEnabled && process.env.SMTP_RELAY_HOST) {
-        // [방식 1] 외부 SMTP 릴레이 (Gmail SMTP, AWS SES, 사내 릴레이 등)
-        try {
-          const relayHost = process.env.SMTP_RELAY_HOST;
-          const relayPort = parseInt(process.env.SMTP_RELAY_PORT || '587', 10);
-          const relaySecure = process.env.SMTP_RELAY_SECURE === 'true';
-          const relayUser = process.env.SMTP_RELAY_USER;
-          const relayPass = process.env.SMTP_RELAY_PASS;
+      if (!delivery.success) {
+        message.status = MailStatus.FAILED;
+        message.failureReason = delivery.error || '외부 발송 실패';
+        await this.messageRepo.save(message);
 
-          this.logger.log(
-            `Relaying external mail ${mailId} via configured SMTP Relay (${relayHost}:${relayPort})...`,
-          );
-
-          const transportOptions: any = {
-            host: relayHost,
-            port: relayPort,
-            secure: relaySecure,
-            connectionTimeout: 15000,
-          };
-
-          if (relayUser && relayPass) {
-            transportOptions.auth = {
-              user: relayUser,
-              pass: relayPass,
-            };
-          }
-
-          const relayTransport = nodemailer.createTransport(transportOptions);
-
-          const relayMailOptions: nodemailer.SendMailOptions = {
-            from: `"${user.name}" <${relayUser || user.email}>`,
-            to: externalTo.length > 0 ? externalTo : undefined,
-            cc: externalCc.length > 0 ? externalCc : undefined,
-            bcc: externalBcc.length > 0 ? externalBcc : undefined,
-            subject: dto.subject || '(제목 없음)',
-            text: dto.bodyText || '',
-            html: dto.bodyHtml || dto.bodyText || '',
-            attachments: mailOptions.attachments,
-          };
-
-          const relayResult = await relayTransport.sendMail(relayMailOptions);
-          this.logger.log(
-            `Successfully sent mail ${mailId} via SMTP Relay (${relayHost}). MessageId: ${relayResult.messageId}`,
-          );
-        } catch (err: any) {
-          this.logger.error(
-            `Failed to send mail ${mailId} via SMTP Relay: ${err.message}`,
-          );
-        }
-      } else if (process.env.HARAKA_ENABLED !== 'false') {
-        // [방식 2] Haraka Direct MX Outbound 발송
-        try {
-          const harakaHost = process.env.HARAKA_HOST || '127.0.0.1';
-          const harakaPort = parseInt(process.env.HARAKA_PORT || '2526', 10);
-
-          this.logger.log(
-            `Relaying external mail ${mailId} to Haraka Outbound MTA (${harakaHost}:${harakaPort})...`,
-          );
-
-          const harakaTransport = nodemailer.createTransport({
-            host: harakaHost,
-            port: harakaPort,
-            secure: false,
-            ignoreTLS: true,
-            connectionTimeout: 10000,
-          });
-
-          const harakaMailOptions: nodemailer.SendMailOptions = {
-            from: `"${user.name}" <${user.email}>`,
-            to: externalTo.length > 0 ? externalTo : undefined,
-            cc: externalCc.length > 0 ? externalCc : undefined,
-            bcc: externalBcc.length > 0 ? externalBcc : undefined,
-            subject: dto.subject || '(제목 없음)',
-            text: dto.bodyText || '',
-            html: dto.bodyHtml || dto.bodyText || '',
-            attachments: mailOptions.attachments,
-          };
-
-          await harakaTransport.sendMail(harakaMailOptions);
-          this.logger.log(
-            `Successfully submitted mail ${mailId} to Haraka for Direct MX delivery.`,
-          );
-        } catch (err: any) {
-          this.logger.warn(
-            `Failed to submit mail ${mailId} to Haraka Outbound MTA: ${err.message}`,
-          );
-        }
+        this.logger.warn(
+          `Mail outbound delivery failed: ${mailId} (${delivery.error})`,
+        );
+        return {
+          success: false,
+          mailId,
+          messageId: message.messageId,
+          failureReason: delivery.error,
+        };
       }
     }
+
+    message.status = MailStatus.PROCESSED;
+    message.failureReason = null;
+    await this.messageRepo.save(message);
 
     this.logger.log(`Mail sent successfully: ${mailId} by ${user.email}`);
     return {
       success: true,
       mailId,
       messageId: message.messageId,
+    };
+  }
+
+  /**
+   * 외부 SMTP 릴레이 또는 Haraka MTA를 통한 공통 발송 처리기
+   */
+  private async deliverOutbound(params: {
+    mailId: string;
+    sender: string;
+    senderName?: string;
+    externalTo: string[];
+    externalCc?: string[];
+    externalBcc?: string[];
+    subject?: string;
+    bodyText?: string;
+    bodyHtml?: string;
+    attachments?: any[];
+    rawFilePath?: string;
+  }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const {
+      mailId,
+      sender,
+      senderName,
+      externalTo,
+      externalCc = [],
+      externalBcc = [],
+      subject,
+      bodyText,
+      bodyHtml,
+      attachments,
+      rawFilePath,
+    } = params;
+
+    const allExternal = Array.from(
+      new Set([...externalTo, ...externalCc, ...externalBcc]),
+    );
+    if (allExternal.length === 0) {
+      return { success: true };
+    }
+
+    const relayEnabled = process.env.SMTP_RELAY_ENABLED === 'true';
+
+    // 원본 EML 파일이 존재하면 무결성 유지를 위해 raw 스트림/파일 전송 우선 활용
+    let mailOptions: nodemailer.SendMailOptions;
+    if (rawFilePath && existsSync(rawFilePath)) {
+      mailOptions = {
+        envelope: {
+          from: sender,
+          to: allExternal,
+        },
+        raw: { path: rawFilePath },
+      };
+    } else {
+      mailOptions = {
+        from: senderName ? `"${senderName}" <${sender}>` : sender,
+        to: externalTo.length > 0 ? externalTo : undefined,
+        cc: externalCc.length > 0 ? externalCc : undefined,
+        bcc: externalBcc.length > 0 ? externalBcc : undefined,
+        subject: subject || '(제목 없음)',
+        text: bodyText || '',
+        html: bodyHtml || bodyText || '',
+        attachments,
+      };
+    }
+
+    if (relayEnabled && process.env.SMTP_RELAY_HOST) {
+      // [방식 1] 외부 SMTP 릴레이 (Gmail SMTP, 사내/외부 SMTP 등)
+      try {
+        const relayHost = process.env.SMTP_RELAY_HOST;
+        const relayPort = parseInt(process.env.SMTP_RELAY_PORT || '587', 10);
+        const relaySecure = process.env.SMTP_RELAY_SECURE === 'true';
+        const relayUser = process.env.SMTP_RELAY_USER;
+        const relayPass = process.env.SMTP_RELAY_PASS;
+        // 사설/자체서명 SSL 인증서 허용 지원 (기본값 false로 유연하게 처리)
+        const rejectUnauthorized =
+          process.env.SMTP_RELAY_REJECT_UNAUTHORIZED === 'true';
+
+        this.logger.log(
+          `Relaying external mail ${mailId} via configured SMTP Relay (${relayHost}:${relayPort})...`,
+        );
+
+        const transportOptions: any = {
+          host: relayHost,
+          port: relayPort,
+          secure: relaySecure,
+          connectionTimeout: 15000,
+          tls: {
+            rejectUnauthorized,
+          },
+        };
+
+        if (relayUser && relayPass) {
+          transportOptions.auth = {
+            user: relayUser,
+            pass: relayPass,
+          };
+        }
+
+        // 릴레이 발송 시 봉투 발신자(envelope.from)를 인증 계정으로 보정하여
+        // 상위 메일 서버의 발신자 위조 거부(553 Sender address rejected) 방지
+        const effectiveEnvelopeFrom = relayUser || sender;
+
+        let relayMailOptions: nodemailer.SendMailOptions;
+        if (rawFilePath && existsSync(rawFilePath)) {
+          relayMailOptions = {
+            envelope: {
+              from: effectiveEnvelopeFrom,
+              to: allExternal,
+            },
+            raw: { path: rawFilePath },
+          };
+        } else {
+          relayMailOptions = {
+            from: relayUser
+              ? `"${senderName || sender}" <${relayUser}>`
+              : (senderName ? `"${senderName}" <${sender}>` : sender),
+            envelope: {
+              from: effectiveEnvelopeFrom,
+              to: allExternal,
+            },
+            to: externalTo.length > 0 ? externalTo : undefined,
+            cc: externalCc.length > 0 ? externalCc : undefined,
+            bcc: externalBcc.length > 0 ? externalBcc : undefined,
+            subject: subject || '(제목 없음)',
+            text: bodyText || '',
+            html: bodyHtml || bodyText || '',
+            attachments,
+          };
+        }
+
+        const relayTransport = nodemailer.createTransport(transportOptions);
+        const relayResult = await relayTransport.sendMail(relayMailOptions);
+        this.logger.log(
+          `Successfully sent mail ${mailId} via SMTP Relay (${relayHost}). MessageId: ${relayResult.messageId}`,
+        );
+        return { success: true, messageId: relayResult.messageId };
+      } catch (err: any) {
+        this.logger.error(
+          `Failed to send mail ${mailId} via SMTP Relay: ${err.message}`,
+        );
+        return { success: false, error: `SMTP Relay 오류: ${err.message}` };
+      }
+    } else if (process.env.HARAKA_ENABLED !== 'false') {
+      // [방식 2] Haraka Direct MX Outbound 발송
+      try {
+        const harakaHost = process.env.HARAKA_HOST || '127.0.0.1';
+        const harakaPort = parseInt(process.env.HARAKA_PORT || '2526', 10);
+
+        this.logger.log(
+          `Relaying external mail ${mailId} to Haraka Outbound MTA (${harakaHost}:${harakaPort})...`,
+        );
+
+        const harakaTransport = nodemailer.createTransport({
+          host: harakaHost,
+          port: harakaPort,
+          secure: false,
+          ignoreTLS: true,
+          connectionTimeout: 10000,
+        });
+
+        const harakaResult = await harakaTransport.sendMail(mailOptions);
+        this.logger.log(
+          `Successfully submitted mail ${mailId} to Haraka for Direct MX delivery. MessageId: ${harakaResult.messageId}`,
+        );
+        return { success: true, messageId: harakaResult.messageId };
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed to submit mail ${mailId} to Haraka Outbound MTA: ${err.message}`,
+        );
+        return { success: false, error: `Haraka MTA 오류: ${err.message}` };
+      }
+    } else {
+      return { success: true };
+    }
+  }
+
+  /**
+   * 발송 실패 메일 단건 재발송 (관리자 및 권한 보유자)
+   */
+  async retrySendMail(id: string, currentUser?: User): Promise<RetryMailResponseDto> {
+    const message = await this.messageRepo.findOne({
+      where: { id },
+      relations: { recipients: true, attachments: true },
+    });
+
+    if (!message) {
+      throw new NotFoundException(`메일(ID: ${id})을 찾을 수 없습니다.`);
+    }
+
+    if (message.direction !== Direction.OUTBOUND) {
+      throw new BadRequestException('발송(OUTBOUND) 메일만 재발송할 수 있습니다.');
+    }
+
+    // 로컬 계정 제외 외부 수신자 확인
+    const toAddrs = (message.recipients || [])
+      .filter((r) => r.type === RecipientType.TO)
+      .map((r) => r.address);
+    const ccAddrs = (message.recipients || [])
+      .filter((r) => r.type === RecipientType.CC)
+      .map((r) => r.address);
+    const bccAddrs = (message.recipients || [])
+      .filter((r) => r.type === RecipientType.BCC)
+      .map((r) => r.address);
+
+    const allAddrs = [...toAddrs, ...ccAddrs, ...bccAddrs].map((a) =>
+      a.toLowerCase().trim(),
+    );
+    let localEmails = new Set<string>();
+    if (allAddrs.length > 0) {
+      const localUsers = await this.userRepo.find({
+        where: { email: In(Array.from(new Set(allAddrs))) },
+      });
+      localEmails = new Set(localUsers.map((u) => u.email.toLowerCase()));
+    }
+
+    const externalTo = toAddrs.filter((a) => !localEmails.has(a.toLowerCase().trim()));
+    const externalCc = ccAddrs.filter((a) => !localEmails.has(a.toLowerCase().trim()));
+    const externalBcc = bccAddrs.filter((a) => !localEmails.has(a.toLowerCase().trim()));
+
+    const delivery = await this.deliverOutbound({
+      mailId: message.id,
+      sender: message.sender,
+      externalTo,
+      externalCc,
+      externalBcc,
+      subject: message.subject || '',
+      rawFilePath: message.rawFilePath,
+    });
+
+    if (!delivery.success) {
+      message.status = MailStatus.FAILED;
+      message.failureReason = delivery.error || '재발송 실패';
+      await this.messageRepo.save(message);
+
+      return {
+        success: false,
+        mailId: message.id,
+        messageId: message.messageId,
+        status: MailStatus.FAILED,
+        failureReason: delivery.error,
+      };
+    }
+
+    message.status = MailStatus.PROCESSED;
+    message.failureReason = null;
+    await this.messageRepo.save(message);
+
+    this.logger.log(`Mail ${message.id} retried successfully.`);
+    return {
+      success: true,
+      mailId: message.id,
+      messageId: message.messageId,
+      status: MailStatus.PROCESSED,
+      failureReason: null,
+    };
+  }
+
+  /**
+   * 발송 실패 메일 일괄 재발송
+   */
+  async bulkRetrySendMail(
+    ids: string[],
+    currentUser?: User,
+  ): Promise<BulkRetryResponseDto> {
+    const results: { mailId: string; success: boolean; failureReason?: string | null }[] = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const id of ids) {
+      try {
+        const res = await this.retrySendMail(id, currentUser);
+        if (res.success) {
+          succeeded++;
+          results.push({ mailId: id, success: true });
+        } else {
+          failed++;
+          results.push({ mailId: id, success: false, failureReason: res.failureReason });
+        }
+      } catch (err: any) {
+        failed++;
+        results.push({ mailId: id, success: false, failureReason: err.message });
+      }
+    }
+
+    return {
+      total: ids.length,
+      succeeded,
+      failed,
+      results,
     };
   }
 

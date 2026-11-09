@@ -545,6 +545,56 @@
         ]
       }
     },
+    "/api/mails/bulk-retry": {
+      "post": {
+        "operationId": "MailController_bulkRetrySendMail",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "일괄 재발송 결과"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "선택한 메일 일괄 재발송 시도",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/retry": {
+      "post": {
+        "operationId": "MailController_retrySendMail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "재발송 결과"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "발송 실패 메일 단건 재발송 시도",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
     "/api/mails": {
       "get": {
         "operationId": "MailController_findAll",

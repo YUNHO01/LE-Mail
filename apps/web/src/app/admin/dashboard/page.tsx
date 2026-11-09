@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { fetchApi } from '@/lib/api';
 import { SystemOverviewDto } from '@lemail/shared-types';
 import {
@@ -12,6 +13,8 @@ import {
   RefreshCw,
   Layers,
   Radio,
+  Send,
+  ArrowUpRight,
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -62,8 +65,8 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* KPI Cards (5-Column Responsive Grid) */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/* KPI Cards (Responsive Grid) */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {/* Card 1: IMAP 활성 연결 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
@@ -80,7 +83,7 @@ export default function AdminDashboardPage() {
             {data?.imap?.isHealthy ? (
               <span className="flex items-center gap-1 text-emerald-600">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                정상 가동 (포트 993/1143)
+                정상 가동 (1143/1993)
               </span>
             ) : (
               <span className="flex items-center gap-1 text-amber-600">
@@ -100,18 +103,46 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">{data?.todayMails?.todayTotal ?? 0}</span>
+            <span className="text-2xl font-bold text-slate-900">{data?.todayMails?.todayInboundTotal ?? (data?.todayMails?.todayTotal ?? 0)}</span>
             <span className="text-xs text-slate-500">건</span>
           </div>
-          <p className="mt-1 text-xs text-emerald-600 font-medium">
-            정상 처리: {data?.todayMails?.todayProcessed ?? 0}건
-            {(data?.todayMails?.todayFailed ?? 0) > 0 && (
-              <span className="text-rose-500 ml-1">(실패 {data?.todayMails?.todayFailed}건)</span>
+          <div className="mt-1 text-xs text-slate-500 font-medium">
+            {(data?.todayMails?.todayInboundFailed ?? 0) > 0 ? (
+              <span className="text-rose-600 font-bold">수신 실패 {data?.todayMails?.todayInboundFailed}건</span>
+            ) : (
+              <span className="text-emerald-600">수신 정상 처리됨</span>
             )}
-          </p>
+          </div>
         </div>
 
-        {/* Card 3: 큐 대기/활성 */}
+        {/* Card 3: 금일 발송 메일 및 실패 모니터링 */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">금일 발송 메일</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+              <Send className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-slate-900">{data?.todayMails?.todayOutboundTotal ?? 0}</span>
+            <span className="text-xs text-slate-500">건</span>
+          </div>
+          <div className="mt-1 text-xs font-medium">
+            {(data?.todayMails?.todayOutboundFailed ?? 0) > 0 ? (
+              <Link
+                href="/admin/logs?direction=OUTBOUND&status=FAILED"
+                className="inline-flex items-center gap-1 text-rose-600 font-bold hover:underline"
+              >
+                <span>발송 실패 {data?.todayMails?.todayOutboundFailed}건</span>
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
+            ) : (
+              <span className="text-emerald-600">발송 실패 없음</span>
+            )}
+          </div>
+        </div>
+
+        {/* Card 4: BullMQ 큐 대기열 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-500">BullMQ 큐 대기열</span>
@@ -126,7 +157,7 @@ export default function AdminDashboardPage() {
           <p className="mt-1 text-xs text-slate-500">진행 중(Active): {data?.queue.counts.active ?? 0}</p>
         </div>
 
-        {/* Card 4: 활성 사서함 수 */}
+        {/* Card 5: 활성 사서함 수 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-500">활성 사서함</span>
@@ -141,7 +172,7 @@ export default function AdminDashboardPage() {
           <p className="mt-1 text-xs text-slate-500">Early Reject $O(1)$ 검증 적용</p>
         </div>
 
-        {/* Card 5: 메모리 사용량 */}
+        {/* Card 6: 메모리 사용량 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-500">Node Heap / RSS</span>

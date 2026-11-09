@@ -27,7 +27,23 @@ export class SeedService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    await this.ensureSchemaColumns();
     await this.seedSystemAdmin();
+  }
+
+  private async ensureSchemaColumns(): Promise<void> {
+    try {
+      await this.userRepository.query(
+        'ALTER TABLE `mail_message` ADD COLUMN `failure_reason` TEXT NULL AFTER `status`;',
+      );
+      this.logger.log('Successfully ensured mail_message.failure_reason column.');
+    } catch (err: any) {
+      if (err.errno === 1060 || err.code === 'ER_DUP_FIELDNAME') {
+        // 이미 컬럼이 존재하므로 정상
+      } else {
+        this.logger.debug?.(`Column check note: ${err.message}`);
+      }
+    }
   }
 
   async seedSystemAdmin(): Promise<void> {

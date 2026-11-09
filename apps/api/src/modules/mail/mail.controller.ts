@@ -71,6 +71,25 @@ export class MailController {
     return this.mailService.bulkMove(user.id, ids || [], targetFolderId);
   }
 
+  @Post('bulk-retry')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '선택한 메일 일괄 재발송 시도' })
+  @ApiResponse({ status: 200, description: '일괄 재발송 결과' })
+  bulkRetrySendMail(@CurrentUser() user: User, @Body('ids') ids: string[]) {
+    return this.mailService.bulkRetrySendMail(ids || [], user);
+  }
+
+  @Post(':id/retry')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '발송 실패 메일 단건 재발송 시도' })
+  @ApiParam({ name: 'id', description: '메일 고유 ID' })
+  @ApiResponse({ status: 200, description: '재발송 결과' })
+  retrySendMail(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.mailService.retrySendMail(id, user);
+  }
+
   @Get()
   @ApiOperation({ summary: '메일 목록 조회 (페이징, 사서함별, 편지함별, 검색)' })
   @ApiResponse({ status: 200, description: '메일 목록 및 페이징 정보' })
