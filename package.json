@@ -25,7 +25,12 @@
     "test:smtp": "yarn --cwd apps/api test:smtp",
     "test:security": "yarn --cwd apps/api test:security",
     "test:api": "yarn --cwd apps/api test:api",
-    "test:users": "yarn --cwd apps/api test:users"
+    "test:users": "yarn --cwd apps/api test:users",
+    "test:license": "yarn --cwd apps/api ts-node test/license-security.e2e.ts",
+    "license:generate-keys": "node tools/license-issuer/generate-keys.js",
+    "license:issue": "node tools/license-issuer/issue-license.js",
+    "license:issue:dev": "node tools/license-issuer/issue-license.js --env dev",
+    "license:issue:prod": "node tools/license-issuer/issue-license.js --env prod"
   },
   "devDependencies": {
     "turbo": "^2.3.3"

@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Menu, ExternalLink, LogOut, LogIn, Shield, Mail } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigation } from '../../contexts/NavigationContext';
 import Link from 'next/link';
 
 interface HeaderProps {
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({ sidebarOpen, setSidebarOpen }) =
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { startNavigation } = useNavigation();
 
   const isAdminRoute = pathname?.startsWith('/admin');
 
@@ -40,6 +42,8 @@ export const Header: React.FC<HeaderProps> = ({ sidebarOpen, setSidebarOpen }) =
         {!isAdminRoute && isAuthenticated && isAdmin && (
           <Link
             href="/admin/dashboard"
+            onClick={() => startNavigation('/admin/dashboard')}
+            onMouseDown={() => startNavigation('/admin/dashboard')}
             className="flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-sm"
           >
             <Shield className="h-3.5 w-3.5" />

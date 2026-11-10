@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigation } from '@/contexts/NavigationContext';
 import { MailFolderDto, FolderType } from '@lemail/shared-types';
 import {
   Inbox,
@@ -27,6 +28,7 @@ interface MailFolderTreeProps {
 export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }) => {
   const pathname = usePathname();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { startNavigation } = useNavigation();
   const [folders, setFolders] = useState<MailFolderDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
@@ -196,7 +198,11 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
 
                   <Link
                     href={`/mail/folder/${node.id}`}
-                    onClick={onSelectFolder}
+                    onClick={() => {
+                      onSelectFolder?.();
+                      startNavigation(`/mail/folder/${node.id}`);
+                    }}
+                    onMouseDown={() => startNavigation(`/mail/folder/${node.id}`)}
                     className="flex items-center gap-1.5 truncate flex-1"
                   >
                     {isExpanded ? (
@@ -257,7 +263,11 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
           {/* 1. 받은편지함 */}
           <Link
             href="/mail/inbox"
-            onClick={onSelectFolder}
+            onClick={() => {
+              onSelectFolder?.();
+              startNavigation('/mail/inbox');
+            }}
+            onMouseDown={() => startNavigation('/mail/inbox')}
             className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               isLinkActive('/mail/inbox')
                 ? 'bg-sky-600 text-white'
@@ -278,7 +288,11 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
           {/* 2. 보낸편지함 */}
           <Link
             href="/mail/sent"
-            onClick={onSelectFolder}
+            onClick={() => {
+              onSelectFolder?.();
+              startNavigation('/mail/sent');
+            }}
+            onMouseDown={() => startNavigation('/mail/sent')}
             className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               isLinkActive('/mail/sent')
                 ? 'bg-sky-600 text-white'
@@ -299,7 +313,11 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
           {/* 3. 임시보관함 */}
           <Link
             href="/mail/drafts"
-            onClick={onSelectFolder}
+            onClick={() => {
+              onSelectFolder?.();
+              startNavigation('/mail/drafts');
+            }}
+            onMouseDown={() => startNavigation('/mail/drafts')}
             className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               isLinkActive('/mail/drafts')
                 ? 'bg-sky-600 text-white'
@@ -320,7 +338,11 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
           {/* 4. 스팸메일함 */}
           <Link
             href="/mail/spam"
-            onClick={onSelectFolder}
+            onClick={() => {
+              onSelectFolder?.();
+              startNavigation('/mail/spam');
+            }}
+            onMouseDown={() => startNavigation('/mail/spam')}
             className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               isLinkActive('/mail/spam')
                 ? 'bg-sky-600 text-white'
@@ -341,7 +363,11 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
           {/* 5. 휴지통 */}
           <Link
             href="/mail/trash"
-            onClick={onSelectFolder}
+            onClick={() => {
+              onSelectFolder?.();
+              startNavigation('/mail/trash');
+            }}
+            onMouseDown={() => startNavigation('/mail/trash')}
             className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               isLinkActive('/mail/trash')
                 ? 'bg-sky-600 text-white'
@@ -384,7 +410,13 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
 
                 <Link
                   href={customRoot ? `/mail/folder/${customRoot.id}` : '#'}
-                  onClick={onSelectFolder}
+                  onClick={() => {
+                    onSelectFolder?.();
+                    if (customRoot) startNavigation(`/mail/folder/${customRoot.id}`);
+                  }}
+                  onMouseDown={() => {
+                    if (customRoot) startNavigation(`/mail/folder/${customRoot.id}`);
+                  }}
                   className="flex items-center gap-2 flex-1 truncate"
                 >
                   {customRoot && expandedFolders[customRoot.id] ? (

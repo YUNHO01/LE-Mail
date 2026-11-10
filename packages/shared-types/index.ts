@@ -459,5 +459,51 @@ export interface ReleaseMailResponseDto {
   releasedTo: string[];
 }
 
+// ----------------------------------------------------
+// License Types
+// ----------------------------------------------------
+
+export interface LicensePayload {
+  licenseId: string;
+  product: string;
+  productCode?: string;
+  organizationName: string;
+  maxUsers: number;
+  registerExpiresAt?: string | null;
+  expiresAt: string | null;
+  isUnlimited: boolean;
+  issuedAt: string;
+  features?: string[];
+}
+
+export interface LicenseFileContent {
+  version: string;
+  product?: string;
+  algorithm: string;
+  payload: LicensePayload;
+  signature: string;
+}
+
+export interface SystemLicenseInfo {
+  isValid: boolean;
+  licenseId?: string;
+  product?: string;
+  organizationName?: string;
+  maxUsers?: number;
+  currentUsers?: number;
+  expiresAt?: string | null;
+  isUnlimited?: boolean;
+  isExpired?: boolean;
+  daysRemaining?: number | null;
+  issuedAt?: string;
+  registeredAt?: string;
+  fileIntegrityMatched?: boolean;
+  message?: string;
+}
+
+export interface RegisterLicenseDto {
+  licenseContent: string;
+}
+
 
 

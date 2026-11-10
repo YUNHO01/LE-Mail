@@ -133,6 +133,26 @@ const schemaStatements = [
     INDEX \`idx_settings_category\` (\`category\`),
     INDEX \`idx_settings_key\` (\`key\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`system_licenses\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`license_id\` VARCHAR(64) NOT NULL UNIQUE,
+    \`product\` VARCHAR(50) NOT NULL DEFAULT 'LEMail',
+    \`organization_name\` VARCHAR(100) NOT NULL,
+    \`max_users\` INT NOT NULL DEFAULT 200,
+    \`register_expires_at\` DATETIME NULL,
+    \`expires_at\` DATETIME NULL,
+    \`is_unlimited\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`issued_at\` DATETIME NOT NULL,
+    \`file_hash\` VARCHAR(64) NOT NULL,
+    \`license_raw\` TEXT NOT NULL,
+    \`signature\` TEXT NOT NULL,
+    \`is_active\` BOOLEAN NOT NULL DEFAULT TRUE,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_license_id\` (\`license_id\`),
+    INDEX \`idx_license_is_active\` (\`is_active\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 async function run() {

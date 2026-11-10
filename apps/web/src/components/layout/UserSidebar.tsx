@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigation } from '../../contexts/NavigationContext';
 import { MailFolderTree } from '../mail/MailFolderTree';
 import { Mail, Shield, ArrowRight, PenSquare, HardDrive, RefreshCw, ShieldBan } from 'lucide-react';
 
@@ -18,6 +19,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const { user, isAdmin, refreshStorageUsage } = useAuth();
+  const { startNavigation } = useNavigation();
   const isCompose = pathname === '/mail/compose';
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
@@ -65,7 +67,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           <div>
             <Link
               href="/mail/compose"
-              onClick={() => setSidebarOpen(false)}
+              onClick={() => {
+                setSidebarOpen(false);
+                startNavigation('/mail/compose');
+              }}
+              onMouseDown={() => startNavigation('/mail/compose')}
               className={`flex items-center justify-center gap-2.5 w-full py-2.5 px-4 rounded-xl font-semibold text-sm shadow-md transition-all duration-150 ${
                 isCompose
                   ? 'bg-sky-500 text-white shadow-sky-500/30 ring-2 ring-sky-400'
@@ -82,7 +88,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             <div>
               <Link
                 href="/admin/dashboard"
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => {
+                  setSidebarOpen(false);
+                  startNavigation('/admin/dashboard');
+                }}
+                onMouseDown={() => startNavigation('/admin/dashboard')}
                 className="flex items-center justify-between w-full rounded-xl bg-indigo-950/60 border border-indigo-800/80 px-3 py-2 text-xs font-semibold text-indigo-300 hover:bg-indigo-900 hover:text-white transition-all shadow-sm group"
               >
                 <div className="flex items-center gap-2">
@@ -103,7 +113,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           <div className="pt-2 border-t border-slate-800">
             <Link
               href="/mail/settings"
-              onClick={() => setSidebarOpen(false)}
+              onClick={() => {
+                setSidebarOpen(false);
+                startNavigation('/mail/settings');
+              }}
+              onMouseDown={() => startNavigation('/mail/settings')}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition group ${
                 pathname === '/mail/settings'
                   ? 'bg-slate-800 text-white font-semibold'

@@ -16,6 +16,9 @@ import { UsersModule } from './modules/users/users.module';
 import { MailFolderModule } from './modules/mail-folder/mail-folder.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { SpamModule } from './modules/spam/spam.module';
+import { LicenseModule } from './modules/license/license.module';
+import { LicenseGuard } from './modules/license/guards/license.guard';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CryptoModule } from './common/crypto/crypto.module';
@@ -42,9 +45,16 @@ import { CryptoModule } from './common/crypto/crypto.module';
     MailFolderModule,
     SettingsModule,
     SpamModule,
+    LicenseModule,
     SeedModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: LicenseGuard,
+    },
+  ],
 })
 export class AppModule {}

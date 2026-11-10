@@ -29,3 +29,13 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
 
   return response.json();
 }
+
+export const licenseApi = {
+  getStatus: () => fetchApi<import('@lemail/shared-types').SystemLicenseInfo>('/admin/license/status'),
+  register: (licenseContent: string) =>
+    fetchApi<import('@lemail/shared-types').SystemLicenseInfo>('/admin/license/register', {
+      method: 'POST',
+      body: JSON.stringify({ licenseContent }),
+    }),
+};
+

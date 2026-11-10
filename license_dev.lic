@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "product": "LEMail",
+  "algorithm": "RSA-SHA256",
+  "payload": {
+    "licenseId": "LEMLIC-34ACBC2FA9D2FD74",
+    "product": "LEMail",
+    "productCode": "LEM",
+    "organizationName": "(주)가장자리",
+    "maxUsers": 200,
+    "registerExpiresAt": "2026-12-10T04:06:29.750Z",
+    "expiresAt": null,
+    "isUnlimited": true,
+    "issuedAt": "2026-11-10T04:06:29.750Z",
+    "features": [
+      "ALL"
+    ]
+  },
+  "signature": "EUZYnsABdmjbwzXW9Sg3VGsdbpHf24MQ8cbNj0S0H2/OrxNNIU/8yaLtYJk70Zudah8H3CY1fqEy5GXqvqh7G0liMHX4weCm21FMfeP+hbrm8lQg/BWat9GM7b2mS5UjGayc7ptDOad3DBeA2MRrdSBqm5MfRDTX6+hzquD7nTaMJQZAh0w2/dwQHJR6OSJ7UqJvzK3pkaitlpsVzlK0COk2ej2/mbtJHaNYX1v1xIjLYocfa53p/CPJNs7Rtn4th7YLgRu2SC51Tj7PscKVkn7Fbedmsg2RO7QIZzBaOtmzaDoQy6KtbR2RBfhtwKEMLpnVvkjzbq08u6m45AuuMw=="
+}

@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useNavigation } from '../../contexts/NavigationContext';
 import {
   Activity,
   UserCog,
@@ -15,6 +16,7 @@ import {
   ArrowLeft,
   Server,
   Settings,
+  KeyRound,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -27,6 +29,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   setSidebarOpen,
 }) => {
   const pathname = usePathname();
+  const { startNavigation } = useNavigation();
 
   const isLinkActive = (path: string) => {
     return pathname === path || pathname?.startsWith(`${path}/`);
@@ -73,6 +76,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: '시스템 환경설정',
       icon: Settings,
     },
+    {
+      href: '/admin/license',
+      label: '라이선스 관리',
+      icon: KeyRound,
+    },
   ];
 
   return (
@@ -102,7 +110,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           <div>
             <Link
               href="/mail/inbox"
-              onClick={() => setSidebarOpen(false)}
+              onClick={() => {
+                setSidebarOpen(false);
+                startNavigation('/mail/inbox');
+              }}
+              onMouseDown={() => startNavigation('/mail/inbox')}
               className="flex items-center justify-center gap-2 w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all shadow-sm group"
             >
               <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform text-sky-400" />
@@ -123,7 +135,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={() => setSidebarOpen(false)}
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      startNavigation(item.href);
+                    }}
+                    onMouseDown={() => startNavigation(item.href)}
                     className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
                       active
                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'

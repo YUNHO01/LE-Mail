@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { AuthProvider } from '../contexts/AuthContext';
+import { NavigationProvider } from '../contexts/NavigationContext';
 
 export const metadata: Metadata = {
   title: 'LEMail Enterprise Mail Console',
@@ -32,7 +33,9 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <DashboardLayout>{children}</DashboardLayout>
+          <NavigationProvider>
+            <DashboardLayout>{children}</DashboardLayout>
+          </NavigationProvider>
         </AuthProvider>
       </body>
     </html>
