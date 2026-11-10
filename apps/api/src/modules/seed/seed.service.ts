@@ -9,6 +9,7 @@ import { Domain } from '../database/entities/domain.entity';
 import { UserRole } from '@lemail/shared-types';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
 import { MailFolderService } from '../mail-folder/mail-folder.service';
+import { SettingsSeedService } from './settings-seed.service';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -24,11 +25,13 @@ export class SeedService implements OnApplicationBootstrap {
     private readonly configService: ConfigService,
     private readonly mailboxCacheService: MailboxCacheService,
     private readonly mailFolderService: MailFolderService,
+    private readonly settingsSeedService: SettingsSeedService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     await this.ensureSchemaColumns();
     await this.seedSystemAdmin();
+    await this.settingsSeedService.seedSettings();
   }
 
   private async ensureSchemaColumns(): Promise<void> {

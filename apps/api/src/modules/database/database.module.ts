@@ -10,6 +10,7 @@ import {
   User,
   MailFolder,
   UserMail,
+  SystemSetting,
 } from './entities';
 
 @Module({
@@ -35,6 +36,7 @@ import {
             User,
             MailFolder,
             UserMail,
+            SystemSetting,
           ],
           synchronize: false,
           timezone: 'Z',
@@ -53,6 +55,7 @@ import {
       User,
       MailFolder,
       UserMail,
+      SystemSetting,
     ]),
   ],
   exports: [TypeOrmModule],

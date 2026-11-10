@@ -893,6 +893,221 @@
         ]
       }
     },
+    "/api/admin/settings/step/{step}": {
+      "get": {
+        "description": "지정된 단계의 설정을 조회합니다. 비밀번호 및 시크릿 키는 마스킹 처리되어 반환됩니다.",
+        "operationId": "SettingsController_getStepSettings",
+        "parameters": [
+          {
+            "name": "step",
+            "required": true,
+            "in": "path",
+            "description": "단계 번호 (1: 서버, 2: 수신, 3: 발송/릴레이, 4: 보안/인증, 5: 인프라)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "환경설정 단계(Step)별 설정 조회 (마스킹 포함)",
+        "tags": [
+          "Admin Settings"
+        ]
+      },
+      "put": {
+        "description": "지정된 단계의 설정을 저장하고, 변경 사항에 따른 모듈 재시작 필요 여부와 대상 모듈 목록을 반환합니다.",
+        "operationId": "SettingsController_saveStepSettings",
+        "parameters": [
+          {
+            "name": "step",
+            "required": true,
+            "in": "path",
+            "description": "단계 번호 (1~5)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStepSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "환경설정 단계(Step)별 설정 저장 및 재시작 필요 여부 확인",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/test-relay": {
+      "post": {
+        "description": "입력된 릴레이 호스트, 포트, 계정, 비밀번호로 SMTP 연결 및 인증 가능 여부를 점검합니다.",
+        "operationId": "SettingsController_testRelay",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestRelayConnectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "외부 SMTP 릴레이(Smarthost) 연결 사전 테스트",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/test-redis": {
+      "post": {
+        "description": "입력된 Redis 호스트, 포트, 비밀번호로 연결 및 PING 응답을 점검합니다.",
+        "operationId": "SettingsController_testRedis",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestRedisConnectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Redis 인프라 연결 사전 테스트",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/restart-module": {
+      "post": {
+        "description": "설정 변경 후 해당 모듈(SMTP_INGESTION, HARAKA, API_SERVER)을 실시간으로 안전하게 재시작합니다.",
+        "operationId": "SettingsController_restartModule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestartModuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "시스템 서브 모듈 재시작 (Graceful Restart)",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/modules-status": {
+      "get": {
+        "description": "SMTP 수신 리스너, Haraka MTA, IMAP 서비스의 가동 여부 및 포트를 점검합니다.",
+        "operationId": "SettingsController_getModulesStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "시스템 핵심 모듈 실시간 가동 상태 조회",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/reveal-secret": {
+      "post": {
+        "description": "관리자가 암호보기 버튼을 클릭했을 때 DB에 저장된 실제 암호화된 비밀번호를 복호화하여 반환합니다.",
+        "operationId": "SettingsController_revealSecret",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevealSecretDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "암호화된 비밀번호 원본 복호화 조회 (암호보기 기능)",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
     "/api/admin/monitoring/queue": {
       "get": {
         "operationId": "MonitoringController_getQueueStats",
@@ -1535,6 +1750,26 @@
             }
           }
         }
+      },
+      "UpdateStepSettingsDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TestRelayConnectionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TestRedisConnectionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RestartModuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RevealSecretDto": {
+        "type": "object",
+        "properties": {}
       },
       "CreateUserDto": {
         "type": "object",

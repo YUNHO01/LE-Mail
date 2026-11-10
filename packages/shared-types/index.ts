@@ -319,3 +319,63 @@ export interface BulkRetryResponseDto {
     failureReason?: string | null;
   }[];
 }
+
+export const SettingCategory = {
+  SERVER: 'SERVER',
+  SMTP_INBOUND: 'SMTP_INBOUND',
+  SMTP_OUTBOUND: 'SMTP_OUTBOUND',
+  AUTH: 'AUTH',
+  INFRA: 'INFRA',
+} as const;
+export type SettingCategory = (typeof SettingCategory)[keyof typeof SettingCategory];
+
+export const RestartLevel = {
+  NONE: 'NONE',
+  SOFT: 'SOFT',
+  HARD: 'HARD',
+} as const;
+export type RestartLevel = (typeof RestartLevel)[keyof typeof RestartLevel];
+
+export const TargetModule = {
+  NONE: 'NONE',
+  SMTP_INGESTION: 'SMTP_INGESTION',
+  HARAKA: 'HARAKA',
+  API_SERVER: 'API_SERVER',
+  IMAP: 'IMAP',
+} as const;
+export type TargetModule = (typeof TargetModule)[keyof typeof TargetModule];
+
+export interface SystemSettingItemDto {
+  id: string;
+  category: SettingCategory;
+  key: string;
+  value: string | null;
+  valueType: 'string' | 'number' | 'boolean' | 'json';
+  isEncrypted: boolean;
+  isSecret: boolean;
+  restartRequired: RestartLevel;
+  targetModule: TargetModule;
+  description: string | null;
+  updatedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StepSettingsDto {
+  step: number;
+  category: SettingCategory;
+  categoryLabel: string;
+  settings: Record<string, any>;
+}
+
+export interface SaveStepSettingsResponseDto {
+  success: boolean;
+  message: string;
+  step: number;
+  category: SettingCategory;
+  requiresRestart: boolean;
+  restartLevel: RestartLevel;
+  targetModules: TargetModule[];
+  changedKeys: string[];
+}
+

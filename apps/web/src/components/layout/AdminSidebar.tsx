@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   ArrowLeft,
   Server,
+  Settings,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -54,6 +55,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       href: '/admin/logs',
       label: '수신 및 보안 로그',
       icon: Layers,
+    },
+    {
+      href: '/admin/settings',
+      label: '시스템 환경설정',
+      icon: Settings,
     },
   ];
 

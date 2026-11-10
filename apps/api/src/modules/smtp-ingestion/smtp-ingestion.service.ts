@@ -24,12 +24,13 @@ import { AuthService } from '../auth/auth.service';
 export class SmtpIngestionService
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
-  private server: SMTPServer;
+  private server: SMTPServer | null = null;
+  private isListening = false;
   private readonly logger = new Logger(SmtpIngestionService.name);
   private readonly spoolDir: string;
-  private readonly port: number;
-  private readonly useProxy: boolean;
-  private readonly maxClients: number;
+  private currentPort: number;
+  private currentUseProxy: boolean;
+  private currentMaxClients: number;
 
   constructor(
     private readonly configService: ConfigService,
@@ -40,25 +41,30 @@ export class SmtpIngestionService
     const rawSpoolDir =
       this.configService.get<string>('smtp.spoolDir') || './mail-spool';
     this.spoolDir = resolve(process.cwd(), rawSpoolDir);
-    this.port = this.configService.get<number>('smtp.port') || 2525;
-    this.useProxy = this.configService.get<boolean>('smtp.useProxy') ?? false;
-    this.maxClients = this.configService.get<number>('smtp.maxClients') || 100;
+    this.currentPort = this.configService.get<number>('smtp.port') || 2525;
+    this.currentUseProxy =
+      this.configService.get<boolean>('smtp.useProxy') ?? false;
+    this.currentMaxClients =
+      this.configService.get<number>('smtp.maxClients') || 100;
   }
 
   onApplicationBootstrap() {
     if (!existsSync(this.spoolDir)) {
       mkdirSync(this.spoolDir, { recursive: true });
     }
+    this.startServer();
+  }
 
-    this.server = new SMTPServer({
+  private createServerInstance(): SMTPServer {
+    return new SMTPServer({
       banner: 'ESMTP Mail Server Ready (NestJS Production Ready)',
       size: 25 * 1024 * 1024, // 25MB Max
       authOptional: true,
       disabledCommands: ['VRFY'],
       closeTimeout: 30000, // Slowloris DoS 방어: 30초
       socketTimeout: 30000,
-      useProxy: this.useProxy, // Reverse Proxy (HAProxy / PROXY protocol)
-      maxClients: this.maxClients, // 동시 접속자 수 제한
+      useProxy: this.currentUseProxy, // Reverse Proxy (HAProxy / PROXY protocol)
+      maxClients: this.currentMaxClients, // 동시 접속자 수 제한
 
       // 1. SMTP AUTH 인증 처리
       onAuth: async (
@@ -83,66 +89,62 @@ export class SmtpIngestionService
           );
 
           if (isValid) {
+            this.logger.debug(`[SMTP AUTH] Success: ${auth.username}`);
             return callback(null, { user: auth.username });
           } else {
-            this.logger.warn(`[SMTP AUTH] Invalid credentials for: ${auth.username}`);
+            this.logger.warn(`[SMTP AUTH] Failed for user: ${auth.username}`);
             return callback(new Error('535 5.7.8 Authentication credentials invalid'));
           }
-        } catch (err: any) {
-          this.logger.error(`[SMTP AUTH] Auth check failed: ${err.message}`);
+        } catch (err) {
+          this.logger.error(`[SMTP AUTH] Error: ${err.message}`);
           return callback(new Error('454 4.7.0 Temporary authentication failure'));
         }
       },
 
-      // 2. 발신자 점검
+      // 2. MAIL FROM 발신자 검증
       onMailFrom: (
         address: SMTPServerAddress,
         session: SMTPServerSession,
         callback: (err?: Error | null) => void,
       ) => {
-        this.logger.debug(
-          `[SMTP] MAIL FROM: ${address.address} (Client IP: ${session.remoteAddress})`,
-        );
+        if (!address.address) {
+          return callback(new Error('501 5.1.7 Bad sender address syntax'));
+        }
         callback();
       },
 
-      // 3. 수신자 검증 단계 (Early Reject & Open Relay 방지 with Cache)
+      // 3. RCPT TO 수신자 검증 (Early Reject & Open Relay 방지)
       onRcptTo: async (
         address: SMTPServerAddress,
         session: SMTPServerSession,
         callback: (err?: Error | null) => void,
       ) => {
-        const rcptEmail = address.address.toLowerCase().trim();
-        this.logger.debug(`[SMTP] RCPT TO: ${rcptEmail}`);
+        const recipientEmail = address.address.toLowerCase();
 
+        // 인증된 사용자 (Authenticated Session)
+        if (session.user) {
+          return callback();
+        }
+
+        // 비인증 세션 (Inbound 메일 유입): 수신자 사서함 존재 여부 검증
         try {
-          const isAuthenticated = !!session.user;
-
-          // Redis & In-Memory 캐시 기반의 O(1) 사서함 활성화 검증 (DB 쿼리 부하 제거)
-          const isRegisteredAndActive = await this.mailboxCache.isMailboxActive(rcptEmail);
-
-          if (this.mailboxCache.hasRegisteredMailboxes()) {
-            if (!isRegisteredAndActive) {
-              if (!isAuthenticated) {
-                this.logger.warn(
-                  `[SMTP] Early Reject / Open Relay blocked: ${rcptEmail} from ${session.remoteAddress}`,
-                );
-                return callback(
-                  new Error('550 5.1.1 User unknown or relaying denied'),
-                );
-              }
-              // 인증된 사용자라면 외부 릴레이 가능 (아웃바운드 확장)
-            }
+          const exists = await this.mailboxCache.isMailboxActive(recipientEmail);
+          if (!exists) {
+            this.logger.warn(
+              `[SMTP Inbound] Rejected RCPT TO: ${recipientEmail} (No such mailbox)`,
+            );
+            return callback(new Error('550 5.1.1 User unknown / Mailbox not found'));
           }
-
           callback();
         } catch (err) {
-          this.logger.error(`[SMTP] Early Reject check failed: ${err.message}`);
-          callback(new Error('451 4.3.0 Temporary system failure'));
+          this.logger.error(
+            `[SMTP Inbound] Cache error during RCPT TO check: ${err.message}`,
+          );
+          callback(new Error('451 4.3.0 Temporary lookup failure'));
         }
       },
 
-      // 4. 본문 논블로킹 스트리밍 수신 (Raw EML Disk Spooling)
+      // 4. DATA 스트림 스풀링 및 BullMQ Enqueue
       onData: (
         stream: SMTPServerDataStream,
         session: SMTPServerSession,
@@ -185,22 +187,74 @@ export class SmtpIngestionService
         });
       },
     });
+  }
 
-    this.server.on('error', (err) => {
-      this.logger.error(`[SMTP Server Error] ${err.message}`, err.stack);
-    });
+  private startServer(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.server = this.createServerInstance();
 
-    this.server.listen(this.port, () => {
-      this.logger.log(
-        `SMTP Ingestion Engine listening on port ${this.port} (Spool: ${this.spoolDir}, useProxy: ${this.useProxy}, maxClients: ${this.maxClients})`,
-      );
+      this.server.on('error', (err) => {
+        this.logger.error(`[SMTP Server Error] ${err.message}`, err.stack);
+      });
+
+      this.server.listen(this.currentPort, () => {
+        this.isListening = true;
+        this.logger.log(
+          `SMTP Ingestion Engine listening on port ${this.currentPort} (Spool: ${this.spoolDir}, useProxy: ${this.currentUseProxy}, maxClients: ${this.currentMaxClients})`,
+        );
+        resolve();
+      });
     });
   }
 
+  /**
+   * SMTP 수신 서버 graceful 재시작 (포트/옵션 핫 리로드)
+   */
+  async restartSmtpServer(
+    newPort?: number,
+    newMaxClients?: number,
+    newUseProxy?: boolean,
+  ): Promise<{ success: boolean; message: string; port: number }> {
+    this.logger.warn(`Initiating graceful restart of Inbound SMTP Server...`);
+
+    if (this.server && this.isListening) {
+      await new Promise<void>((resolve) => {
+        this.server!.close(() => {
+          this.isListening = false;
+          this.logger.log('Previous SMTP Ingestion Server closed.');
+          resolve();
+        });
+      });
+    }
+
+    if (newPort !== undefined) this.currentPort = newPort;
+    if (newMaxClients !== undefined) this.currentMaxClients = newMaxClients;
+    if (newUseProxy !== undefined) this.currentUseProxy = newUseProxy;
+
+    await this.startServer();
+
+    return {
+      success: true,
+      message: `SMTP 수신 서버가 포트 ${this.currentPort}에서 성공적으로 재시작되었습니다.`,
+      port: this.currentPort,
+    };
+  }
+
+  getStatus() {
+    return {
+      running: this.isListening,
+      port: this.currentPort,
+      maxClients: this.currentMaxClients,
+      useProxy: this.currentUseProxy,
+      spoolDir: this.spoolDir,
+    };
+  }
+
   async onApplicationShutdown() {
-    if (this.server) {
+    if (this.server && this.isListening) {
       await new Promise<void>((resolve) =>
-        this.server.close(() => {
+        this.server!.close(() => {
+          this.isListening = false;
           this.logger.log('SMTP Ingestion Engine stopped gracefully');
           resolve();
         }),

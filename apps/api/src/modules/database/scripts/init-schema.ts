@@ -115,6 +115,24 @@ const schemaStatements = [
     INDEX \`idx_user_message\` (\`user_id\`, \`message_id\`),
     UNIQUE INDEX \`idx_folder_uid\` (\`folder_id\`, \`uid\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`system_settings\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`category\` ENUM('SERVER', 'SMTP_INBOUND', 'SMTP_OUTBOUND', 'AUTH', 'INFRA') NOT NULL DEFAULT 'SERVER',
+    \`key\` VARCHAR(100) NOT NULL UNIQUE,
+    \`value\` TEXT NULL,
+    \`value_type\` ENUM('string', 'number', 'boolean', 'json') NOT NULL DEFAULT 'string',
+    \`is_encrypted\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`is_secret\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`restart_required\` ENUM('NONE', 'SOFT', 'HARD') NOT NULL DEFAULT 'NONE',
+    \`target_module\` ENUM('NONE', 'SMTP_INGESTION', 'HARAKA', 'API_SERVER', 'IMAP') NOT NULL DEFAULT 'NONE',
+    \`description\` VARCHAR(255) NULL,
+    \`updated_by\` VARCHAR(36) NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_settings_category\` (\`category\`),
+    INDEX \`idx_settings_key\` (\`key\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 async function run() {

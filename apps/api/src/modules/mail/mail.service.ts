@@ -20,6 +20,7 @@ import { join, dirname, resolve } from 'path';
 import { randomUUID } from 'crypto';
 import * as nodemailer from 'nodemailer';
 import * as libmime from 'libmime';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class MailService {
@@ -39,6 +40,7 @@ export class MailService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly workerPool: WorkerPoolService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   decodeMimeWords(str: string | null | undefined): string {
@@ -852,7 +854,8 @@ export class MailService {
       return { success: true };
     }
 
-    const relayEnabled = process.env.SMTP_RELAY_ENABLED === 'true';
+    const relayConfig = await this.settingsService.getRelayConfig();
+    const relayEnabled = relayConfig.relayEnabled;
 
     // 원본 EML 파일이 존재하면 무결성 유지를 위해 raw 스트림/파일 전송 우선 활용
     let mailOptions: nodemailer.SendMailOptions;
@@ -877,17 +880,16 @@ export class MailService {
       };
     }
 
-    if (relayEnabled && process.env.SMTP_RELAY_HOST) {
+    if (relayEnabled && relayConfig.relayHost) {
       // [방식 1] 외부 SMTP 릴레이 (Gmail SMTP, 사내/외부 SMTP 등)
       try {
-        const relayHost = process.env.SMTP_RELAY_HOST;
-        const relayPort = parseInt(process.env.SMTP_RELAY_PORT || '587', 10);
-        const relaySecure = process.env.SMTP_RELAY_SECURE === 'true';
-        const relayUser = process.env.SMTP_RELAY_USER;
-        const relayPass = process.env.SMTP_RELAY_PASS;
+        const relayHost = relayConfig.relayHost;
+        const relayPort = relayConfig.relayPort;
+        const relaySecure = relayConfig.relaySecure;
+        const relayUser = relayConfig.relayUser;
+        const relayPass = relayConfig.relayPass;
         // 사설/자체서명 SSL 인증서 허용 지원 (기본값 false로 유연하게 처리)
-        const rejectUnauthorized =
-          process.env.SMTP_RELAY_REJECT_UNAUTHORIZED === 'true';
+        const rejectUnauthorized = relayConfig.relayRejectUnauthorized;
 
         this.logger.log(
           `Relaying external mail ${mailId} via configured SMTP Relay (${relayHost}:${relayPort})...`,
@@ -954,11 +956,11 @@ export class MailService {
         );
         return { success: false, error: `SMTP Relay 오류: ${err.message}` };
       }
-    } else if (process.env.HARAKA_ENABLED !== 'false') {
+    } else if (relayConfig.harakaEnabled) {
       // [방식 2] Haraka Direct MX Outbound 발송
       try {
-        const harakaHost = process.env.HARAKA_HOST || '127.0.0.1';
-        const harakaPort = parseInt(process.env.HARAKA_PORT || '2526', 10);
+        const harakaHost = relayConfig.harakaHost;
+        const harakaPort = relayConfig.harakaPort;
 
         this.logger.log(
           `Relaying external mail ${mailId} to Haraka Outbound MTA (${harakaHost}:${harakaPort})...`,

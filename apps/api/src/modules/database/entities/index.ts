@@ -6,3 +6,5 @@ export * from './mail-attachment.entity';
 export * from './user.entity';
 export * from './mail-folder.entity';
 export * from './user-mail.entity';
+export * from './system-setting.entity';
+

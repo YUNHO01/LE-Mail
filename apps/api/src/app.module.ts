@@ -14,8 +14,10 @@ import { SeedModule } from './modules/seed/seed.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { MailFolderModule } from './modules/mail-folder/mail-folder.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CryptoModule } from './common/crypto/crypto.module';
 
 @Module({
   imports: [
@@ -25,6 +27,7 @@ import { AppService } from './app.service';
       load: [configuration],
       validationSchema,
     }),
+    CryptoModule,
     DatabaseModule,
     QueueModule,
     SmtpIngestionModule,
@@ -36,6 +39,7 @@ import { AppService } from './app.service';
     AuthModule,
     UsersModule,
     MailFolderModule,
+    SettingsModule,
     SeedModule,
   ],
   controllers: [AppController],

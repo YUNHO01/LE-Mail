@@ -7,6 +7,7 @@ import { MailFolder, UserMail, User } from '../database/entities';
 import { MailService } from './mail.service';
 import { MailController } from './mail.controller';
 import { WorkerPoolModule } from '../worker-pool/worker-pool.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { WorkerPoolModule } from '../worker-pool/worker-pool.module';
       User,
     ]),
     WorkerPoolModule,
+    SettingsModule,
   ],
   controllers: [MailController],
   providers: [MailService],

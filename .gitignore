@@ -37,3 +37,7 @@ services/haraka/queue/
 # OS
 .DS_Store
 Thumbs.db
+
+# Master Key
+.encryption_key
+*.encryption_key
