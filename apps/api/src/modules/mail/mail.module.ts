@@ -6,6 +6,7 @@ import { MailRecipient } from '../database/entities/mail-recipient.entity';
 import { MailFolder, UserMail, User } from '../database/entities';
 import { MailService } from './mail.service';
 import { MailController } from './mail.controller';
+import { SecureMailService } from './services/secure-mail.service';
 import { WorkerPoolModule } from '../worker-pool/worker-pool.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SpamModule } from '../spam/spam.module';
@@ -25,7 +26,7 @@ import { SpamModule } from '../spam/spam.module';
     forwardRef(() => SpamModule),
   ],
   controllers: [MailController],
-  providers: [MailService],
-  exports: [MailService],
+  providers: [MailService, SecureMailService],
+  exports: [MailService, SecureMailService],
 })
 export class MailModule {}

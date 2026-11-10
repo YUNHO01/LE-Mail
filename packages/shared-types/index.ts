@@ -323,6 +323,8 @@ export interface SendMailDto {
   bodyText?: string;
   bodyHtml: string;
   attachments?: SendMailAttachmentDto[];
+  isSecure?: boolean;
+  securityPassword?: string;
 }
 
 export interface SaveDraftDto {

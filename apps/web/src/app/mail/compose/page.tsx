@@ -21,6 +21,11 @@ import {
     Loader2,
     Mail as MailIcon,
     LogIn,
+    Lock,
+    ShieldCheck,
+    Eye,
+    EyeOff,
+    KeyRound,
 } from 'lucide-react';
 
 function ComposeMailContent() {
@@ -38,6 +43,12 @@ function ComposeMailContent() {
     const [bodyText, setBodyText] = useState('');
     const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
     const [draftId, setDraftId] = useState<string | null>(null);
+
+    // 보안 메일(비밀번호 설정) 상태
+    const [isSecure, setIsSecure] = useState(false);
+    const [securityPassword, setSecurityPassword] = useState('');
+    const [securityPasswordConfirm, setSecurityPasswordConfirm] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const [sending, setSending] = useState(false);
     const [savingDraft, setSavingDraft] = useState(false);
@@ -160,11 +171,28 @@ function ComposeMailContent() {
             return;
         }
 
+        if (isSecure) {
+            if (!securityPassword || securityPassword.trim().length < 4) {
+                setStatusMessage({
+                    type: 'error',
+                    text: '보안 메일 비밀번호는 최소 4자 이상 입력해 주세요.',
+                });
+                return;
+            }
+            if (securityPassword !== securityPasswordConfirm) {
+                setStatusMessage({
+                    type: 'error',
+                    text: '보안 메일 비밀번호와 비밀번호 확인이 일치하지 않습니다.',
+                });
+                return;
+            }
+        }
+
         try {
             setSending(true);
             setStatusMessage(null);
 
-            const payload = {
+            const payload: any = {
                 to,
                 cc: cc.length > 0 ? cc : undefined,
                 bcc: bcc.length > 0 ? bcc : undefined,
@@ -177,6 +205,8 @@ function ComposeMailContent() {
                     sizeBytes: att.sizeBytes,
                     contentBase64: att.contentBase64,
                 })),
+                isSecure,
+                securityPassword: isSecure ? securityPassword.trim() : undefined,
             };
 
             await fetchApi('/mails/send', {
@@ -441,6 +471,101 @@ function ComposeMailContent() {
                             className="flex-1 border-none bg-transparent py-1 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         />
                     </div>
+                </div>
+
+                {/* 보안 메일 설정 섹션 */}
+                <div
+                    className={`rounded-xl border transition-all ${
+                        isSecure
+                            ? 'border-sky-300 bg-sky-50/50 p-4 shadow-xs'
+                            : 'border-slate-200 bg-slate-50/60 p-3 hover:border-slate-300'
+                    }`}
+                >
+                    <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={isSecure}
+                                onChange={(e) => {
+                                    setIsSecure(e.target.checked);
+                                    if (!e.target.checked) {
+                                        setSecurityPassword('');
+                                        setSecurityPasswordConfirm('');
+                                    }
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                            />
+                            <div className="flex items-center gap-1.5">
+                                <ShieldCheck className={`h-4 w-4 ${isSecure ? 'text-sky-600' : 'text-slate-400'}`} />
+                                <span className={`text-xs font-bold ${isSecure ? 'text-sky-950' : 'text-slate-700'}`}>
+                                    보안 메일로 발송 (본문 PDF 암호화 및 첨부파일 암호화 압축)
+                                </span>
+                            </div>
+                        </label>
+                        {isSecure && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
+                                <Lock className="h-3 w-3" />
+                                <span>암호화 보호 활성</span>
+                            </span>
+                        )}
+                    </div>
+
+                    {isSecure && (
+                        <div className="mt-3.5 pt-3.5 border-t border-sky-200/60 space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                        열람 비밀번호 <span className="text-rose-500">* (최소 4자)</span>
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            value={securityPassword}
+                                            onChange={(e) => setSecurityPassword(e.target.value)}
+                                            placeholder="수신자가 입력할 비밀번호"
+                                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 pr-9"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            tabIndex={-1}
+                                            title={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                                        >
+                                            {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                        비밀번호 확인 <span className="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={securityPasswordConfirm}
+                                        onChange={(e) => setSecurityPasswordConfirm(e.target.value)}
+                                        placeholder="비밀번호 재입력"
+                                        className={`w-full rounded-lg border bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 ${
+                                            securityPasswordConfirm && securityPassword !== securityPasswordConfirm
+                                                ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
+                                                : 'border-slate-300 focus:border-sky-500 focus:ring-sky-500'
+                                        }`}
+                                    />
+                                    {securityPasswordConfirm && securityPassword !== securityPasswordConfirm && (
+                                        <p className="mt-1 text-[11px] text-rose-600 font-medium">비밀번호가 일치하지 않습니다.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg bg-sky-100/70 p-2.5 text-[11px] text-sky-900 leading-relaxed flex items-start gap-2">
+                                <span className="text-sky-600 font-bold shrink-0">ℹ️</span>
+                                <span>
+                                    <strong>안내:</strong> 발송 시 메일 본문은 설정한 암호로 보호된 <strong>[보안메일_본문.pdf]</strong>로 자동 변환되어 첨부되며, 기존 첨부파일은 동일한 암호가 걸린 <strong>[보안메일_첨부파일.zip]</strong>으로 묶여 첨부됩니다. 메일 본문에는 이미지와 함께 열람 안내 문구가 수신자에게 전송됩니다. 수신자는 아웃룩(Outlook) 등 메일 프로그램에서 해당 암호를 입력해야 열람할 수 있습니다.
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Rich Text Editor */}

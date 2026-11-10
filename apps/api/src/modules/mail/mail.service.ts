@@ -27,6 +27,7 @@ import { SettingsService } from '../settings/settings.service';
 import { OutboundRateLimitService } from '../spam/outbound-rate-limit.service';
 import { DkimSignService, DkimNodemailerConfig } from '../spam/dkim-sign.service';
 import { AccountDefenseService } from '../spam/account-defense.service';
+import { SecureMailService } from './services/secure-mail.service';
 
 @Injectable()
 export class MailService {
@@ -53,6 +54,7 @@ export class MailService {
     private readonly dkimSignService: DkimSignService,
     @Inject(forwardRef(() => AccountDefenseService))
     private readonly accountDefenseService: AccountDefenseService,
+    private readonly secureMailService: SecureMailService,
   ) {}
 
   decodeMimeWords(str: string | null | undefined): string {
@@ -625,44 +627,161 @@ export class MailService {
       mailOptions.dkim = dkimConfig;
     }
 
-    // 첨부파일 준비 (년/월/일 계층 구조로 저장)
+    // 보안 메일(비밀번호 설정 및 PDF/ZIP 암호화) 발송 여부 판단
+    const isSecureMail = Boolean(
+      dto.isSecure && dto.securityPassword && dto.securityPassword.trim().length >= 4,
+    );
+    const securityPassword = isSecureMail ? dto.securityPassword!.trim() : null;
+
+    const attBaseDir = resolve(
+      process.cwd(),
+      process.env.MAIL_ATTACHMENT_DIR || 'mail-attachments',
+    );
+    const attDir = join(attBaseDir, year, month, day, mailId);
+    if (!existsSync(attDir)) {
+      mkdirSync(attDir, { recursive: true });
+    }
+
     const attEntities: MailAttachment[] = [];
-    if (dto.attachments && dto.attachments.length > 0) {
-      const attBaseDir = resolve(
-        process.cwd(),
-        process.env.MAIL_ATTACHMENT_DIR || 'mail-attachments',
+    const nodemailerAtts: any[] = [];
+
+    if (isSecureMail && securityPassword) {
+      this.logger.log(`[SecureMail] Processing secure encrypted mail for ${mailId} by ${user.email}`);
+
+      const sanitizedSubject = (dto.subject || '본문문서')
+        .replace(/[/\\?%*:|"<>]/g, '_')
+        .trim()
+        .slice(0, 50);
+      const pdfFilename = `[보안메일]_${sanitizedSubject || '본문문서'}.pdf`;
+      const zipFilename = `[보안메일]_첨부파일.zip`;
+      const hasOriginalAttachments = Boolean(dto.attachments && dto.attachments.length > 0);
+
+      // 1. 본문 암호화 PDF 생성 (비밀번호 설정)
+      const encryptedPdfBuf = await this.secureMailService.generateEncryptedPdf({
+        subject: dto.subject || '(제목 없음)',
+        sender: user.email,
+        senderName: user.name,
+        recipients: dto.to,
+        cc: dto.cc,
+        bodyHtml: dto.bodyHtml || '',
+        bodyText: dto.bodyText || '',
+        date: now,
+        password: securityPassword,
+      });
+
+      const pdfFilePath = join(attDir, pdfFilename);
+      writeFileSync(pdfFilePath, encryptedPdfBuf);
+
+      nodemailerAtts.push({
+        filename: pdfFilename,
+        contentType: 'application/pdf',
+        content: encryptedPdfBuf,
+      });
+
+      attEntities.push(
+        this.attachmentRepo.create({
+          id: randomUUID(),
+          messageId: mailId,
+          filename: pdfFilename,
+          contentType: 'application/pdf',
+          sizeBytes: String(encryptedPdfBuf.length),
+          storagePath: pdfFilePath,
+        }),
       );
-      const attDir = join(attBaseDir, year, month, day, mailId);
-      if (!existsSync(attDir)) {
-        mkdirSync(attDir, { recursive: true });
-      }
 
-      const nodemailerAtts: any[] = [];
-      for (const att of dto.attachments) {
-        const attId = att.id || randomUUID();
-        const filePath = join(attDir, att.filename);
-
-        if (att.contentBase64) {
-          const fileBuf = Buffer.from(att.contentBase64, 'base64');
-          writeFileSync(filePath, fileBuf);
-          nodemailerAtts.push({
-            filename: att.filename,
-            contentType: att.contentType,
-            content: fileBuf,
-          });
+      // 2. 기존 첨부파일이 존재하는 경우: 안 A에 따라 동일 비밀번호 암호화 ZIP 생성
+      if (hasOriginalAttachments && dto.attachments) {
+        const originalFiles: Array<{ filename: string; buffer: Buffer }> = [];
+        for (const att of dto.attachments) {
+          if (att.contentBase64) {
+            originalFiles.push({
+              filename: att.filename,
+              buffer: Buffer.from(att.contentBase64, 'base64'),
+            });
+          }
         }
 
-        const entity = this.attachmentRepo.create({
-          id: attId,
-          messageId: mailId,
-          filename: att.filename,
-          contentType: att.contentType,
-          sizeBytes: String(att.sizeBytes || 0),
-          storagePath: filePath,
-        });
-        attEntities.push(entity);
+        if (originalFiles.length > 0) {
+          const encryptedZipBuf = await this.secureMailService.generateEncryptedZip({
+            files: originalFiles,
+            password: securityPassword,
+          });
+
+          const zipFilePath = join(attDir, zipFilename);
+          writeFileSync(zipFilePath, encryptedZipBuf);
+
+          nodemailerAtts.push({
+            filename: zipFilename,
+            contentType: 'application/zip',
+            content: encryptedZipBuf,
+          });
+
+          attEntities.push(
+            this.attachmentRepo.create({
+              id: randomUUID(),
+              messageId: mailId,
+              filename: zipFilename,
+              contentType: 'application/zip',
+              sizeBytes: String(encryptedZipBuf.length),
+              storagePath: zipFilePath,
+            }),
+          );
+        }
       }
+
+      // 3. 보안 메일 안내 본문(이미지 및 열람 안내 포함)으로 메일 내용 대체
+      const secureNotice = this.secureMailService.generateSecureMailNotificationHtml({
+        subject: dto.subject || '(제목 없음)',
+        sender: user.email,
+        senderName: user.name,
+        recipients: dto.to,
+        date: now,
+        hasAttachments: hasOriginalAttachments,
+        pdfFilename,
+        zipFilename: hasOriginalAttachments ? zipFilename : undefined,
+      });
+
+      const secureSubject = dto.subject?.startsWith('[보안메일]')
+        ? dto.subject
+        : `[보안메일] ${dto.subject || '(제목 없음)'}`;
+
+      dto.subject = secureSubject;
+      mailOptions.subject = secureSubject;
+      mailOptions.html = secureNotice.html;
+      mailOptions.text = secureNotice.text;
+
+      // 보안 뱃지 인라인 이미지 (Outlook 호환 CID 첨부)
+      nodemailerAtts.push(secureNotice.inlineAttachment);
       mailOptions.attachments = nodemailerAtts;
+    } else {
+      // 일반 메일 첨부파일 처리
+      if (dto.attachments && dto.attachments.length > 0) {
+        for (const att of dto.attachments) {
+          const attId = att.id || randomUUID();
+          const filePath = join(attDir, att.filename);
+
+          if (att.contentBase64) {
+            const fileBuf = Buffer.from(att.contentBase64, 'base64');
+            writeFileSync(filePath, fileBuf);
+            nodemailerAtts.push({
+              filename: att.filename,
+              contentType: att.contentType,
+              content: fileBuf,
+            });
+          }
+
+          const entity = this.attachmentRepo.create({
+            id: attId,
+            messageId: mailId,
+            filename: att.filename,
+            contentType: att.contentType,
+            sizeBytes: String(att.sizeBytes || 0),
+            storagePath: filePath,
+          });
+          attEntities.push(entity);
+        }
+        mailOptions.attachments = nodemailerAtts;
+      }
     }
 
     // EML 파일 생성 및 저장

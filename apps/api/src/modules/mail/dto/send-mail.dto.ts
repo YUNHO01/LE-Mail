@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class SendMailAttachmentInputDto {
   @ApiPropertyOptional()
@@ -59,4 +59,15 @@ export class SendMailDto {
   @IsOptional()
   @IsArray()
   attachments?: SendMailAttachmentInputDto[];
+
+  @ApiPropertyOptional({ description: '보안 메일(PDF/ZIP 암호화) 발송 여부' })
+  @IsOptional()
+  @IsBoolean()
+  isSecure?: boolean;
+
+  @ApiPropertyOptional({ description: '보안 메일 열람용 비밀번호 (최소 4자리)' })
+  @IsOptional()
+  @IsString()
+  @MinLength(4, { message: '보안 메일 비밀번호는 최소 4자 이상이어야 합니다.' })
+  securityPassword?: string;
 }
