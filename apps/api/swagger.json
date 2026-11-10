@@ -64,6 +64,20 @@
         ]
       }
     },
+    "/api/spam/clamav/test-connection": {
+      "post": {
+        "operationId": "SpamController_testClamavConnection",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
     "/api/spam/security-incidents": {
       "get": {
         "operationId": "SpamController_getSecurityIncidents",
@@ -2134,6 +2148,14 @@
             "items": {
               "$ref": "#/components/schemas/SendMailAttachmentInputDto"
             }
+          },
+          "isSecure": {
+            "type": "boolean",
+            "description": "보안 메일(PDF/ZIP 암호화) 발송 여부"
+          },
+          "securityPassword": {
+            "type": "string",
+            "description": "보안 메일 열람용 비밀번호 (최소 4자리)"
           }
         },
         "required": [
