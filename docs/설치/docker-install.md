@@ -315,20 +315,16 @@ docker compose ps
 
 # 3. DB 스키마 초기화 실행 (API 컨테이너 내부 실행)
 docker compose exec api yarn --cwd apps/api ts-node src/modules/database/scripts/init-schema.ts
-
-# 4. 정품 라이선스 키 생성 및 발급 (호스트 또는 컨테이너)
-docker compose exec api yarn license:generate-keys
-docker compose exec api yarn license:issue:prod --org "(주)고객사" --users 500 --days 14 --expires unlimited --out /app/license/lemail-license.lic
 ```
 
 ---
 
-## 7. 정품 인증 및 운영 관리
+## 7. 서비스 정상 동작 확인
 
-1. 브라우저에서 `https://mail.yourdomain.com` 접속.
-2. 초기 관리자 계정으로 로그인 후 **[라이선스 관리]** 메뉴로 이동.
-3. 발급된 라이선스가 볼륨 마운트(`/app/license/lemail-license.lic`)와 MySQL DB에 자동 인식되어 **"정품 인증 완료"** 배지가 켜졌는지 확인.
-4. 필요 시 신규 라이선스 파일을 브라우저 화면에서 드래그 앤 드롭으로 즉시 교체/갱신 가능합니다.
+1. 웹 브라우저를 열고 `https://mail.yourdomain.com` 접속.
+2. 기본 관리자 계정으로 로그인 (Seed 기본값: `admin@yourdomain.com`).
+3. 관리자 대시보드 및 시스템 상태가 정상적으로 가동 중인지 확인합니다.
+4. 관리자 메뉴에서 도메인을 추가하고 사용자 계정을 생성하여 메일 송수신 및 IMAP 서비스를 시작합니다.
 
 ---
 

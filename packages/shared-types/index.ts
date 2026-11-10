@@ -253,6 +253,31 @@ export interface TodayMailStatsDto {
   todaySpamRate?: number;
 }
 
+export interface ClamavHealthStatusDto {
+  enabled: boolean;
+  isHealthy: boolean;
+  host: string;
+  port: number;
+  version?: string;
+  latencyMs?: number;
+  errorMessage?: string;
+  checkedAt?: string;
+}
+
+export interface SpamPolicyConfigDto {
+  spamScoreThreshold: number;
+  quarantineScoreThreshold: number;
+  outboundRateLimitMinute: number;
+  outboundRateLimitDay: number;
+  quarantineRetentionDays: number;
+  clamavEnabled: boolean;
+  clamavHost?: string;
+  clamavPort?: number;
+  clamavTimeoutMs?: number;
+  bayesianEnabled: boolean;
+  autoLockAbuseEnabled: boolean;
+}
+
 export interface SystemOverviewDto {
   uptimeSeconds: number;
   memory: {
@@ -266,6 +291,7 @@ export interface SystemOverviewDto {
     counts: QueueCounts;
   };
   imap: ImapStatsDto;
+  clamav?: ClamavHealthStatusDto;
   todayMails: TodayMailStatsDto;
   mailSummary: {
     totalMails?: number;

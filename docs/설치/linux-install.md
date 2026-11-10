@@ -140,20 +140,7 @@ yarn build
 
 ---
 
-## 5. 라이선스 발급 및 초기 등록
-
-```bash
-# 1. LEMail 전용 RSA-2048 비대칭 키 생성
-yarn license:generate-keys
-
-# 2. 발급 환경(dev 또는 prod)에 맞는 정품 라이선스 발급
-# 예: (주)고객사용 500명 정원, 등록유효기간 14일, 영구 라이선스 발급
-yarn license:issue:prod --org "(주)고객사" --users 500 --days 14 --expires unlimited --out ./license_install.lic
-```
-
----
-
-## 6. Nginx 리버스 프록시 및 SSL 설정
+## 5. Nginx 리버스 프록시 및 SSL 설정
 
 ### 6.1 웹 및 API 프록시 설정 (`/etc/nginx/sites-available/lemail.conf`)
 ```nginx
@@ -211,11 +198,11 @@ sudo iptables-save | sudo tee /etc/iptables.rules
 
 ---
 
-## 7. `systemd` 서비스 등록 및 프로세스 상시화
+## 6. `systemd` 서비스 등록 및 프로세스 상시화
 
 LEMail의 4대 핵심 서비스를 각각 독립적인 systemd 서비스로 등록합니다.
 
-### 7.1 Core API & Inbound ESMTP (`/etc/systemd/system/lemail-api.service`)
+### 6.1 Core API & Inbound ESMTP (`/etc/systemd/system/lemail-api.service`)
 ```ini
 [Unit]
 Description=LEMail Core API and ESMTP Ingestion Service
@@ -236,7 +223,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-### 7.2 Webmail UI (`/etc/systemd/system/lemail-web.service`)
+### 6.2 Webmail UI (`/etc/systemd/system/lemail-web.service`)
 ```ini
 [Unit]
 Description=LEMail Next.js Webmail Client
@@ -255,7 +242,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-### 7.3 IMAP Service (`/etc/systemd/system/lemail-imap.service`)
+### 6.3 IMAP Service (`/etc/systemd/system/lemail-imap.service`)
 ```ini
 [Unit]
 Description=LEMail IMAP4rev1 Microservice
@@ -275,7 +262,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-### 7.4 Haraka Outbound MTA (`/etc/systemd/system/lemail-haraka.service`)
+### 6.4 Haraka Outbound MTA (`/etc/systemd/system/lemail-haraka.service`)
 ```ini
 [Unit]
 Description=LEMail Haraka Outbound Relay MTA
@@ -294,7 +281,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-### 7.5 서비스 일괄 활성화 및 시작
+### 6.5 서비스 일괄 활성화 및 시작
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now lemail-api lemail-web lemail-imap lemail-haraka
@@ -305,10 +292,9 @@ sudo systemctl status lemail-api lemail-web lemail-imap lemail-haraka
 
 ---
 
-## 8. 초기 라이선스 파일 등록 및 서비스 개시
+## 7. 서비스 정상 동작 확인
 
 1. 웹 브라우저를 열고 `https://mail.yourdomain.com/login` 접속.
 2. 초기 관리자 계정으로 로그인 (Seed 기본값: `admin@yourdomain.com`).
-3. 관리자 사이드바의 **[라이선스 관리] (`/admin/license`)** 메뉴로 이동.
-4. 앞서 5단계에서 발급한 `license_install.lic` 파일을 업로드.
-5. 시스템 상태 배지가 **"정품 인증 완료 (파일 ↔ DB 일치)"**로 전환되면 모든 메일 송수신 및 IMAP 서비스가 정상 개시됩니다.
+3. 관리자 대시보드 및 서비스 상태가 정상적으로 가동 중인지 확인합니다.
+4. 관리자 메뉴에서 도메인을 추가하고 사용자 계정을 생성하여 메일 송수신 및 IMAP 서비스를 이용할 수 있습니다.

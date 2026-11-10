@@ -227,6 +227,9 @@ async function runPackaging() {
   fs.mkdirSync(imapDest, { recursive: true });
 
   copyDirSync(path.join(rootDir, 'services', 'imap', 'dist'), path.join(imapDest, 'dist'));
+  if (fs.existsSync(path.join(rootDir, 'services', 'imap', 'keys'))) {
+    copyDirSync(path.join(rootDir, 'services', 'imap', 'keys'), path.join(imapDest, 'keys'));
+  }
 
   const originalImapPkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'services', 'imap', 'package.json'), 'utf8'));
   const prodImapPkg = {

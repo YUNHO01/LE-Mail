@@ -18,6 +18,16 @@ export interface LicenseStatusResult {
   message?: string;
 }
 
+const DEFAULT_LICENSE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy8lnI4j0NPdlsQB/BPfC
+I5Z4cISGqF5b8tFK+N7Dkmkj7HfmpzqWUkLqVmrL++xh2csZxUFfq50myABfLad3
++2e1LQzkm5cDavBIO8Fk+oEyVvpUh8yOlJF8d4YsYfK+FoevwdhclPAdgc4OY+Ls
+ROwybuwotZcpGDGLQhUEBgqgFiqiRRvYLygNlwZeBr8FcA+uW4Cgectta4bkCwOF
+hgohtIpj92dzw/RFN9mtvO8gatR4i9GGYwP9jVSFok3h19qKgo7BjXwgcwVExhha
+jQl2MWhKhoiddcS1vNaFb6rOYIi0jQ/X1XA6WUV1hBe2tIPqejL+tfPyYdyWz/8p
+4wIDAQAB
+-----END PUBLIC KEY-----`;
+
 export class ImapLicenseService {
   private static publicKeyPem: string | null = null;
   private static cachedStatus: LicenseStatusResult | null = null;
@@ -38,14 +48,17 @@ export class ImapLicenseService {
     }
 
     const candidateKeyPaths = [
-      path.resolve(process.cwd(), 'certs', 'license-public.pem'),
+      path.resolve(__dirname, '../../keys', 'license-public.pem'),
+      path.resolve(__dirname, '../keys', 'license-public.pem'),
       path.resolve(process.cwd(), 'keys', 'license-public.pem'),
+      path.resolve(process.cwd(), 'services/imap/keys', 'license-public.pem'),
+      path.resolve(process.cwd(), 'certs', 'license-public.pem'),
+      path.resolve(process.cwd(), '../../apps/api/dist/modules/license/keys/license-public.pem'),
+      path.resolve(process.cwd(), '../api/dist/modules/license/keys/license-public.pem'),
+      path.resolve(process.cwd(), 'apps/api/dist/modules/license/keys/license-public.pem'),
       path.resolve(process.cwd(), '../../apps/api/src/modules/license/keys/license-public.pem'),
       path.resolve(process.cwd(), '../api/src/modules/license/keys/license-public.pem'),
       path.resolve(process.cwd(), 'apps/api/src/modules/license/keys/license-public.pem'),
-      path.resolve(process.cwd(), '../../tools/license-issuer/keys/license-public.pem'),
-      path.resolve(process.cwd(), 'tools/license-issuer/keys/license-public.pem'),
-      'C:/Work/workspace/lineedge/LEMail/tools/license-issuer/keys/license-public.pem',
     ];
 
     for (const p of candidateKeyPaths) {
@@ -60,7 +73,9 @@ export class ImapLicenseService {
       }
     }
 
-    return null;
+    // 소스/배포 모듈 내장 폴백 키 적용
+    this.publicKeyPem = DEFAULT_LICENSE_PUBLIC_KEY;
+    return this.publicKeyPem;
   }
 
   /**
@@ -73,14 +88,13 @@ export class ImapLicenseService {
     }
 
     const candidateFilePaths = [
-      path.resolve(process.cwd(), '../../apps/api/license/lemail-license.lic'),
-      path.resolve(process.cwd(), '../api/license/lemail-license.lic'),
-      path.resolve(process.cwd(), 'apps/api/license/lemail-license.lic'),
       path.resolve(process.cwd(), 'license/lemail-license.lic'),
-      path.resolve(process.cwd(), '../../license_dev.lic'),
+      path.resolve(process.cwd(), '../api/license/lemail-license.lic'),
+      path.resolve(process.cwd(), '../../apps/api/license/lemail-license.lic'),
+      path.resolve(process.cwd(), 'apps/api/license/lemail-license.lic'),
+      path.resolve(process.cwd(), '../../license/lemail-license.lic'),
       path.resolve(process.cwd(), 'license_dev.lic'),
-      'C:/Work/workspace/lineedge/LEMail/apps/api/license/lemail-license.lic',
-      'C:/Work/workspace/lineedge/LEMail/license_dev.lic',
+      path.resolve(process.cwd(), '../../license_dev.lic'),
     ];
 
     for (const p of candidateFilePaths) {

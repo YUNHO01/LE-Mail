@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -9,6 +9,7 @@ import { INBOUND_MAIL_QUEUE_NAME } from '../queue/interfaces/inbound-mail.interf
 import { MailMessage, MailStatus, Direction } from '../database/entities/mail-message.entity';
 import { Mailbox } from '../database/entities/mailbox.entity';
 import { SystemOverviewDto, ImapStatsDto, QueueCounts } from '@lemail/shared-types';
+import { AttachmentSecurityService } from '../spam/attachment-security.service';
 
 @Injectable()
 export class MonitoringService implements OnModuleInit, OnModuleDestroy {
@@ -23,6 +24,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
     private readonly messageRepo: Repository<MailMessage>,
     @InjectRepository(Mailbox)
     private readonly mailboxRepo: Repository<Mailbox>,
+    @Optional() private readonly attachmentSecurityService?: AttachmentSecurityService,
   ) {}
 
   onModuleInit() {
@@ -72,7 +74,18 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getSystemOverview(): Promise<SystemOverviewDto> {
-    const queueStats = await this.getQueueStats();
+    const [queueStats, clamavStats] = await Promise.all([
+      this.getQueueStats(),
+      this.attachmentSecurityService
+        ? this.attachmentSecurityService.pingClamAV(undefined, undefined, 1000).catch((err) => ({
+            enabled: false,
+            isHealthy: false,
+            host: '127.0.0.1',
+            port: 3310,
+            errorMessage: err.message,
+          }))
+        : Promise.resolve(undefined),
+    ]);
 
     // 1. IMAP 실시간 메트릭 및 Heartbeat 확인 (Redis 조회)
     let imapStats: ImapStatsDto = {
@@ -210,6 +223,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       },
       queue: queueStats,
       imap: imapStats,
+      clamav: clamavStats,
       todayMails: {
         todayTotal,
         todayProcessed,

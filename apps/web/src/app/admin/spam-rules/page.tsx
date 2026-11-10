@@ -6,6 +6,8 @@ import {
   SpamRuleDto,
   SpamRuleType,
   SpamRuleTargetType,
+  SpamPolicyConfigDto,
+  ClamavHealthStatusDto,
 } from '@lemail/shared-types';
 import {
   ShieldCheck,
@@ -18,6 +20,12 @@ import {
   Mail,
   Network,
   Filter,
+  Activity,
+  CheckCircle2,
+  XCircle,
+  Save,
+  Server,
+  Zap,
 } from 'lucide-react';
 import { PageHeader } from '@/components/common';
 
@@ -35,6 +43,81 @@ export default function AdminSpamRulesPage() {
   const [newReason, setNewReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ClamAV 연동 설정 상태
+  const [clamavEnabled, setClamavEnabled] = useState(true);
+  const [clamavHost, setClamavHost] = useState('127.0.0.1');
+  const [clamavPort, setClamavPort] = useState(3310);
+  const [clamavTimeoutMs, setClamavTimeoutMs] = useState(3000);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+
+  // ClamAV 즉시 연결 테스트 상태
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<ClamavHealthStatusDto | null>(null);
+
+  const loadSpamConfig = async () => {
+    try {
+      setConfigLoading(true);
+      const conf = await fetchApi<SpamPolicyConfigDto>('/spam/config');
+      if (conf) {
+        setClamavEnabled(conf.clamavEnabled !== false);
+        if (conf.clamavHost) setClamavHost(conf.clamavHost);
+        if (conf.clamavPort) setClamavPort(conf.clamavPort);
+        if (conf.clamavTimeoutMs) setClamavTimeoutMs(conf.clamavTimeoutMs);
+      }
+    } catch (err: any) {
+      console.error('스팸 정책 조회 실패:', err);
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const handleTestClamav = async () => {
+    try {
+      setTestingConnection(true);
+      setTestResult(null);
+      const res = await fetchApi<ClamavHealthStatusDto>('/spam/clamav/test-connection', {
+        method: 'POST',
+        body: JSON.stringify({
+          host: clamavHost.trim(),
+          port: Number(clamavPort),
+          timeoutMs: Number(clamavTimeoutMs),
+        }),
+      });
+      setTestResult(res);
+    } catch (err: any) {
+      setTestResult({
+        enabled: true,
+        isHealthy: false,
+        host: clamavHost,
+        port: clamavPort,
+        errorMessage: err.message || '테스트 요청 실패',
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const handleSaveClamavConfig = async () => {
+    try {
+      setConfigSaving(true);
+      await fetchApi('/spam/config', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          clamavEnabled,
+          clamavHost: clamavHost.trim(),
+          clamavPort: Number(clamavPort),
+          clamavTimeoutMs: Number(clamavTimeoutMs),
+        }),
+      });
+      alert('ClamAV 안티바이러스 연동 설정이 성공적으로 저장되었습니다.');
+    } catch (err: any) {
+      alert(err.message || '설정 저장 실패');
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
   const loadRules = async () => {
     try {
       setLoading(true);
@@ -49,6 +132,7 @@ export default function AdminSpamRulesPage() {
 
   useEffect(() => {
     loadRules();
+    loadSpamConfig();
   }, []);
 
   const handleCreateRule = async (e: React.FormEvent) => {
@@ -110,6 +194,146 @@ export default function AdminSpamRulesPage() {
         icon={<Filter className="h-6 w-6 text-indigo-500" />}
         subtitle="전사 또는 도메인 단위의 이메일 수신 허용(화이트리스트) 및 차단(블랙리스트) 규칙을 관리합니다."
       />
+
+      {/* ClamAV 안티바이러스 연동 설정 및 즉시 연결 테스트 카드 */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <span>ClamAV 안티바이러스 연동 설정</span>
+                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                  clamavEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {clamavEnabled ? '실시간 검사 ON' : '검사 OFF'}
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                수신 메일의 첨부파일 버퍼를 clamd TCP 데몬(3310)으로 스트리밍하여 바이러스 및 악성코드를 검사합니다.
+              </p>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <span className="text-xs font-semibold text-slate-700">백신 검사 활성화</span>
+            <input
+              type="checkbox"
+              checked={clamavEnabled}
+              onChange={(e) => setClamavEnabled(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+          </label>
+        </div>
+
+        {/* 연결 파라미터 입력 필드 */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              ClamAV 데몬 호스트 / IP
+            </label>
+            <input
+              type="text"
+              value={clamavHost}
+              onChange={(e) => setClamavHost(e.target.value)}
+              disabled={!clamavEnabled}
+              placeholder="예: 127.0.0.1 또는 clamav"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none disabled:opacity-50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              TCP 포트
+            </label>
+            <input
+              type="number"
+              value={clamavPort}
+              onChange={(e) => setClamavPort(Number(e.target.value))}
+              disabled={!clamavEnabled}
+              placeholder="기본값: 3310"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none disabled:opacity-50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              타임아웃 (ms)
+            </label>
+            <input
+              type="number"
+              value={clamavTimeoutMs}
+              onChange={(e) => setClamavTimeoutMs(Number(e.target.value))}
+              disabled={!clamavEnabled}
+              placeholder="기본값: 3000"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none disabled:opacity-50"
+            />
+          </div>
+        </div>
+
+        {/* 테스트 결과 표시 배너 */}
+        {testResult && (
+          <div className={`rounded-lg p-3 text-xs flex items-start gap-2.5 border ${
+            testResult.isHealthy
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-amber-50 border-amber-200 text-amber-800'
+          }`}>
+            {testResult.isHealthy ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+            ) : (
+              <XCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1">
+              <div className="font-semibold">
+                {testResult.isHealthy ? 'ClamAV 데몬 연결 성공' : 'ClamAV 데몬 연결 실패'}
+              </div>
+              <div className="mt-0.5 text-[11px]">
+                {testResult.isHealthy ? (
+                  <>
+                    <span>엔진 버전: <strong className="font-mono">{testResult.version}</strong></span>
+                    <span className="mx-2">|</span>
+                    <span>응답 지연시간: <strong>{testResult.latencyMs}ms</strong></span>
+                  </>
+                ) : (
+                  <span>원인: {testResult.errorMessage}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 안내문구 및 하단 버튼 */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+            <span>ClamAV 데몬이 미설치/오프라인이어도 Fail-safe 회로에 의해 메일 수신이 안전하게 자동 우회(Bypass)되어 정상 수신됩니다.</span>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={handleTestClamav}
+              disabled={testingConnection}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              <Activity className={`h-3.5 w-3.5 text-indigo-500 ${testingConnection ? 'animate-spin' : ''}`} />
+              <span>{testingConnection ? '연결 확인 중...' : '연결 테스트 (Ping)'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveClamavConfig}
+              disabled={configSaving}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition disabled:opacity-50"
+            >
+              <Save className="h-3.5 w-3.5" />
+              <span>{configSaving ? '저장 중...' : '설정 저장'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* 새 규칙 등록 카드 */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

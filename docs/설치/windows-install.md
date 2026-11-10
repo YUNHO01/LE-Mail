@@ -124,23 +124,11 @@ yarn build
 
 ---
 
-## 5. 라이선스 발급
-
-```powershell
-# 1. LEMail 전용 RSA-2048 비대칭 키 생성
-yarn license:generate-keys
-
-# 2. 정품 라이선스 파일 발급 (예: 200명 정원, 무제한 사용기한)
-yarn license:issue:prod --org "(주)고객사" --users 200 --days 14 --expires unlimited --out ./license_install.lic
-```
-
----
-
-## 6. Windows 서비스 데몬 등록 (NSSM 활용)
+## 5. Windows 서비스 데몬 등록 (NSSM 활용)
 
 서버 재부팅 시에도 자동으로 백그라운드 구동되도록 NSSM을 이용하여 4대 서비스를 Windows Service로 등록합니다.
 
-### 6.1 `LEMail-API` 서비스 등록
+### 5.1 `LEMail-API` 서비스 등록
 ```powershell
 nssm install LEMail-API "C:\Program Files\nodejs\node.exe" "C:\LEMail\apps\api\dist\main.js"
 nssm set LEMail-API AppDirectory "C:\LEMail\apps\api"
@@ -149,7 +137,7 @@ nssm set LEMail-API Description "LEMail Core REST API & Inbound ESMTP Service"
 nssm set LEMail-API Start SERVICE_AUTO_START
 ```
 
-### 6.2 `LEMail-Web` 서비스 등록
+### 5.2 `LEMail-Web` 서비스 등록
 ```powershell
 nssm install LEMail-Web "C:\Program Files\nodejs\node.exe" "C:\LEMail\node_modules\next\dist\bin\next" "start -p 9000"
 nssm set LEMail-Web AppDirectory "C:\LEMail\apps\web"
@@ -158,7 +146,7 @@ nssm set LEMail-Web Description "LEMail Next.js Webmail Client"
 nssm set LEMail-Web Start SERVICE_AUTO_START
 ```
 
-### 6.3 `LEMail-IMAP` 서비스 등록
+### 5.3 `LEMail-IMAP` 서비스 등록
 ```powershell
 nssm install LEMail-IMAP "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\imap\dist\index.js"
 nssm set LEMail-IMAP AppDirectory "C:\LEMail\services\imap"
@@ -167,7 +155,7 @@ nssm set LEMail-IMAP Description "LEMail IMAP4rev1 Microservice"
 nssm set LEMail-IMAP Start SERVICE_AUTO_START
 ```
 
-### 6.4 `LEMail-Haraka` 서비스 등록
+### 5.4 `LEMail-Haraka` 서비스 등록
 ```powershell
 nssm install LEMail-Haraka "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\haraka\index.js"
 nssm set LEMail-Haraka AppDirectory "C:\LEMail\services\haraka"
@@ -176,7 +164,7 @@ nssm set LEMail-Haraka Description "LEMail Haraka Outbound Relay MTA"
 nssm set LEMail-Haraka Start SERVICE_AUTO_START
 ```
 
-### 6.5 서비스 일괄 시작 및 상태 확인
+### 5.5 서비스 일괄 시작 및 상태 확인
 ```powershell
 nssm start LEMail-API
 nssm start LEMail-Web
@@ -189,10 +177,9 @@ Get-Service -Name "LEMail*"
 
 ---
 
-## 7. 웹 관리자 접속 및 라이선스 등록
+## 6. 서비스 정상 동작 확인
 
-1. 관리자 PC에서 `http://서버IP:9000/login` 접속.
+1. 관리자 PC에서 웹 브라우저를 열고 `http://서버IP:9000/login` 접속.
 2. 기본 관리자 계정으로 로그인 (`admin@yourdomain.com`).
-3. 좌측 메뉴 **[라이선스 관리] (`/admin/license`)** 클릭.
-4. 앞서 발급한 `C:\LEMail\license_install.lic` 파일을 업로드.
-5. 시스템 상태가 **"정품 인증 완료 (파일 ↔ DB 일치)"** 배지로 전환되면 모든 서비스가 정상 가동됩니다.
+3. 관리자 대시보드 및 시스템 상태가 정상적으로 가동 중인지 확인합니다.
+4. 관리자 메뉴에서 도메인 및 사서함 계정을 생성하여 메일 송수신 서비스를 개시합니다.

@@ -9,6 +9,9 @@ export interface SpamPolicyConfig {
   outboundRateLimitDay: number;      // 기본값: 500
   quarantineRetentionDays: number;   // 기본값: 30
   clamavEnabled: boolean;            // 기본값: true
+  clamavHost: string;                // 기본값: '127.0.0.1'
+  clamavPort: number;                // 기본값: 3310
+  clamavTimeoutMs: number;           // 기본값: 3000
   bayesianEnabled: boolean;          // 기본값: true
   autoLockAbuseEnabled: boolean;     // 기본값: true
 }
@@ -19,18 +22,44 @@ export class SpamConfigService implements OnModuleInit {
   private redisClient: Redis | null = null;
   private readonly redisKey = 'lemail:config:spam_policy';
 
-  private currentConfig: SpamPolicyConfig = {
-    spamScoreThreshold: 5.0,
-    quarantineScoreThreshold: 10.0,
-    outboundRateLimitMinute: 30,
-    outboundRateLimitDay: 500,
-    quarantineRetentionDays: 30,
-    clamavEnabled: true,
-    bayesianEnabled: true,
-    autoLockAbuseEnabled: true,
-  };
+  private currentConfig: SpamPolicyConfig;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    const envClamavEnabled =
+      (this.configService.get<string>('CLAMAV_ENABLED') ||
+        process.env.CLAMAV_ENABLED ||
+        'true') !== 'false';
+    const envClamavHost =
+      this.configService.get<string>('CLAMAV_HOST') ||
+      process.env.CLAMAV_HOST ||
+      '127.0.0.1';
+    const envClamavPort = parseInt(
+      this.configService.get<string>('CLAMAV_PORT') ||
+        process.env.CLAMAV_PORT ||
+        '3310',
+      10,
+    );
+    const envClamavTimeoutMs = parseInt(
+      this.configService.get<string>('CLAMAV_TIMEOUT_MS') ||
+        process.env.CLAMAV_TIMEOUT_MS ||
+        '3000',
+      10,
+    );
+
+    this.currentConfig = {
+      spamScoreThreshold: 5.0,
+      quarantineScoreThreshold: 10.0,
+      outboundRateLimitMinute: 30,
+      outboundRateLimitDay: 500,
+      quarantineRetentionDays: 30,
+      clamavEnabled: envClamavEnabled,
+      clamavHost: envClamavHost,
+      clamavPort: envClamavPort,
+      clamavTimeoutMs: envClamavTimeoutMs,
+      bayesianEnabled: true,
+      autoLockAbuseEnabled: true,
+    };
+  }
 
   async onModuleInit() {
     try {

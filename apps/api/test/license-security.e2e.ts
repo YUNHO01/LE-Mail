@@ -224,6 +224,7 @@ async function runLicenseVerificationTests() {
   if (passed !== total) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 runLicenseVerificationTests().catch((err) => {

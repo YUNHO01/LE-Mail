@@ -19,6 +19,7 @@ import { AccountDefenseService } from './account-defense.service';
 import { DmarcReportService } from './dmarc-report.service';
 import { SpamConfigService, SpamPolicyConfig } from './spam-config.service';
 import { BayesianSpamService } from './bayesian-spam.service';
+import { AttachmentSecurityService } from './attachment-security.service';
 import { CreateSpamRuleDto } from './dto/create-spam-rule.dto';
 import { UserRole } from '@lemail/shared-types';
 
@@ -32,6 +33,7 @@ export class SpamController {
     private readonly dmarcReportService: DmarcReportService,
     private readonly spamConfigService: SpamConfigService,
     private readonly bayesianSpamService: BayesianSpamService,
+    private readonly attachmentSecurityService: AttachmentSecurityService,
   ) {}
 
   @Get('analytics')
@@ -53,6 +55,21 @@ export class SpamController {
       throw new ForbiddenException('시스템 관리자만 스팸 정책 설정을 변경할 수 있습니다.');
     }
     return this.spamConfigService.updateConfig(patch);
+  }
+
+  @Post('clamav/test-connection')
+  async testClamavConnection(
+    @CurrentUser() user: User,
+    @Body() body: { host?: string; port?: number; timeoutMs?: number },
+  ) {
+    if (user.role !== UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenException('시스템 관리자만 연결 테스트를 실행할 수 있습니다.');
+    }
+    return this.attachmentSecurityService.pingClamAV(
+      body?.host,
+      body?.port ? Number(body.port) : undefined,
+      body?.timeoutMs ? Number(body.timeoutMs) : 2000,
+    );
   }
 
   @Get('security-incidents')

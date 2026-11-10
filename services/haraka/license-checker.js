@@ -10,6 +10,16 @@ let cachedStatus = null;
 let lastCheckTime = 0;
 const CACHE_TTL_MS = 30 * 1000; // 30초 TTL 캐시
 
+const DEFAULT_LICENSE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy8lnI4j0NPdlsQB/BPfC
+I5Z4cISGqF5b8tFK+N7Dkmkj7HfmpzqWUkLqVmrL++xh2csZxUFfq50myABfLad3
++2e1LQzkm5cDavBIO8Fk+oEyVvpUh8yOlJF8d4YsYfK+FoevwdhclPAdgc4OY+Ls
+ROwybuwotZcpGDGLQhUEBgqgFiqiRRvYLygNlwZeBr8FcA+uW4Cgectta4bkCwOF
+hgohtIpj92dzw/RFN9mtvO8gatR4i9GGYwP9jVSFok3h19qKgo7BjXwgcwVExhha
+jQl2MWhKhoiddcS1vNaFb6rOYIi0jQ/X1XA6WUV1hBe2tIPqejL+tfPyYdyWz/8p
+4wIDAQAB
+-----END PUBLIC KEY-----`;
+
 /**
  * RSA 공개키 로드
  */
@@ -23,10 +33,12 @@ function loadPublicKey() {
 
   const candidateKeyPaths = [
     path.resolve(__dirname, 'config', 'license-public.pem'),
+    path.resolve(process.cwd(), 'config', 'license-public.pem'),
+    path.resolve(__dirname, '../../apps/api/dist/modules/license/keys/license-public.pem'),
+    path.resolve(__dirname, '../api/dist/modules/license/keys/license-public.pem'),
     path.resolve(__dirname, '../../apps/api/src/modules/license/keys/license-public.pem'),
     path.resolve(__dirname, '../api/src/modules/license/keys/license-public.pem'),
-    path.resolve(__dirname, '../../tools/license-issuer/keys/license-public.pem'),
-    'C:/Work/workspace/lineedge/LEMail/tools/license-issuer/keys/license-public.pem',
+    path.resolve(process.cwd(), 'apps/api/dist/modules/license/keys/license-public.pem'),
   ];
 
   for (const p of candidateKeyPaths) {
@@ -40,7 +52,9 @@ function loadPublicKey() {
     }
   }
 
-  return null;
+  // 모듈 내장 폴백 키 적용
+  publicKeyPem = DEFAULT_LICENSE_PUBLIC_KEY;
+  return publicKeyPem;
 }
 
 /**
@@ -53,13 +67,12 @@ function getLicenseFilePath() {
   }
 
   const candidates = [
+    path.resolve(process.cwd(), 'license/lemail-license.lic'),
     path.resolve(__dirname, '../../apps/api/license/lemail-license.lic'),
     path.resolve(__dirname, '../api/license/lemail-license.lic'),
     path.resolve(process.cwd(), 'apps/api/license/lemail-license.lic'),
-    path.resolve(process.cwd(), 'license/lemail-license.lic'),
     path.resolve(__dirname, '../../license_dev.lic'),
-    'C:/Work/workspace/lineedge/LEMail/apps/api/license/lemail-license.lic',
-    'C:/Work/workspace/lineedge/LEMail/license_dev.lic',
+    path.resolve(process.cwd(), 'license_dev.lic'),
   ];
 
   for (const p of candidates) {

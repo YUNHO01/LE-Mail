@@ -17,6 +17,7 @@ import {
   ArrowUpRight,
   Shield,
   ShieldAlert,
+  ShieldCheck,
   FileWarning,
   Filter,
   ArrowRight,
@@ -76,7 +77,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* KPI Cards (Responsive Grid) */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         {/* Card 1: IMAP 활성 연결 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
@@ -99,6 +100,52 @@ export default function AdminDashboardPage() {
               <span className="flex items-center gap-1 text-amber-600">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500"></span>
                 서비스 오프라인
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Card 2: ClamAV 백신 엔진 실시간 상태 */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-500">ClamAV 백신</span>
+            <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+              data?.clamav?.isHealthy
+                ? 'bg-emerald-50 text-emerald-600'
+                : data?.clamav?.enabled
+                ? 'bg-amber-50 text-amber-600'
+                : 'bg-slate-100 text-slate-400'
+            }`}>
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4 flex items-baseline gap-2">
+            <span className={`text-xl font-bold ${
+              data?.clamav?.isHealthy
+                ? 'text-emerald-700'
+                : data?.clamav?.enabled
+                ? 'text-amber-700'
+                : 'text-slate-600'
+            }`}>
+              {data?.clamav?.isHealthy ? '정상 작동' : data?.clamav?.enabled ? '오프라인' : '비활성'}
+            </span>
+            {data?.clamav?.isHealthy && data?.clamav?.latencyMs !== undefined && (
+              <span className="text-xs text-slate-500">{data.clamav.latencyMs}ms</span>
+            )}
+          </div>
+          <div className="mt-1 flex items-center gap-1 text-xs font-medium">
+            {data?.clamav?.isHealthy ? (
+              <span className="text-emerald-600 flex items-center gap-1 truncate" title={data?.clamav?.version}>
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                실시간 바이러스 검사 중
+              </span>
+            ) : data?.clamav?.enabled ? (
+              <span className="text-amber-600 truncate" title={data?.clamav?.errorMessage || '데몬 미응답'}>
+                수신 자동 우회(Bypass)
+              </span>
+            ) : (
+              <span className="text-slate-400">
+                백신 검사 설정 꺼짐
               </span>
             )}
           </div>
@@ -336,10 +383,20 @@ export default function AdminDashboardPage() {
 
             <div className="bg-white p-3 rounded-lg border border-slate-200">
               <div className="flex items-center justify-between text-slate-600 mb-1">
-                <span>악성 첨부파일 / ClamAV</span>
+                <span className="flex items-center gap-1.5">
+                  <span>악성 첨부파일 / ClamAV</span>
+                  {data?.clamav?.isHealthy ? (
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" title="실시간 검사 가동 중" />
+                  ) : (
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" title="우회 모드 (Bypass)" />
+                  )}
+                </span>
                 <span className="font-bold text-slate-900">{spamAnalytics?.threatBreakdown?.malwareAttachment ?? 0}건</span>
               </div>
-              <div className="text-[11px] text-slate-400">위험 확장자 및 바이러스</div>
+              <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                <span>위험 확장자 및 바이러스</span>
+                <span className="text-[10px] text-slate-500 font-mono">{data?.clamav?.host || '127.0.0.1'}:{data?.clamav?.port || 3310}</span>
+              </div>
             </div>
 
             <div className="bg-white p-3 rounded-lg border border-slate-200">

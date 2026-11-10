@@ -16,6 +16,16 @@ import {
   SystemLicenseInfo,
 } from '@lemail/shared-types';
 
+const DEFAULT_LICENSE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy8lnI4j0NPdlsQB/BPfC
+I5Z4cISGqF5b8tFK+N7Dkmkj7HfmpzqWUkLqVmrL++xh2csZxUFfq50myABfLad3
++2e1LQzkm5cDavBIO8Fk+oEyVvpUh8yOlJF8d4YsYfK+FoevwdhclPAdgc4OY+Ls
+ROwybuwotZcpGDGLQhUEBgqgFiqiRRvYLygNlwZeBr8FcA+uW4Cgectta4bkCwOF
+hgohtIpj92dzw/RFN9mtvO8gatR4i9GGYwP9jVSFok3h19qKgo7BjXwgcwVExhha
+jQl2MWhKhoiddcS1vNaFb6rOYIi0jQ/X1XA6WUV1hBe2tIPqejL+tfPyYdyWz/8p
+4wIDAQAB
+-----END PUBLIC KEY-----`;
+
 @Injectable()
 export class LicenseService implements OnModuleInit {
   private readonly logger = new Logger(LicenseService.name);
@@ -79,7 +89,7 @@ export class LicenseService implements OnModuleInit {
   }
 
   /**
-   * RSA 공개키 로드 (1: 환경변수, 2: 파일, 3: 임베디드 폴백)
+   * RSA 공개키 로드 (1: 환경변수, 2: 모듈 내장/로컬 파일, 3: 임베디드 폴백)
    */
   private loadPublicKey() {
     if (process.env.LICENSE_PUBLIC_KEY) {
@@ -91,9 +101,11 @@ export class LicenseService implements OnModuleInit {
     const keyPaths = [
       path.resolve(__dirname, 'keys', 'license-public.pem'),
       path.resolve(__dirname, '../license/keys', 'license-public.pem'),
+      path.resolve(process.cwd(), 'dist/modules/license/keys/license-public.pem'),
       path.resolve(process.cwd(), 'src/modules/license/keys/license-public.pem'),
+      path.resolve(process.cwd(), 'apps/api/dist/modules/license/keys/license-public.pem'),
       path.resolve(process.cwd(), 'apps/api/src/modules/license/keys/license-public.pem'),
-      path.resolve(process.cwd(), 'tools/license-issuer/keys/license-public.pem'),
+      path.resolve(process.cwd(), 'keys/license-public.pem'),
     ];
 
     for (const p of keyPaths) {
@@ -108,7 +120,9 @@ export class LicenseService implements OnModuleInit {
       }
     }
 
-    this.logger.warn('⚠️ 전용 공개키 파일을 찾지 못했습니다. 환경변수 LICENSE_PUBLIC_KEY 또는 키파일을 확인하세요.');
+    // 소스/배포 모듈 내장 폴백 키 적용
+    this.publicKeyPem = DEFAULT_LICENSE_PUBLIC_KEY;
+    this.logger.log('🔑 내장 기본 RSA 공개키 로드 완료.');
   }
 
   /**
