@@ -1969,6 +1969,56 @@
           "MailFolders"
         ]
       }
+    },
+    "/api/admin/license/status": {
+      "get": {
+        "description": "라이선스 유효성, 기관명, 사용자 정원, 사용 기한, 파일-DB 일치 여부 등을 반환합니다.",
+        "operationId": "LicenseController_getLicenseStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "조회 성공"
+          }
+        },
+        "summary": "현재 시스템 라이선스 상태 및 무결성 정보 조회",
+        "tags": [
+          "Admin License (시스템 라이선스 관리)"
+        ]
+      }
+    },
+    "/api/admin/license/register": {
+      "post": {
+        "description": "라이선스 파일(.lic)을 업로드하여 서명, 제품 식별자, 유효기간, 파일-DB 무결성을 검증하고 시스템에 등록합니다.",
+        "operationId": "LicenseController_registerLicense",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterLicenseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "등록 및 인증 성공"
+          },
+          "400": {
+            "description": "유효하지 않거나 변조된 라이선스"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "신규 정품 라이선스 파일 등록 및 검증",
+        "tags": [
+          "Admin License (시스템 라이선스 관리)"
+        ]
+      }
     }
   },
   "info": {
@@ -2415,6 +2465,19 @@
             "example": 2
           }
         }
+      },
+      "RegisterLicenseDto": {
+        "type": "object",
+        "properties": {
+          "licenseContent": {
+            "type": "string",
+            "description": "라이선스 파일(.lic)의 JSON 문자열 내용",
+            "example": "{\"version\":\"1.0\",\"product\":\"LEMail\",...}"
+          }
+        },
+        "required": [
+          "licenseContent"
+        ]
       }
     }
   }
