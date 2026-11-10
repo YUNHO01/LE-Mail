@@ -1,0 +1,28 @@
+{
+  "types": [
+    { "type": "feat", "section": "✨ Features (기능 추가)" },
+    { "type": "fix", "section": "🐛 Bug Fixes (버그 수정)" },
+    { "type": "perf", "section": "⚡ Performance (성능 개선)" },
+    { "type": "refactor", "section": "♻️ Code Refactoring (리팩토링)" },
+    { "type": "chore", "section": "📦 Maintenance (유지보수 및 설정)", "hidden": false },
+    { "type": "docs", "section": "📝 Documentation (문서 변경)", "hidden": false },
+    { "type": "style", "section": "💄 Styling (스타일 및 포맷)", "hidden": true },
+    { "type": "test", "section": "✅ Tests (테스트)", "hidden": true }
+  ],
+  "bumpFiles": [
+    { "filename": "package.json", "type": "json" },
+    { "filename": "apps/api/package.json", "type": "json" },
+    { "filename": "apps/web/package.json", "type": "json" },
+    { "filename": "services/imap/package.json", "type": "json" },
+    { "filename": "services/haraka/package.json", "type": "json" },
+    { "filename": "packages/shared-types/package.json", "type": "json" }
+  ],
+  "packageFiles": [
+    { "filename": "package.json", "type": "json" }
+  ],
+  "scripts": {
+    "postbump": "node scripts/sync-workspace-deps.js && git add apps/api/package.json apps/web/package.json services/imap/package.json services/haraka/package.json packages/shared-types/package.json yarn.lock"
+  },
+  "commitUrlFormat": "{{host}}/{{owner}}/{{repository}}/commit/{{hash}}",
+  "compareUrlFormat": "{{host}}/{{owner}}/{{repository}}/compare/{{previousTag}}...{{currentTag}}"
+}

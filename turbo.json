@@ -5,6 +5,10 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
+    "build:obfuscate": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
     "lint": {},
     "dev": {
       "dependsOn": ["^build"],
