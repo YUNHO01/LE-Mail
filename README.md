@@ -23,6 +23,17 @@
 
 ---
 
+## 📚 엔지니어링 및 배포 문서 (Documentation)
+
+- 📊 **[사용 인원별 시스템 리소스 및 용량 산정 가이드](docs/시스템_리소스_및_용량_산정_가이드.md)**: 100명 ~ 10,000명 이상 전 구간 인프라/하드웨어 스펙, 동시접속 산정식, DB/스토리지 IOPS
+- 🌐 **[멀티 인스턴스 및 고가용성(HA) 구성 가이드](docs/멀티_인스턴스_고가용성_구성_가이드.md)**: L4/L7 로드밸런싱, NFS 공유 스토리지, 무상태 API/IMAP/Haraka 스케일 아웃
+- 🛠️ **[운영체제별 설치 및 배포 가이드](docs/설치/README.md)**:
+  - 🐧 [Linux (Baremetal/VM) 설치 가이드](docs/설치/linux-install.md) (`systemd` 서비스 등록)
+  - 🪟 [Windows Server 설치 가이드](docs/설치/windows-install.md) (NSSM 서비스 등록)
+  - 🐳 [Docker & Compose 설치 가이드](docs/설치/docker-install.md) (원클릭 컨테이너 배포)
+
+---
+
 ## 🏛 시스템 아키텍처 (System Architecture)
 
 ```
