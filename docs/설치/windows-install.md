@@ -1,152 +1,324 @@
-# 🪟 LEMail Windows Server 설치 가이드
+# 🪟 LEMail Windows Server 배포 및 설치 가이드
 
-본 문서는 Windows Server 2019 / 2022 및 Windows 10/11 환경에서 LEMail을 직접 설치하고, **Windows 백그라운드 서비스(NSSM 또는 PM2)**로 등록하여 24x365 무중단 운영 환경을 구축하는 방법을 안내합니다.
+본 문서는 Windows Server 2019 / 2022 및 Windows 10/11 환경에서 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.zip`)**을 기반으로 LEMail을 설치하고, **NSSM(Non-Sucking Service Manager)**을 통해 Windows 서비스로 등록하여 무중단 운영 환경을 구축하는 방법을 안내합니다.
 
 > [!NOTE]
-> Docker Desktop 또는 Docker Engine 기반으로 컨테이너화하여 설치하고자 하시는 경우 [Docker 설치 가이드](docker-install.md)를 참조하십시오.
+> Docker Desktop 또는 Docker Engine 기반으로 설치하고자 하시는 경우 [Docker 설치 가이드](docker-install.md)를 참조하십시오.
+
+---
+
+## 📌 구성 아키텍처 개요
+
+* **웹 프록시 & SSL**: Nginx for Windows (HTTPS: 443, HTTP: 80 ➔ 443 리다이렉트)
+* **메일 프로토콜**: Inbound ESMTP (25/2525), IMAP (1143/1993, STARTTLS/TLS), Haraka MTA (2526)
+* **데이터베이스**: MySQL 8.0 for Windows (utf8mb4 인코딩)
+* **캐시 & 작업 큐**: Memurai (Redis 7 호환 엔진, `requirepass` 인증 필수)
+* **보안 백신**: ClamAV for Windows (`clamd`, TCP: 3310 첨부파일 실시간 검사)
+* **프로세스 관리**: NSSM (4대 핵심 마이크로서비스 및 Nginx/ClamAV 백그라운드 상시화)
 
 ---
 
 ## 1. 사전 필수 소프트웨어 설치
 
-### 1.1 필수 런타임 및 도구
-1. **Node.js 20.x LTS (x64)**: [공식 다운로드](https://nodejs.org/)에서 Windows Installer(.msi) 다운로드 후 설치.
-2. **Git for Windows**: [공식 다운로드](https://git-scm.com/) 설치 (Bash 툴 포함).
-3. **Yarn 패키지 매니저**: PowerShell을 관리자 권한으로 실행 후 설치:
+### 1.1 Node.js 20 LTS & Yarn & NSSM
+1. **Node.js 20.x LTS (x64)**: [공식 다운로드](https://nodejs.org/)에서 Windows Installer(.msi) 설치.
+2. **Yarn 패키지 매니저**: PowerShell(관리자 권한)에서 실행:
    ```powershell
    npm install -g yarn
    ```
-4. **NSSM (Non-Sucking Service Manager)**: [NSSM 공식 사이트](https://nssm.cc/)에서 다운로드 후 `nssm.exe`를 `C:\Windows\System32\`에 배치 (서비스 등록용).
+3. **NSSM (Service Manager)**: [NSSM 공식 사이트](https://nssm.cc/)에서 다운로드 후 `win64\nssm.exe`를 `C:\Windows\System32\`에 복사합니다.
 
-### 1.2 MySQL 8.0 설치
-- [MySQL Installer for Windows](https://dev.mysql.com/downloads/installer/)를 다운로드하여 **Server Only** 모드로 설치.
-- 포트: 기본 `3306` (또는 지정 포트 `3300`)
-- Character Set: `utf8mb4` 지정.
-- 서비스명: `MySQL80` (자동 시작 활성화).
+### 1.2 MySQL 8.0 for Windows
+* [MySQL Installer](https://dev.mysql.com/downloads/installer/)를 통해 **Server Only** 모드로 설치.
+* 기본 포트 `3306` (또는 지정 포트 `3300`), Character Set: `utf8mb4` 지정.
+* Windows 서비스(`MySQL80`) 자동 시작 등록.
 
-### 1.3 Redis for Windows 설치
-- Windows 환경에서는 **Memurai** (네이티브 Redis 호환 엔진, 권장) 또는 **Redis for Windows** 설치:
-  - [Memurai 공식 사이트](https://www.memurai.com/) 다운로드 및 설치 (Windows 서비스로 자동 등록됨, 기본 포트 `6379`).
+### 1.3 Redis 호환 엔진 (Memurai for Windows)
+* [Memurai 공식 사이트](https://www.memurai.com/)에서 설치 파일 다운로드 후 설치합니다. (Windows 서비스로 자동 등록됨)
+* 포트: 기본 `6379`.
 
----
+### 1.4 ClamAV for Windows (안티바이러스 데몬)
+1. [ClamAV 공식 다운로드](https://www.clamav.net/downloads)에서 Windows 64비트 버전을 다운로드하여 `C:\Program Files\ClamAV`에 압축 해제하거나 설치합니다.
+2. `conf_examples` 폴더에서 `freshclam.conf.sample`, `clamd.conf.sample`을 상위 디렉터리로 복사하고 확장자의 `.sample`을 제거합니다.
+3. `freshclam.conf`와 `clamd.conf`를 메모장으로 열고 최상단의 `Example` 줄을 `#Example`로 주석 처리합니다.
+4. 바이러스 시그니처 최신 업데이트 실행:
+   ```powershell
+   cd "C:\Program Files\ClamAV"
+   .\freshclam.exe
+   ```
 
-## 2. Windows 방화벽 인바운드 규칙 등록
-
-PowerShell(관리자 권한)에서 다음 명령을 실행하여 메일 송수신 및 웹 접속 포트를 허용합니다:
-
-```powershell
-# 웹메일 및 관리자 콘솔 포트
-New-NetFirewallRule -DisplayName "LEMail Web (9000)" -Direction Inbound -LocalPort 9000 -Protocol TCP -Action Allow
-New-NetFirewallRule -DisplayName "LEMail API (9200)" -Direction Inbound -LocalPort 9200 -Protocol TCP -Action Allow
-
-# SMTP 인바운드 및 아웃바운드 포트
-New-NetFirewallRule -DisplayName "LEMail SMTP Standard (25)" -Direction Inbound -LocalPort 25 -Protocol TCP -Action Allow
-New-NetFirewallRule -DisplayName "LEMail ESMTP Inbound (2525)" -Direction Inbound -LocalPort 2525 -Protocol TCP -Action Allow
-New-NetFirewallRule -DisplayName "LEMail Haraka Outbound (2526)" -Direction Inbound -LocalPort 2526 -Protocol TCP -Action Allow
-
-# IMAP 및 IMAPS 포트
-New-NetFirewallRule -DisplayName "LEMail IMAP (1143)" -Direction Inbound -LocalPort 1143 -Protocol TCP -Action Allow
-New-NetFirewallRule -DisplayName "LEMail IMAPS (1993)" -Direction Inbound -LocalPort 1993 -Protocol TCP -Action Allow
-```
-
-### 외부 25번 포트 ➔ 내부 2525번 포트포워딩 (선택 사항)
-Windows에서 포트 25를 내부 LEMail 수신 포트(`2525`)로 라우팅해야 하는 경우:
-```powershell
-netsh interface portproxy add v4tov4 listenport=25 listenaddress=0.0.0.0 connectport=2525 connectaddress=127.0.0.1
-```
+### 1.5 Nginx for Windows (웹 리버스 프록시)
+* [Nginx 공식 다운로드](http://nginx.org/en/download.html)에서 Windows 안정화 버전(.zip)을 다운로드하여 `C:\nginx`에 압축 해제합니다.
 
 ---
 
-## 3. 데이터베이스 생성 및 권한 설정
+## 2. ClamAV TCP 데몬 구성 및 서비스 등록
 
-MySQL Command Line Client 또는 워크벤치를 실행합니다:
+수신 메일의 첨부파일 바이러스 검사를 위해 ClamAV TCP 데몬(`3310`)을 상시 구동합니다.
 
+### 2.1 `clamd.conf` 설정
+`C:\Program Files\ClamAV\clamd.conf` 파일을 열고 다음 설정을 활성화합니다:
+```ini
+# 로컬 TCP 통신 포트 활성화
+TCPSocket 3310
+TCPAddr 127.0.0.1
+MaxConnectionQueueLength 30
+StreamMaxLength 50M
+```
+
+### 2.2 ClamAV Windows 서비스 등록 (NSSM)
+```powershell
+nssm install ClamAV-Daemon "C:\Program Files\ClamAV\clamd.exe" "--config-file=C:\Program Files\ClamAV\clamd.conf"
+nssm set ClamAV-Daemon AppDirectory "C:\Program Files\ClamAV"
+nssm set ClamAV-Daemon Description "LEMail ClamAV Antivirus Daemon Service"
+nssm set ClamAV-Daemon Start SERVICE_AUTO_START
+nssm start ClamAV-Daemon
+```
+
+---
+
+## 3. Redis (Memurai) 비밀번호 및 큐 지속성 구성
+
+BullMQ 작업 큐와 세션 캐시 보호를 위해 인증 비밀번호(`requirepass`) 및 지속성을 설정합니다.
+
+### 3.1 `memurai.conf` 설정
+`C:\Program Files\Memurai\memurai.conf` 파일을 메모장(관리자 권한)으로 엽니다:
+```ini
+bind 127.0.0.1
+port 6379
+
+# [필수 1] Redis 비밀번호 설정
+requirepass SuperSecureRedisPass123!
+
+# [필수 2] AOF 지속성 활성화
+appendonly yes
+appendfsync everysec
+
+# [필수 3] 큐 유실 방지 메모리 정책
+maxmemory 2gb
+maxmemory-policy noeviction
+```
+
+### 3.2 서비스 재시작 및 인증 확인
+```powershell
+Restart-Service Memurai
+
+# 패스워드 인증 테스트
+& "C:\Program Files\Memurai\memurai-cli.exe" -a "SuperSecureRedisPass123!" ping
+# 결과: PONG
+```
+
+---
+
+## 4. MySQL 데이터베이스 및 계정 생성
+
+MySQL Command Line Client를 관리자 권한으로 실행합니다:
 ```sql
 CREATE DATABASE IF NOT EXISTS `lemaildb` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'lemail'@'localhost' IDENTIFIED BY 'StrongPassword123!';
-CREATE USER IF NOT EXISTS 'lemail'@'127.0.0.1' IDENTIFIED BY 'StrongPassword123!';
+CREATE USER IF NOT EXISTS 'lemail'@'localhost' IDENTIFIED BY 'StrongDbPassword123!';
+CREATE USER IF NOT EXISTS 'lemail'@'127.0.0.1' IDENTIFIED BY 'StrongDbPassword123!';
 GRANT ALL PRIVILEGES ON `lemaildb`.* TO 'lemail'@'localhost';
 GRANT ALL PRIVILEGES ON `lemaildb`.* TO 'lemail'@'127.0.0.1';
 FLUSH PRIVILEGES;
+EXIT;
 ```
 
 ---
 
-## 4. 소스코드 배포 및 빌드
+## 5. 배포 파일(ZIP) 압축 해제 및 초기 구성
 
-배포 경로를 `C:\LEMail`로 가정합니다:
+> [!IMPORTANT]
+> 본 가이드는 소스코드 빌드가 아닌 **공식 배포 패키지 파일(`lemail_vX.Y.Z_YYYYMMDD_obfuscated.zip`)**을 기준으로 설치합니다. 소스코드 컴파일(`yarn build`)을 별도로 수행할 필요가 없습니다.
 
+### 5.1 배포 파일 압축 해제
+1. 배포 경로 `C:\LEMail` 디렉터리를 생성합니다.
+2. 배포 패키지 ZIP 파일을 `C:\LEMail`에 압축 해제합니다.
+3. 런타임 저장 디렉터리를 생성합니다:
+   ```powershell
+   mkdir C:\LEMail\mail-spool, C:\LEMail\mail-archive, C:\LEMail\mail-attachments, C:\LEMail\license, C:\LEMail\ssl
+   ```
+
+### 5.2 운영 의존성 모듈 설치
+PowerShell에서 실행합니다:
 ```powershell
-# 1. 디렉터리 생성 및 소스코드 복사
-mkdir C:\LEMail
 cd C:\LEMail
+yarn install --production --frozen-lockfile
+```
 
-# 2. 의존성 설치
-yarn install
-
-# 3. 환경 변수 파일 설정
+### 5.3 환경 변수 설정 (`C:\LEMail\.env`)
+`C:\LEMail\.env.example`을 복사하여 `C:\LEMail\.env`를 생성합니다:
+```powershell
 copy .env.example .env
 notepad .env
 ```
 
-### `.env` 핵심 설정값 확인
 ```ini
+# ==========================================
+# LEMail Production Environment Configuration
+# ==========================================
 NODE_ENV=production
 PORT=9200
 WEB_PORT=9000
 
+# 1. Database
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_USERNAME=lemail
-DB_PASSWORD=StrongPassword123!
+DB_PASSWORD=StrongDbPassword123!
 DB_DATABASE=lemaildb
+DB_POOL_SIZE=30
 
+# 2. Redis (Memurai requirepass)
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
+REDIS_PASSWORD=SuperSecureRedisPass123!
 
-JWT_SECRET=YOUR_SUPER_SECURE_JWT_SECRET_KEY_MIN_32_CHAR
-ENCRYPTION_KEY=YOUR_HEX_ENCRYPTION_KEY_64_CHAR
+# 3. ClamAV Antivirus
+CLAMAV_HOST=127.0.0.1
+CLAMAV_PORT=3310
+CLAMAV_ENABLED=true
+CLAMAV_TIMEOUT_MS=3000
 
-# 디렉터리 경로 (Windows 역슬래시 또는 슬래시 지원)
+# 4. Mail Service TLS Certificates
+IMAP_PORT=1143
+IMAPS_PORT=1993
+IMAP_STARTTLS=true
+IMAP_TLS_CERT=C:/LEMail/ssl/fullchain.pem
+IMAP_TLS_KEY=C:/LEMail/ssl/privkey.pem
+
+# 5. Security & Master Encryption Key
+JWT_SECRET=c28f09d84ef478c9320b9e81d714b901a8f9024cba81001928374655
+APP_ENCRYPTION_KEY=e83a710bc82491a039d84e9021fa4b7c12093847561a0293847561a029384756
+
+# 6. Default Administrator
+DEFAULT_ADMIN_EMAIL=admin@yourdomain.com
+DEFAULT_ADMIN_PASSWORD=AdminStrongPass123!
+DEFAULT_ADMIN_NAME=시스템관리자
+
+# 7. 디스크 저장소 경로
 SPOOL_DIR=C:/LEMail/mail-spool
 ARCHIVE_DIR=C:/LEMail/mail-archive
 ATTACHMENTS_DIR=C:/LEMail/mail-attachments
-LICENSE_FILE_PATH=C:/LEMail/apps/api/license/lemail-license.lic
+LICENSE_FILE_PATH=C:/LEMail/license/lemail-license.lic
 ```
 
+### 5.4 데이터베이스 스키마 및 초기 시드 초기화
+컴파일된 배포 스크립트를 직접 실행합니다:
 ```powershell
-# 4. DB 테이블 스키마 초기화
-yarn --cwd apps/api ts-node src/modules/database/scripts/init-schema.ts
+node apps\api\dist\modules\database\scripts\init-schema.js
+```
+> `[Database] Schema synchronization & initial seeding completed successfully!` 출력을 확인합니다.
 
-# 5. 전체 모노레포 프로젝트 빌드
-yarn build
+---
+
+## 6. 웹 SSL 및 메일 TLS 인증서 배치
+
+공인 인증서(`fullchain.pem`, `privkey.pem`)를 `C:\LEMail\ssl\` 디렉터리에 배치합니다:
+* **웹메일 (Nginx)**: `C:/nginx/conf/ssl/fullchain.pem`, `privkey.pem`
+* **IMAP SSL/TLS**: `.env`의 `IMAP_TLS_CERT`, `IMAP_TLS_KEY` 설정
+* **Haraka SMTP**: `C:\LEMail\services\haraka\config\tls_cert.pem`, `tls_key.pem`으로 복사
+
+```powershell
+# Haraka TLS 인증서 복사
+mkdir C:\LEMail\services\haraka\config -Force
+copy C:\LEMail\ssl\fullchain.pem C:\LEMail\services\haraka\config\tls_cert.pem
+copy C:\LEMail\ssl\privkey.pem C:\LEMail\services\haraka\config\tls_key.pem
 ```
 
 ---
 
-## 5. Windows 서비스 데몬 등록 (NSSM 활용)
+## 7. Nginx for Windows 리버스 프록시 구성
 
-서버 재부팅 시에도 자동으로 백그라운드 구동되도록 NSSM을 이용하여 4대 서비스를 Windows Service로 등록합니다.
+`C:\nginx\conf\nginx.conf` 파일을 작성합니다:
 
-### 5.1 `LEMail-API` 서비스 등록
+```nginx
+worker_processes 1;
+
+events {
+    worker_connections 2048;
+}
+
+http {
+    include mime.types;
+    default_type application/octet-stream;
+    client_max_body_size 50M;
+
+    # 1. HTTP -> HTTPS 리다이렉트
+    server {
+        listen 80;
+        server_name mail.yourdomain.com;
+        return 301 https://$host$request_uri;
+    }
+
+    # 2. HTTPS 메인 웹 서버
+    server {
+        listen 443 ssl http2;
+        server_name mail.yourdomain.com;
+
+        ssl_certificate C:/LEMail/ssl/fullchain.pem;
+        ssl_certificate_key C:/LEMail/ssl/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://127.0.0.1:9000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api {
+            proxy_pass http://127.0.0.1:9200;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 300s;
+        }
+    }
+}
+```
+
+### Nginx Windows 서비스 등록 (NSSM)
 ```powershell
-nssm install LEMail-API "C:\Program Files\nodejs\node.exe" "C:\LEMail\apps\api\dist\main.js"
+nssm install Nginx "C:\nginx\nginx.exe"
+nssm set Nginx AppDirectory "C:\nginx"
+nssm set Nginx Description "LEMail Frontend Nginx Reverse Proxy"
+nssm set Nginx Start SERVICE_AUTO_START
+nssm start Nginx
+```
+
+---
+
+## 8. Windows 서비스 등록 (NSSM) 및 서비스 상시화
+
+배포 산출물 디렉터리의 엔트리포인트를 직접 서비스로 등록합니다:
+
+### 8.1 `LEMail-API` 등록
+```powershell
+nssm install LEMail-API "C:\Program Files\nodejs\node.exe" "C:\LEMail\apps\api\dist\index.js"
 nssm set LEMail-API AppDirectory "C:\LEMail\apps\api"
 nssm set LEMail-API AppEnvironmentExtra "NODE_ENV=production"
 nssm set LEMail-API Description "LEMail Core REST API & Inbound ESMTP Service"
 nssm set LEMail-API Start SERVICE_AUTO_START
 ```
 
-### 5.2 `LEMail-Web` 서비스 등록
+### 8.2 `LEMail-Web` 등록
 ```powershell
-nssm install LEMail-Web "C:\Program Files\nodejs\node.exe" "C:\LEMail\node_modules\next\dist\bin\next" "start -p 9000"
+nssm install LEMail-Web "C:\Program Files\nodejs\node.exe" "C:\LEMail\apps\web\scripts\start.js"
 nssm set LEMail-Web AppDirectory "C:\LEMail\apps\web"
 nssm set LEMail-Web AppEnvironmentExtra "NODE_ENV=production"
 nssm set LEMail-Web Description "LEMail Next.js Webmail Client"
 nssm set LEMail-Web Start SERVICE_AUTO_START
 ```
 
-### 5.3 `LEMail-IMAP` 서비스 등록
+### 8.3 `LEMail-IMAP` 등록
 ```powershell
 nssm install LEMail-IMAP "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\imap\dist\index.js"
 nssm set LEMail-IMAP AppDirectory "C:\LEMail\services\imap"
@@ -155,7 +327,7 @@ nssm set LEMail-IMAP Description "LEMail IMAP4rev1 Microservice"
 nssm set LEMail-IMAP Start SERVICE_AUTO_START
 ```
 
-### 5.4 `LEMail-Haraka` 서비스 등록
+### 8.4 `LEMail-Haraka` 등록
 ```powershell
 nssm install LEMail-Haraka "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\haraka\index.js"
 nssm set LEMail-Haraka AppDirectory "C:\LEMail\services\haraka"
@@ -164,22 +336,38 @@ nssm set LEMail-Haraka Description "LEMail Haraka Outbound Relay MTA"
 nssm set LEMail-Haraka Start SERVICE_AUTO_START
 ```
 
-### 5.5 서비스 일괄 시작 및 상태 확인
+### 8.5 서비스 일괄 시작 및 상태 확인
 ```powershell
 nssm start LEMail-API
 nssm start LEMail-Web
 nssm start LEMail-IMAP
 nssm start LEMail-Haraka
 
-# Windows 서비스 목록에서 실행 상태 확인
-Get-Service -Name "LEMail*"
+# Windows 서비스 구동 확인
+Get-Service -Name "LEMail*", "Nginx", "ClamAV*", "Memurai"
 ```
 
 ---
 
-## 6. 서비스 정상 동작 확인
+## 9. Windows 방화벽 및 포트 포워딩
 
-1. 관리자 PC에서 웹 브라우저를 열고 `http://서버IP:9000/login` 접속.
-2. 기본 관리자 계정으로 로그인 (`admin@yourdomain.com`).
-3. 관리자 대시보드 및 시스템 상태가 정상적으로 가동 중인지 확인합니다.
-4. 관리자 메뉴에서 도메인 및 사서함 계정을 생성하여 메일 송수신 서비스를 개시합니다.
+```powershell
+# 1. 웹 & 메일 포트 허용
+New-NetFirewallRule -DisplayName "LEMail HTTP (80)" -Direction Inbound -LocalPort 80 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "LEMail HTTPS (443)" -Direction Inbound -LocalPort 443 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "LEMail SMTP Standard (25)" -Direction Inbound -LocalPort 25 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "LEMail IMAP (1143)" -Direction Inbound -LocalPort 1143 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "LEMail IMAPS (1993)" -Direction Inbound -LocalPort 1993 -Protocol TCP -Action Allow
+
+# 2. 외부 25번 포트를 LEMail 수신 포트(2525)로 포트포워딩
+netsh interface portproxy add v4tov4 listenport=25 listenaddress=0.0.0.0 connectport=2525 connectaddress=127.0.0.1
+```
+
+---
+
+## 10. 설치 후 최종 검증
+
+1. 웹 브라우저에서 `https://mail.yourdomain.com` 접속.
+2. 초기 관리자 계정(`admin@yourdomain.com`)으로 로그인.
+3. 관리자 메뉴 ➔ **스팸 & 보안 관리 (`/admin/spam-rules`)**에서 ClamAV 연결 테스트 (`127.0.0.1:3310` 성공 확인).
+4. 도메인 및 사서함 계정을 생성하고 메일 송수신 및 IMAP 클라이언트 연동을 확인합니다.
