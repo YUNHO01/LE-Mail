@@ -1,6 +1,6 @@
 {
   "name": "@lemail/api",
-  "version": "0.0.1",
+  "version": "1.1.0",
   "description": "",
   "author": "",
   "private": true,
@@ -8,11 +8,12 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
+    "build:obfuscate": "nest build && node scripts/obfuscate.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/index.js",
     "schema:init": "ts-node src/modules/database/scripts/init-schema.ts",
     "test:pipeline": "ts-node test/test-pipeline.ts",
     "test:smtp": "ts-node test/test-smtp-e2e.ts",

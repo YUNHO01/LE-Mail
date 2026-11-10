@@ -1,6 +1,6 @@
 {
   "name": "lemail-monorepo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "packageManager": "yarn@1.22.22",
   "workspaces": [
@@ -11,7 +11,16 @@
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
+    "build:obfuscate": "turbo run build:obfuscate",
     "lint": "turbo run lint",
+    "release": "standard-version",
+    "release:patch": "standard-version --release-as patch",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major",
+    "release:dry": "standard-version --dry-run",
+    "package": "node scripts/package-dist.js",
+    "package:obfuscate": "node scripts/package-dist.js --obfuscate",
+    "dist:package": "node scripts/package-dist.js",
     "api:dev": "yarn --cwd apps/api dev",
     "api:build": "yarn --cwd apps/api build",
     "web:dev": "yarn --cwd apps/web dev",
@@ -33,6 +42,10 @@
     "license:issue:prod": "node tools/license-issuer/issue-license.js --env prod"
   },
   "devDependencies": {
+    "archiver": "^7.0.1",
+    "concurrently": "^10.0.7",
+    "javascript-obfuscator": "^5.10.0",
+    "standard-version": "^9.5.0",
     "turbo": "^2.3.3"
   }
 }
