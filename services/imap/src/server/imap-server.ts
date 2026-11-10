@@ -4,6 +4,7 @@ import { ImapServerConfig } from '../config/imap-config';
 import { TlsManager, TlsCredentials } from './tls-manager';
 import { ClientSession } from './client-session';
 import { RedisService } from '../services/redis.service';
+import { ImapLicenseService } from '../services/license.service';
 
 export class ImapServer {
   private config: ImapServerConfig;
@@ -18,6 +19,18 @@ export class ImapServer {
   }
 
   async start(): Promise<void> {
+    // 라이선스 상태 검증 및 로깅
+    const licenseStatus = await ImapLicenseService.checkLicense(true);
+    if (licenseStatus.isValid) {
+      console.log(
+        `[ImapServer] ✅ System License Verified: [${licenseStatus.organizationName}] Max Users: ${licenseStatus.maxUsers} (Current: ${licenseStatus.currentUsers}) - Expiry: ${licenseStatus.isUnlimited ? 'Unlimited' : licenseStatus.expiresAt}`,
+      );
+    } else {
+      console.warn(
+        `[ImapServer] ⚠️ System License Warning: ${licenseStatus.message} (Client logins will be restricted until valid license is registered)`,
+      );
+    }
+
     this.tlsCredentials = await TlsManager.getOrCreateCredentials(
       this.config.certPath,
       this.config.keyPath,

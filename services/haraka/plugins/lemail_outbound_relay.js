@@ -21,6 +21,16 @@ try {
   // ignore
 }
 
+// 라이선스 검증 모듈 연동
+let checkLicenseSync = null;
+try {
+  const path = require('path');
+  const licChecker = require(path.resolve(__dirname, '../license-checker'));
+  checkLicenseSync = licChecker.checkLicenseSync;
+} catch (e) {
+  // ignore
+}
+
 // 사내 로컬 수신자 도메인 정의
 const LOCAL_DOMAINS = new Set([
   'lineedge.com',
@@ -71,6 +81,20 @@ exports.hook_rcpt = function (next, connection, params) {
 
 exports.hook_queue = function (next, connection) {
   if (connection.relaying) {
+    // 라이선스 유효성 검사
+    if (typeof checkLicenseSync === 'function') {
+      const lic = checkLicenseSync();
+      if (!lic.isValid) {
+        this.logwarn(
+          `[LEMail Relay] Outbound message BLOCKED - License invalid: ${lic.message}`
+        );
+        return next(
+          DENYSOFT,
+          `451 4.7.0 Service unavailable: Valid LEMail license required (${lic.message})`
+        );
+      }
+    }
+
     this.loginfo(`[LEMail Relay] Enqueueing outbound message from ${getAddr(connection.transaction.mail_from)} to Haraka Outbound Spool`);
     const outbound = this.haraka_require('outbound');
     return outbound.send_trans_email(connection.transaction, next);

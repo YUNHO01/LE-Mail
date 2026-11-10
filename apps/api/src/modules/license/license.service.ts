@@ -493,23 +493,41 @@ export class LicenseService implements OnModuleInit {
     // 7. 기존 활성 라이선스 비활성화
     await this.licenseRepository.update({ isActive: true }, { isActive: false });
 
-    // 8. DB에 신규 라이선스 엔티티 저장
-    const newLicense = this.licenseRepository.create({
-      licenseId: payload.licenseId,
-      product: payload.product,
-      organizationName: payload.organizationName,
-      maxUsers: payload.maxUsers || 200,
-      registerExpiresAt: payload.registerExpiresAt ? new Date(payload.registerExpiresAt) : null,
-      expiresAt: usageExpiresAt,
-      isUnlimited: isUnlimited,
-      issuedAt: new Date(payload.issuedAt),
-      fileHash: fileHash,
-      licenseRaw: canonicalPayloadString,
-      signature: signature,
-      isActive: true,
+    // 8. DB에 신규 라이선스 엔티티 저장 또는 동일 라이선스 재등록 시 갱신
+    const existing = await this.licenseRepository.findOne({
+      where: { licenseId: payload.licenseId },
     });
 
-    await this.licenseRepository.save(newLicense);
+    if (existing) {
+      existing.product = payload.product;
+      existing.organizationName = payload.organizationName;
+      existing.maxUsers = payload.maxUsers || 200;
+      existing.registerExpiresAt = payload.registerExpiresAt ? new Date(payload.registerExpiresAt) : null;
+      existing.expiresAt = usageExpiresAt;
+      existing.isUnlimited = isUnlimited;
+      existing.issuedAt = new Date(payload.issuedAt);
+      existing.fileHash = fileHash;
+      existing.licenseRaw = canonicalPayloadString;
+      existing.signature = signature;
+      existing.isActive = true;
+      await this.licenseRepository.save(existing);
+    } else {
+      const newLicense = this.licenseRepository.create({
+        licenseId: payload.licenseId,
+        product: payload.product,
+        organizationName: payload.organizationName,
+        maxUsers: payload.maxUsers || 200,
+        registerExpiresAt: payload.registerExpiresAt ? new Date(payload.registerExpiresAt) : null,
+        expiresAt: usageExpiresAt,
+        isUnlimited: isUnlimited,
+        issuedAt: new Date(payload.issuedAt),
+        fileHash: fileHash,
+        licenseRaw: canonicalPayloadString,
+        signature: signature,
+        isActive: true,
+      });
+      await this.licenseRepository.save(newLicense);
+    }
 
     this.logger.log(
       `🎉 신규 라이선스 등록 및 파일-DB 동기화 완료: ${payload.organizationName} (${payload.licenseId})`,

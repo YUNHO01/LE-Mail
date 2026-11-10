@@ -174,6 +174,44 @@ async function runLicenseVerificationTests() {
     const statusFinal = await licenseService.getLicenseStatus();
     assert('최종 원복 후 정상 인증 상태 확인', statusFinal.isValid === true);
 
+    // -------------------------------------------------------------
+    // Test 4: IMAP 서비스 라이선스 무결성 및 차단 연동 검증
+    // -------------------------------------------------------------
+    console.log('\n▶ [테스트 4] IMAP 서비스(ImapLicenseService) 라이선스 검증 및 차단 연동');
+    const imapServicePath = path.resolve(__dirname, '../../../services/imap/dist/services/license.service');
+    const { ImapLicenseService } = require(imapServicePath);
+    const imapStatus = await ImapLicenseService.checkLicense(true);
+    assert('IMAP 라이선스 정상 인증 확인', imapStatus.isValid === true);
+    assert('IMAP 파일-DB 무결성 일치 확인', imapStatus.fileIntegrityMatched === true);
+    assert('IMAP 제품 식별자 LEMail 확인', imapStatus.product === 'LEMail');
+
+    // DB 임의 변조 시 IMAP 차단 확인
+    await conn.query('UPDATE system_licenses SET max_users = 99999 WHERE is_active = 1;');
+    const imapTamperedStatus = await ImapLicenseService.checkLicense(true);
+    assert('DB 변조 시 IMAP 서비스 즉시 차단', imapTamperedStatus.isValid === false);
+    // 복구
+    await conn.query('UPDATE system_licenses SET max_users = 200 WHERE is_active = 1;');
+    const imapRestoredStatus = await ImapLicenseService.checkLicense(true);
+    assert('DB 원복 시 IMAP 정상 복원', imapRestoredStatus.isValid === true);
+
+    // -------------------------------------------------------------
+    // Test 5: Haraka Outbound 릴레이 라이선스 검증 및 차단 연동
+    // -------------------------------------------------------------
+    console.log('\n▶ [테스트 5] Haraka Outbound MTA(license-checker) 라이선스 검증 및 차단 연동');
+    const harakaCheckerPath = path.resolve(__dirname, '../../../services/haraka/license-checker');
+    const harakaLicChecker = require(harakaCheckerPath);
+    const harakaStatus = harakaLicChecker.checkLicenseSync(true);
+    assert('Haraka 라이선스 정상 인증 확인', harakaStatus.isValid === true);
+
+    // 파일 변조 시 Haraka 발송 차단 확인
+    fs.writeFileSync(serverLicensePath, tamperedFileContent, 'utf-8');
+    const harakaTamperedStatus = harakaLicChecker.checkLicenseSync(true);
+    assert('파일 변조 시 Haraka 발송 차단 확인', harakaTamperedStatus.isValid === false);
+    // 원복
+    fs.writeFileSync(serverLicensePath, originalFileBytes, 'utf-8');
+    const harakaRestoredStatus = harakaLicChecker.checkLicenseSync(true);
+    assert('파일 원복 시 Haraka 발송 정상 복원', harakaRestoredStatus.isValid === true);
+
   } finally {
     await conn.end();
     await app.close();

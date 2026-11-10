@@ -82,6 +82,19 @@ try {
   console.warn('[LEMail Haraka] Failed to initialize bounce patch:', e.message);
 }
 
+// 라이선스 상태 검증 및 로깅
+try {
+  const { checkLicenseSync } = require('./license-checker');
+  const lic = checkLicenseSync(true);
+  if (lic.isValid) {
+    console.log(`[LEMail Haraka] ✅ System License Verified: [${lic.organizationName}] Max Users: ${lic.maxUsers}`);
+  } else {
+    console.warn(`[LEMail Haraka] ⚠️ System License Warning: ${lic.message} (Outbound relay will be restricted)`);
+  }
+} catch (e) {
+  console.warn('[LEMail Haraka] License checker init note:', e.message);
+}
+
 try {
   const server = require('Haraka/server');
   console.log('[LEMail Haraka] Starting Haraka Outbound MTA on 127.0.0.1:2526...');

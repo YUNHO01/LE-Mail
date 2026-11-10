@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { DbService } from '../services/db.service';
+import { ImapLicenseService } from '../services/license.service';
 import { ClientSession } from '../server/client-session';
 import { ImapState, CAPABILITIES_SECURE } from '../protocol/constants';
 import { ImapResponse } from '../protocol/imap-response';
@@ -41,6 +42,23 @@ export class AuthHandler {
     const cleanPassword = (password || '').replace(/^["']|["']$/g, '');
     const normEmail = cleanUsername.toLowerCase();
     console.log(`[AuthHandler] Login attempt for account "${normEmail}" from ${session.id}`);
+
+    // 시스템 라이선스 유효성 검증 (파일-DB 무결성, 만료, 정원)
+    const licenseStatus = await ImapLicenseService.checkLicense();
+    if (!licenseStatus.isValid) {
+      console.warn(
+        `[AuthHandler] Login BLOCKED for "${normEmail}" from ${session.id}: ${licenseStatus.message}`,
+      );
+      session.write(
+        ImapResponse.tagged(
+          tag,
+          'NO',
+          `[UNAVAILABLE] System license required: ${licenseStatus.message}`,
+          'SERVERERROR',
+        ),
+      );
+      return;
+    }
 
     try {
       const users = await DbService.query(
