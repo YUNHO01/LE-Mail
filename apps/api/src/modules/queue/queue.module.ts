@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { InboundMailProducer } from './inbound-mail.producer';
@@ -6,6 +6,7 @@ import { InboundMailProcessor } from './inbound-mail.processor';
 import { INBOUND_MAIL_QUEUE_NAME } from './interfaces/inbound-mail.interface';
 import { WorkerPoolModule } from '../worker-pool/worker-pool.module';
 import { DatabaseModule } from '../database/database.module';
+import { SpamModule } from '../spam/spam.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { DatabaseModule } from '../database/database.module';
     }),
     WorkerPoolModule,
     DatabaseModule,
+    forwardRef(() => SpamModule),
   ],
   providers: [InboundMailProducer, InboundMailProcessor],
   exports: [BullModule, InboundMailProducer],

@@ -24,6 +24,53 @@ if (!fs.existsSync(queueDir)) {
   fs.mkdirSync(queueDir, { recursive: true });
 }
 
+// TLS 인증서(tls_key.pem, tls_cert.pem) 보장
+function ensureTlsCertificates() {
+  const configDir = path.resolve(__dirname, 'config');
+  const keyPath = path.join(configDir, 'tls_key.pem');
+  const certPath = path.join(configDir, 'tls_cert.pem');
+
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    return;
+  }
+
+  const cp = require('child_process');
+  const opensslCandidates = [
+    'openssl',
+    'C:\\Program Files\\Git\\usr\\bin\\openssl.exe',
+    'C:\\Program Files (x86)\\Git\\usr\\bin\\openssl.exe',
+  ];
+
+  for (const bin of opensslCandidates) {
+    try {
+      cp.execFileSync(
+        bin,
+        [
+          'req',
+          '-x509',
+          '-nodes',
+          '-days',
+          '3650',
+          '-newkey',
+          'rsa:2048',
+          '-keyout',
+          keyPath,
+          '-out',
+          certPath,
+          '-subj',
+          '/CN=lemail-mta',
+        ],
+        { stdio: 'ignore' },
+      );
+      if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+        console.log('[LEMail Haraka] Successfully generated self-signed TLS certificates.');
+        return;
+      }
+    } catch {}
+  }
+}
+ensureTlsCertificates();
+
 // Haraka 환경 변수 설정
 process.env.HARAKA = path.resolve(__dirname);
 

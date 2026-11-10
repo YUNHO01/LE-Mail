@@ -25,6 +25,15 @@ export class Domain {
   @Column({ type: 'varchar', length: 255, nullable: true })
   description: string | null;
 
+  @Column({ name: 'dkim_selector', type: 'varchar', length: 64, nullable: true, default: 'default' })
+  dkimSelector: string | null;
+
+  @Column({ name: 'dkim_private_key', type: 'text', nullable: true })
+  dkimPrivateKey: string | null;
+
+  @Column({ name: 'dkim_public_key', type: 'text', nullable: true })
+  dkimPublicKey: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

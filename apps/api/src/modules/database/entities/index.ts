@@ -7,4 +7,6 @@ export * from './user.entity';
 export * from './mail-folder.entity';
 export * from './user-mail.entity';
 export * from './system-setting.entity';
+export * from './spam-rule.entity';
+export * from './bayesian-token.entity';
 

@@ -14,6 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { MailService } from './mail.service';
+import { SpamService } from '../spam/spam.service';
 import { MailQueryDto } from './dto/mail-query.dto';
 import { SendMailDto } from './dto/send-mail.dto';
 import { SaveDraftDto } from './dto/save-draft.dto';
@@ -24,7 +25,10 @@ import { User } from '../database/entities';
 @ApiTags('Mails')
 @Controller('mails')
 export class MailController {
-  constructor(private readonly mailService: MailService) {}
+  constructor(
+    private readonly mailService: MailService,
+    private readonly spamService: SpamService,
+  ) {}
 
   @Post('send')
   @ApiBearerAuth()
@@ -187,5 +191,25 @@ export class MailController {
       );
     }
     return this.mailService.delete(id);
+  }
+
+  @Post(':id/report-spam')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '스팸 메일 신고 및 발신자 차단' })
+  @ApiParam({ name: 'id', description: '메일 고유 ID' })
+  @ApiResponse({ status: 200, description: '스팸 이동 및 차단 완료' })
+  reportSpam(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.spamService.reportSpam(user.id, id);
+  }
+
+  @Post(':id/unreport-spam')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '스팸 해제 및 정상 메일 복원' })
+  @ApiParam({ name: 'id', description: '메일 고유 ID' })
+  @ApiResponse({ status: 200, description: '받은편지함 복원 및 허용 완료' })
+  unreportSpam(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.spamService.unreportSpam(user.id, id);
   }
 }

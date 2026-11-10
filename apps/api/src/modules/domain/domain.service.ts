@@ -4,6 +4,7 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Domain } from '../database/entities/domain.entity';
@@ -176,5 +177,57 @@ export class DomainService {
     await this.domainRepo.delete(id);
     await this.mailboxCache.refreshCache();
     this.logger.log(`Deleted domain: ${domain.name}`);
+  }
+
+  /**
+   * 도메인용 2048-bit RSA DKIM 키 쌍 생성 및 DB 저장
+   */
+  async generateDkimKey(id: string, selector = 'default') {
+    const domain = await this.findOne(id);
+    const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const cleanPub = publicKey
+      .replace(/-----BEGIN PUBLIC KEY-----/g, '')
+      .replace(/-----END PUBLIC KEY-----/g, '')
+      .replace(/\r?\n|\r/g, '')
+      .trim();
+
+    domain.dkimSelector = selector;
+    domain.dkimPrivateKey = privateKey;
+    domain.dkimPublicKey = cleanPub;
+    await this.domainRepo.save(domain);
+
+    this.logger.log(`Generated DKIM key for domain: ${domain.name} (selector: ${selector})`);
+    return {
+      domainName: domain.name,
+      selector,
+      dnsHostRecord: `${selector}._domainkey.${domain.name}`,
+      dnsTxtRecord: `v=DKIM1; k=rsa; p=${cleanPub}`,
+      hasPrivateKey: true,
+    };
+  }
+
+  /**
+   * 도메인의 DKIM DNS 레코드 정보 조회
+   */
+  async getDkimDnsInfo(id: string) {
+    const domain = await this.findOne(id);
+    if (!domain.dkimPublicKey) {
+      return {
+        domainName: domain.name,
+        hasKey: false,
+      };
+    }
+    const selector = domain.dkimSelector || 'default';
+    return {
+      domainName: domain.name,
+      selector,
+      hasKey: true,
+      dnsHostRecord: `${selector}._domainkey.${domain.name}`,
+      dnsTxtRecord: `v=DKIM1; k=rsa; p=${domain.dkimPublicKey}`,
+    };
   }
 }

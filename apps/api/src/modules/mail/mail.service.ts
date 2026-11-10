@@ -2,7 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -21,6 +24,9 @@ import { randomUUID } from 'crypto';
 import * as nodemailer from 'nodemailer';
 import * as libmime from 'libmime';
 import { SettingsService } from '../settings/settings.service';
+import { OutboundRateLimitService } from '../spam/outbound-rate-limit.service';
+import { DkimSignService, DkimNodemailerConfig } from '../spam/dkim-sign.service';
+import { AccountDefenseService } from '../spam/account-defense.service';
 
 @Injectable()
 export class MailService {
@@ -41,6 +47,12 @@ export class MailService {
     private readonly userRepo: Repository<User>,
     private readonly workerPool: WorkerPoolService,
     private readonly settingsService: SettingsService,
+    @Inject(forwardRef(() => OutboundRateLimitService))
+    private readonly rateLimitService: OutboundRateLimitService,
+    @Inject(forwardRef(() => DkimSignService))
+    private readonly dkimSignService: DkimSignService,
+    @Inject(forwardRef(() => AccountDefenseService))
+    private readonly accountDefenseService: AccountDefenseService,
   ) {}
 
   decodeMimeWords(str: string | null | undefined): string {
@@ -395,6 +407,7 @@ export class MailService {
 
     let isRead = false;
     let isStarred = false;
+    let currentFolderId: string | undefined = undefined;
 
     // 로그인한 사용자의 사서함 메일인 경우 조회 시 자동으로 읽음(isRead = true) 처리
     if (userId) {
@@ -408,6 +421,7 @@ export class MailService {
       });
 
       if (userMails.length > 0) {
+        currentFolderId = userMails[0].folderId;
         let changed = false;
         for (const um of userMails) {
           if (!um.isRead) {
@@ -449,6 +463,7 @@ export class MailService {
       subject: this.decodeMimeWords(message.subject),
       isRead,
       isStarred,
+      folderId: currentFolderId,
       body: parsedContent,
     };
   }
@@ -548,6 +563,27 @@ export class MailService {
       throw new BadRequestException('받는 사람 이메일 주소를 1개 이상 입력해 주세요.');
     }
 
+    // 0-1. 비정상 대량 발송/탈취 계정 자동 잠금(Account Defense) 확인
+    const lockStatus = await this.accountDefenseService.isAccountLocked(user.id);
+    if (lockStatus.locked) {
+      throw new ForbiddenException(
+        `비정상 대량 발송 또는 어뷰징 징후가 감지되어 계정이 임시 보호 잠금되었습니다. 사유: ${lockStatus.reason || '보안 위반'} (시스템 관리자에게 문의하세요)`,
+      );
+    }
+
+    // 0-2. 계정별 아웃바운드 발송 Rate Limiting (분당 30통 / 일일 500통 한도 초과 차단)
+    const totalRecipients =
+      (dto.to?.length || 0) + (dto.cc?.length || 0) + (dto.bcc?.length || 0);
+    try {
+      await this.rateLimitService.checkAndIncrement(user.id, totalRecipients);
+    } catch (err: any) {
+      await this.accountDefenseService.recordViolation(
+        user.id,
+        `Outbound rate limit exceeded: ${err.message}`,
+      );
+      throw err;
+    }
+
     const mailId = randomUUID();
     const now = new Date();
     const year = String(now.getFullYear());
@@ -579,6 +615,15 @@ export class MailService {
       text: dto.bodyText || '',
       html: dto.bodyHtml || dto.bodyText || '',
     };
+
+    // 발신 도메인 DKIM 서명 설정 조회 및 적용 (암호학적 서명 헤더 생성)
+    const senderDomain = user.email.includes('@')
+      ? user.email.split('@')[1].toLowerCase().trim()
+      : '';
+    const dkimConfig = await this.dkimSignService.getDkimConfigForDomain(senderDomain);
+    if (dkimConfig) {
+      mailOptions.dkim = dkimConfig;
+    }
 
     // 첨부파일 준비 (년/월/일 계층 구조로 저장)
     const attEntities: MailAttachment[] = [];
@@ -786,6 +831,7 @@ export class MailService {
         bodyHtml: dto.bodyHtml,
         attachments: mailOptions.attachments,
         rawFilePath: emlPath,
+        dkimConfig,
       });
 
       if (!delivery.success) {
@@ -832,6 +878,7 @@ export class MailService {
     bodyHtml?: string;
     attachments?: any[];
     rawFilePath?: string;
+    dkimConfig?: DkimNodemailerConfig | null;
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const {
       mailId,
@@ -845,6 +892,7 @@ export class MailService {
       bodyHtml,
       attachments,
       rawFilePath,
+      dkimConfig,
     } = params;
 
     const allExternal = Array.from(
@@ -877,6 +925,7 @@ export class MailService {
         text: bodyText || '',
         html: bodyHtml || bodyText || '',
         attachments,
+        dkim: dkimConfig || undefined,
       };
     }
 

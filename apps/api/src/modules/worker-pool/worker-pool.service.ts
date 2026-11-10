@@ -44,8 +44,15 @@ export class WorkerPoolService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async parseMail(filePath: string): Promise<ParsedMailResult> {
-    return this.pool.run({ filePath });
+  async parseMail(
+    filePath: string,
+    options?: { clientIp?: string; sender?: string },
+  ): Promise<ParsedMailResult> {
+    return this.pool.run({
+      filePath,
+      clientIp: options?.clientIp,
+      sender: options?.sender,
+    });
   }
 
   /**

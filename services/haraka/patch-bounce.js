@@ -72,7 +72,8 @@ function patchBounceBodyLines(bounce_body) {
 
 function applyBouncePatch() {
   try {
-    const HMailItem = require('Haraka/outbound/hmail');
+    const outbound = require('Haraka/outbound');
+    const HMailItem = outbound.HMailItem;
     if (!HMailItem || !HMailItem.prototype) {
       return false;
     }

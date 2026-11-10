@@ -23,7 +23,6 @@ import {
   RefreshCw,
   ChevronRight,
   ChevronLeft,
-  FastForward,
   Save,
   HelpCircle,
   Info,
@@ -484,18 +483,7 @@ export default function SettingsPage() {
     }
   };
 
-  // 2. 건너뛰기 (Skip) 핸들러 - 사용자의 명시적 요청
-  const handleSkipStep = () => {
-    setFeedback({
-      type: 'info',
-      message: `Step ${currentStep} (${STEPS[currentStep - 1]?.label})을 변경하지 않고 건너뛰었습니다.`,
-    });
-    if (currentStep < 5) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
-
-  // 3. 이전 단계 이동
+  // 2. 이전 단계 이동
   const handlePrevStep = () => {
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
@@ -981,21 +969,8 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Action Buttons: Skip & Save */}
+          {/* Action Buttons: Save */}
           <div className="flex items-center gap-3">
-            {/* 건너뛰기 (Skip) 버튼 */}
-            {currentStep < 5 && (
-              <button
-                type="button"
-                onClick={handleSkipStep}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition group"
-                title="현재 설정을 수정하지 않고 다음 단계로 즉시 이동합니다."
-              >
-                <span>건너뛰기</span>
-                <FastForward className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform text-slate-400" />
-              </button>
-            )}
-
             {/* 이 단계 저장 및 적용 버튼 */}
             <button
               type="button"

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { DomainService } from './domain.service';
+import { DomainHealthService } from './domain-health.service';
 import { CreateDomainDto } from './dto/create-domain.dto';
 import { UpdateDomainDto } from './dto/update-domain.dto';
 import { DomainQueryDto } from './dto/domain-query.dto';
@@ -17,7 +18,10 @@ import { DomainQueryDto } from './dto/domain-query.dto';
 @ApiTags('Domains')
 @Controller('domains')
 export class DomainController {
-  constructor(private readonly domainService: DomainService) {}
+  constructor(
+    private readonly domainService: DomainService,
+    private readonly healthService: DomainHealthService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: '도메인 목록 조회 (페이징, 검색, 필터)' })
@@ -65,5 +69,29 @@ export class DomainController {
   @ApiResponse({ status: 409, description: '사서함이 속해있거나 기본 도메인인 경우 삭제 불가' })
   remove(@Param('id') id: string) {
     return this.domainService.remove(id);
+  }
+
+  @Post(':id/generate-dkim')
+  @ApiOperation({ summary: '도메인 아웃바운드 발신용 DKIM 키 쌍 생성' })
+  @ApiParam({ name: 'id', description: '도메인 고유 ID' })
+  @ApiResponse({ status: 200, description: 'DKIM 키 생성 및 DNS 레코드 반환' })
+  generateDkim(@Param('id') id: string, @Body() body?: { selector?: string }) {
+    return this.domainService.generateDkimKey(id, body?.selector || 'default');
+  }
+
+  @Get(':id/dkim')
+  @ApiOperation({ summary: '도메인의 DKIM DNS 레코드 정보 조회' })
+  @ApiParam({ name: 'id', description: '도메인 고유 ID' })
+  @ApiResponse({ status: 200, description: 'DKIM DNS 레코드 정보 반환' })
+  getDkim(@Param('id') id: string) {
+    return this.domainService.getDkimDnsInfo(id);
+  }
+
+  @Get(':id/health-check')
+  @ApiOperation({ summary: '도메인의 DNS 보안 4종(MX/SPF/DKIM/DMARC) 및 RBL 평판 실시간 진단' })
+  @ApiParam({ name: 'id', description: '도메인 고유 ID' })
+  @ApiResponse({ status: 200, description: '실시간 DNS 보안 진단 리포트 반환' })
+  checkHealth(@Param('id') id: string) {
+    return this.healthService.checkDomainHealth(id);
   }
 }

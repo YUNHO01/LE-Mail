@@ -15,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { MailFolderModule } from './modules/mail-folder/mail-folder.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { SpamModule } from './modules/spam/spam.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CryptoModule } from './common/crypto/crypto.module';
@@ -40,6 +41,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
     UsersModule,
     MailFolderModule,
     SettingsModule,
+    SpamModule,
     SeedModule,
   ],
   controllers: [AppController],

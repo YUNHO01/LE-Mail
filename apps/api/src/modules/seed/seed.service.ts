@@ -35,18 +35,83 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async ensureSchemaColumns(): Promise<void> {
-    try {
-      await this.userRepository.query(
-        'ALTER TABLE `mail_message` ADD COLUMN `failure_reason` TEXT NULL AFTER `status`;',
-      );
-      this.logger.log('Successfully ensured mail_message.failure_reason column.');
-    } catch (err: any) {
-      if (err.errno === 1060 || err.code === 'ER_DUP_FIELDNAME') {
-        // 이미 컬럼이 존재하므로 정상
-      } else {
-        this.logger.debug?.(`Column check note: ${err.message}`);
+    const runSafeQuery = async (query: string, logMsg?: string) => {
+      try {
+        await this.userRepository.query(query);
+        if (logMsg) {
+          this.logger.log(logMsg);
+        }
+      } catch (err: any) {
+        if (
+          err.errno === 1060 ||
+          err.code === 'ER_DUP_FIELDNAME' ||
+          err.errno === 1050 ||
+          err.code === 'ER_TABLE_EXISTS_ERROR' ||
+          err.errno === 1061 ||
+          err.code === 'ER_DUP_KEYNAME'
+        ) {
+          // 이미 컬럼/인덱스/테이블이 존재하므로 정상 처리
+        } else {
+          this.logger.warn(`Schema update note (${err.message}): ${query.trim().substring(0, 80)}...`);
+        }
       }
-    }
+    };
+
+    await runSafeQuery(
+      'ALTER TABLE `mail_message` ADD COLUMN `failure_reason` TEXT NULL AFTER `status`;',
+      'Successfully ensured mail_message.failure_reason column.',
+    );
+
+    await runSafeQuery(`
+      CREATE TABLE IF NOT EXISTS \`spam_rules\` (
+        \`id\` VARCHAR(36) PRIMARY KEY,
+        \`user_id\` VARCHAR(36) NULL,
+        \`type\` ENUM('WHITELIST', 'BLACKLIST') NOT NULL DEFAULT 'BLACKLIST',
+        \`target_type\` ENUM('EMAIL', 'DOMAIN', 'IP') NOT NULL DEFAULT 'EMAIL',
+        \`pattern\` VARCHAR(255) NOT NULL,
+        \`reason\` VARCHAR(255) NULL,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX \`idx_spam_rules_user_type\` (\`user_id\`, \`type\`),
+        INDEX \`idx_spam_rules_pattern\` (\`pattern\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `, 'Successfully ensured spam_rules table.');
+
+    await runSafeQuery(`
+      CREATE TABLE IF NOT EXISTS \`bayesian_tokens\` (
+        \`token\` VARCHAR(128) PRIMARY KEY,
+        \`spam_count\` INT NOT NULL DEFAULT 0,
+        \`ham_count\` INT NOT NULL DEFAULT 0,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `, 'Successfully ensured bayesian_tokens table.');
+
+    await runSafeQuery(
+      'ALTER TABLE `mail_message` ADD COLUMN `spam_score` FLOAT NOT NULL DEFAULT 0 AFTER `status`;',
+    );
+
+    await runSafeQuery(
+      'ALTER TABLE `mail_message` ADD COLUMN `spam_reasons` TEXT NULL AFTER `spam_score`;',
+    );
+
+    await runSafeQuery(
+      "ALTER TABLE `mail_message` MODIFY COLUMN `status` ENUM('QUEUED', 'PROCESSED', 'FAILED', 'QUARANTINED') NOT NULL DEFAULT 'QUEUED';",
+    );
+
+    await runSafeQuery(
+      "ALTER TABLE `domain` ADD COLUMN `dkim_selector` VARCHAR(64) NULL DEFAULT 'default';",
+      'Successfully ensured domain.dkim_selector column.',
+    );
+
+    await runSafeQuery(
+      'ALTER TABLE `domain` ADD COLUMN `dkim_private_key` TEXT NULL;',
+      'Successfully ensured domain.dkim_private_key column.',
+    );
+
+    await runSafeQuery(
+      'ALTER TABLE `domain` ADD COLUMN `dkim_public_key` TEXT NULL;',
+      'Successfully ensured domain.dkim_public_key column.',
+    );
   }
 
   async seedSystemAdmin(): Promise<void> {

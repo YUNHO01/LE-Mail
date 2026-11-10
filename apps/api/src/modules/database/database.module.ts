@@ -11,6 +11,8 @@ import {
   MailFolder,
   UserMail,
   SystemSetting,
+  SpamRule,
+  BayesianToken,
 } from './entities';
 
 @Module({
@@ -37,6 +39,8 @@ import {
             MailFolder,
             UserMail,
             SystemSetting,
+            SpamRule,
+            BayesianToken,
           ],
           synchronize: false,
           timezone: 'Z',
@@ -56,6 +60,7 @@ import {
       MailFolder,
       UserMail,
       SystemSetting,
+      SpamRule,
     ]),
   ],
   exports: [TypeOrmModule],

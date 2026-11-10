@@ -10,6 +10,8 @@ import {
   Globe,
   Layers,
   ShieldCheck,
+  ShieldAlert,
+  Filter,
   ArrowLeft,
   Server,
   Settings,
@@ -55,6 +57,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       href: '/admin/logs',
       label: '수신 및 보안 로그',
       icon: Layers,
+    },
+    {
+      href: '/admin/quarantine',
+      label: '스팸 격리함 관리',
+      icon: ShieldAlert,
+    },
+    {
+      href: '/admin/spam-rules',
+      label: '스팸 차단 및 필터 정책',
+      icon: Filter,
     },
     {
       href: '/admin/settings',

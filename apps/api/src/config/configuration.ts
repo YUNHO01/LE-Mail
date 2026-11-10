@@ -21,6 +21,8 @@ export interface SmtpConfig {
   useProxy: boolean;
   maxClients: number;
   cacheTtlSeconds: number;
+  rblEnabled: boolean;
+  rblServers: string;
 }
 
 export interface AuthConfig {
@@ -55,6 +57,9 @@ export default (): AppConfig => ({
     useProxy: process.env.SMTP_USE_PROXY === 'true',
     maxClients: parseInt(process.env.SMTP_MAX_CLIENTS || '100', 10),
     cacheTtlSeconds: parseInt(process.env.MAILBOX_CACHE_TTL || '60', 10),
+    rblEnabled: process.env.SMTP_RBL_ENABLED !== 'false',
+    rblServers:
+      process.env.SMTP_RBL_SERVERS || 'zen.spamhaus.org,spamlist.or.kr',
   },
   database: {
     host: process.env.DB_HOST || '127.0.0.1',

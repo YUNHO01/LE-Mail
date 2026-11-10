@@ -271,6 +271,56 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     }
   };
 
+  const handleBulkUnreportSpam = async () => {
+    if (selectedIds.length === 0) return;
+    if (
+      !confirm(
+        `선택한 ${selectedIds.length}개의 메일을 스팸 해제하고 받은편지함으로 복원하시겠습니까?\n(발신자가 수신 허용 목록에 등록됩니다)`,
+      )
+    )
+      return;
+    try {
+      await Promise.all(
+        selectedIds.map((id) =>
+          fetchApi(`/mails/${id}/unreport-spam`, { method: 'POST' }),
+        ),
+      );
+      setSelectedIds([]);
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      if (onRefresh) {
+        await onRefresh();
+      }
+      alert('선택한 메일이 받은편지함으로 복원되었습니다.');
+    } catch (err: any) {
+      alert(err.message || '스팸 해제 실패');
+    }
+  };
+
+  const handleBulkReportSpam = async () => {
+    if (selectedIds.length === 0) return;
+    if (
+      !confirm(
+        `선택한 ${selectedIds.length}개의 메일을 스팸으로 신고하시겠습니까?\n(발신자가 차단 목록에 등록되며 메일이 스팸함으로 이동합니다)`,
+      )
+    )
+      return;
+    try {
+      await Promise.all(
+        selectedIds.map((id) =>
+          fetchApi(`/mails/${id}/report-spam`, { method: 'POST' }),
+        ),
+      );
+      setSelectedIds([]);
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      if (onRefresh) {
+        await onRefresh();
+      }
+      alert('선택한 메일이 스팸함으로 이동 및 차단 등록되었습니다.');
+    } catch (err: any) {
+      alert(err.message || '스팸 신고 실패');
+    }
+  };
+
   const isSent = type === 'sent';
   const isSpam = type === 'spam';
   const isTrash = type === 'trash';
@@ -542,6 +592,32 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* 스팸 해제 버튼 (스팸함일 때 노출) */}
+              {isSpam && (
+                <button
+                  type="button"
+                  onClick={handleBulkUnreportSpam}
+                  className="btn btn-sm btn-secondary text-xs font-semibold text-emerald-700 hover:text-emerald-800 border-emerald-200 hover:border-emerald-300 bg-emerald-50 inline-flex items-center gap-1"
+                  title="선택한 메일을 받은편지함으로 복원하고 발신자 차단을 해제합니다."
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>스팸 해제</span>
+                </button>
+              )}
+
+              {/* 스팸 신고 버튼 (일반 편지함일 때 노출) */}
+              {!isSpam && !isTrash && !isDraft && !isSent && (
+                <button
+                  type="button"
+                  onClick={handleBulkReportSpam}
+                  className="btn btn-sm btn-secondary text-xs font-medium text-amber-700 hover:text-amber-800 border-amber-200 hover:border-amber-300 bg-amber-50 inline-flex items-center gap-1"
+                  title="선택한 메일을 스팸으로 신고하고 발신자를 차단합니다."
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                  <span>스팸 신고</span>
+                </button>
+              )}
 
               {/* 삭제 버튼 (기본: 휴지통 이동) */}
               <button

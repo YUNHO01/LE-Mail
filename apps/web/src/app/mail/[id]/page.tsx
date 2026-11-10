@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
-import { MailMessageDto } from '@lemail/shared-types';
+import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import {
   ArrowLeft,
   Download,
   Paperclip,
   Trash2,
   ShieldCheck,
+  ShieldAlert,
   FileText,
   User,
   Clock,
@@ -26,6 +27,7 @@ export default function MailDetailPage() {
   const id = params?.id as string;
 
   const [mail, setMail] = useState<MailMessageDto | null>(null);
+  const [spamFolderId, setSpamFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,6 +37,14 @@ export default function MailDetailPage() {
         setLoading(true);
         const data = await fetchApi<MailMessageDto>(`/mails/${id}`);
         setMail(data);
+
+        // 폴더 목록 조회하여 SPAM 폴더 ID 식별
+        const folders = await fetchApi<MailFolderDto[]>('/mail-folders');
+        const spam = (folders || []).find((f) => f.type === FolderType.SPAM);
+        if (spam) {
+          setSpamFolderId(spam.id);
+        }
+
         // 상세 열람 시 백엔드에서 읽음 처리되었으므로 폴더 카운트 동기화
         window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       } catch (err: any) {
@@ -59,6 +69,48 @@ export default function MailDetailPage() {
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
     } catch (err: any) {
       alert(err.message || '읽음 상태 변경 실패');
+    }
+  };
+
+  const handleReportSpam = async () => {
+    if (!mail) return;
+    if (
+      !confirm(
+        '이 메일을 스팸으로 신고하시겠습니까?\n발신자가 차단 목록에 등록되며 메일이 스팸메일함으로 이동합니다.',
+      )
+    )
+      return;
+    try {
+      const res = await fetchApi<{ success: boolean; message: string }>(
+        `/mails/${id}/report-spam`,
+        { method: 'POST' },
+      );
+      alert(res.message || '스팸 신고 처리되었습니다.');
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      router.push('/mail/inbox');
+    } catch (err: any) {
+      alert(err.message || '스팸 신고 실패');
+    }
+  };
+
+  const handleUnreportSpam = async () => {
+    if (!mail) return;
+    if (
+      !confirm(
+        '이 메일을 스팸 해제하고 받은편지함으로 복원하시겠습니까?\n발신자가 수신 허용 목록에 등록됩니다.',
+      )
+    )
+      return;
+    try {
+      const res = await fetchApi<{ success: boolean; message: string }>(
+        `/mails/${id}/unreport-spam`,
+        { method: 'POST' },
+      );
+      alert(res.message || '받은편지함으로 복원되었습니다.');
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      router.push('/mail/inbox');
+    } catch (err: any) {
+      alert(err.message || '스팸 해제 실패');
     }
   };
 
@@ -153,6 +205,27 @@ export default function MailDetailPage() {
             <span>원본 EML</span>
           </a>
 
+          {/* 스팸 신고 또는 정상 메일 복원 버튼 */}
+          {spamFolderId && mail.folderId === spamFolderId ? (
+            <button
+              onClick={handleUnreportSpam}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm hover:bg-emerald-100 transition"
+              title="받은편지함으로 복원 및 발신자 수신 허용"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+              <span>정상 메일 복원</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleReportSpam}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 shadow-sm hover:bg-amber-100 transition"
+              title="스팸 편지함으로 이동 및 발신자 차단"
+            >
+              <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
+              <span>스팸 신고</span>
+            </button>
+          )}
+
           <button
             onClick={handleDelete}
             className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition"
@@ -195,16 +268,32 @@ export default function MailDetailPage() {
 
           {/* Security Verification Badges */}
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/60 text-[11px]">
-            <span className="text-slate-500 font-semibold">인증 상태:</span>
-            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-              SPF: {mail.spfResult}
-            </span>
-            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-              DKIM: {mail.dkimResult}
-            </span>
-            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-              DMARC: {mail.dmarcResult}
-            </span>
+            <span className="text-slate-500 font-semibold">보안 인증:</span>
+            {[
+              { label: 'SPF', val: mail.spfResult },
+              { label: 'DKIM', val: mail.dkimResult },
+              { label: 'DMARC', val: mail.dmarcResult },
+            ].map(({ label, val }) => {
+              const res = val || 'NONE';
+              let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+              if (res === 'PASS') {
+                badgeColor =
+                  'bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold';
+              } else if (res === 'FAIL') {
+                badgeColor =
+                  'bg-rose-50 text-rose-700 border-rose-300 font-semibold';
+              } else if (res === 'SOFTFAIL' || res === 'NEUTRAL') {
+                badgeColor = 'bg-amber-50 text-amber-700 border-amber-300';
+              }
+              return (
+                <span
+                  key={label}
+                  className={`rounded border px-2 py-0.5 text-[11px] ${badgeColor}`}
+                >
+                  {label}: {res}
+                </span>
+              );
+            })}
           </div>
         </div>
 

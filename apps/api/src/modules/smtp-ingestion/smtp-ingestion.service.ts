@@ -3,6 +3,8 @@ import {
   OnApplicationBootstrap,
   OnApplicationShutdown,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -18,7 +20,11 @@ import { join, resolve } from 'path';
 import { randomUUID } from 'crypto';
 import { InboundMailProducer } from '../queue/inbound-mail.producer';
 import { MailboxCacheService } from './mailbox-cache.service';
+import { RblCheckService } from './rbl-check.service';
 import { AuthService } from '../auth/auth.service';
+import { DataSource } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { SystemSetting } from '../database/entities/system-setting.entity';
 
 @Injectable()
 export class SmtpIngestionService
@@ -34,9 +40,14 @@ export class SmtpIngestionService
 
   constructor(
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => InboundMailProducer))
     private readonly mailProducer: InboundMailProducer,
     private readonly mailboxCache: MailboxCacheService,
+    @Inject(forwardRef(() => AuthService))
     private readonly authService: AuthService,
+    private readonly rblCheckService: RblCheckService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {
     const rawSpoolDir =
       this.configService.get<string>('smtp.spoolDir') || './mail-spool';
@@ -48,11 +59,38 @@ export class SmtpIngestionService
       this.configService.get<number>('smtp.maxClients') || 100;
   }
 
-  onApplicationBootstrap() {
+  async onApplicationBootstrap() {
     if (!existsSync(this.spoolDir)) {
       mkdirSync(this.spoolDir, { recursive: true });
     }
-    this.startServer();
+    await this.syncSettingsFromDb();
+    await this.startServer();
+  }
+
+  /**
+   * DB system_settings 에 저장된 웹 환경설정 값을 최우선 반영
+   */
+  private async syncSettingsFromDb() {
+    try {
+      const repo = this.dataSource.getRepository(SystemSetting);
+      const portSetting = await repo.findOne({ where: { key: 'SMTP_PORT' } });
+      if (portSetting?.value) {
+        this.currentPort = parseInt(portSetting.value, 10);
+      }
+      const maxClientsSetting = await repo.findOne({ where: { key: 'SMTP_MAX_CLIENTS' } });
+      if (maxClientsSetting?.value) {
+        this.currentMaxClients = parseInt(maxClientsSetting.value, 10);
+      }
+      const proxySetting = await repo.findOne({ where: { key: 'SMTP_USE_PROXY' } });
+      if (proxySetting?.value) {
+        this.currentUseProxy = proxySetting.value === 'true';
+      }
+      this.logger.log(
+        `[SmtpIngestionService] Loaded settings from DB: Port ${this.currentPort}, MaxClients ${this.currentMaxClients}, UseProxy ${this.currentUseProxy}`,
+      );
+    } catch (e: any) {
+      this.logger.debug?.(`Initial DB settings sync note: ${e.message}`);
+    }
   }
 
   private createServerInstance(): SMTPServer {
@@ -101,8 +139,8 @@ export class SmtpIngestionService
         }
       },
 
-      // 2. MAIL FROM 발신자 검증
-      onMailFrom: (
+      // 2. MAIL FROM 발신자 검증 & RBL 필터링
+      onMailFrom: async (
         address: SMTPServerAddress,
         session: SMTPServerSession,
         callback: (err?: Error | null) => void,
@@ -110,6 +148,28 @@ export class SmtpIngestionService
         if (!address.address) {
           return callback(new Error('501 5.1.7 Bad sender address syntax'));
         }
+
+        // 인증된 사용자 세션은 외부 RBL 검사 우회
+        if (!session.user && session.remoteAddress) {
+          try {
+            const rblResult = await this.rblCheckService.checkIp(
+              session.remoteAddress,
+            );
+            if (rblResult.isBlocked) {
+              this.logger.warn(
+                `[SMTP RBL Block] Rejected connection from ${session.remoteAddress} (Listed in ${rblResult.rbl})`,
+              );
+              return callback(
+                new Error(
+                  `554 5.7.1 Service unavailable; Client host [${session.remoteAddress}] blocked using ${rblResult.rbl}`,
+                ),
+              );
+            }
+          } catch (rblErr: any) {
+            this.logger.error(`[SMTP RBL Check Error] ${rblErr.message}`);
+          }
+        }
+
         callback();
       },
 

@@ -119,6 +119,9 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       todayInboundFailed,
       todayOutboundTotal,
       todayOutboundFailed,
+      todayQuarantined,
+      totalQuarantined,
+      todaySpamBlocked,
     ] = await Promise.all([
       this.messageRepo.count({
         where: { createdAt: MoreThanOrEqual(todayStart) },
@@ -161,6 +164,23 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
           createdAt: MoreThanOrEqual(todayStart),
         },
       }),
+      this.messageRepo.count({
+        where: {
+          status: MailStatus.QUARANTINED,
+          createdAt: MoreThanOrEqual(todayStart),
+        },
+      }),
+      this.messageRepo.count({
+        where: { status: MailStatus.QUARANTINED },
+      }),
+      this.messageRepo
+        .createQueryBuilder('m')
+        .where('m.createdAt >= :today AND m.direction = :dir AND (m.status = :quarantine OR m.spamScore >= 5.0)', {
+          today: todayStart,
+          dir: Direction.INBOUND,
+          quarantine: MailStatus.QUARANTINED,
+        })
+        .getCount(),
     ]);
 
     // 3. 기존 메일박스 및 전체 통계 (하위 호환성 유지)
@@ -175,6 +195,11 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
     });
 
     const memoryUsage = process.memoryUsage();
+
+    const spamBlockRate =
+      todayInboundTotal > 0
+        ? Math.round((todaySpamBlocked / todayInboundTotal) * 1000) / 10
+        : 0;
 
     return {
       uptimeSeconds: Math.floor(process.uptime()),
@@ -193,12 +218,21 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
         todayInboundFailed,
         todayOutboundTotal,
         todayOutboundFailed,
+        todayQuarantined,
+        todaySpamBlocked,
+        todaySpamRate: spamBlockRate,
       },
       mailSummary: {
         totalMails,
         processedMails,
         failedMails,
         activeMailboxes,
+      },
+      spamSecurity: {
+        totalQuarantined,
+        todayQuarantined,
+        todaySpamBlocked,
+        spamBlockRate,
       },
     };
   }

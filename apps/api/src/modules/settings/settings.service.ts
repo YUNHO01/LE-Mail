@@ -38,6 +38,26 @@ export const CATEGORY_LABEL_MAP: Record<SettingCategory, string> = {
   [SettingCategory.INFRA]: '데이터베이스 & Redis 인프라',
 };
 
+// .env 파일에만 유지되어야 하는 최소한의 부트스트랩/초기 설치 인프라 키 목록
+export const BOOTSTRAP_ENV_KEYS = new Set([
+  'PORT',
+  'DB_HOST',
+  'DB_PORT',
+  'DB_USERNAME',
+  'DB_PASSWORD',
+  'DB_DATABASE',
+  'REDIS_HOST',
+  'REDIS_PORT',
+  'REDIS_PASSWORD',
+  'DEFAULT_ADMIN_EMAIL',
+  'DEFAULT_ADMIN_PASSWORD',
+  'DEFAULT_ADMIN_NAME',
+  'JWT_SECRET',
+  'JWT_EXPIRES_IN',
+  'APP_ENCRYPTION_KEY',
+]);
+
+
 @Injectable()
 export class SettingsService {
   private readonly logger = new Logger(SettingsService.name);
@@ -185,8 +205,10 @@ export class SettingsService {
       item.updatedBy = updatedBy || null;
       await this.settingsRepo.save(item);
 
-      // .env 동기화 대상 (Step 5의 INFRA 또는 PORT)
-      envUpdates[item.key] = finalStringVal;
+      // .env 동기화 대상 (초기 설치/부트스트랩 필수 키인 경우에만 write-back)
+      if (BOOTSTRAP_ENV_KEYS.has(item.key)) {
+        envUpdates[item.key] = finalStringVal;
+      }
     }
 
     // 파일 시스템 .env Write-back (부트스트랩 동기화)

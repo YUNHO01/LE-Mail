@@ -38,6 +38,7 @@ export enum MailStatus {
   QUEUED = 'QUEUED',
   PROCESSED = 'PROCESSED',
   FAILED = 'FAILED',
+  QUARANTINED = 'QUARANTINED',
 }
 
 @Entity('mail_message')
@@ -94,6 +95,12 @@ export class MailMessage {
     default: MailStatus.QUEUED,
   })
   status: MailStatus;
+
+  @Column({ name: 'spam_score', type: 'float', default: 0 })
+  spamScore: number;
+
+  @Column({ name: 'spam_reasons', type: 'text', nullable: true })
+  spamReasons: string | null;
 
   @Column({ name: 'failure_reason', type: 'text', nullable: true })
   failureReason: string | null;

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { MailFolderTree } from '../mail/MailFolderTree';
-import { Mail, Shield, ArrowRight, PenSquare, HardDrive, RefreshCw } from 'lucide-react';
+import { Mail, Shield, ArrowRight, PenSquare, HardDrive, RefreshCw, ShieldBan } from 'lucide-react';
 
 interface UserSidebarProps {
   sidebarOpen: boolean;
@@ -97,6 +97,22 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           {/* User Mail Folders (기본 편지함 6종 및 계층형 트리) */}
           <div>
             <MailFolderTree onSelectFolder={() => setSidebarOpen(false)} />
+          </div>
+
+          {/* User Spam / Filter Settings */}
+          <div className="pt-2 border-t border-slate-800">
+            <Link
+              href="/mail/settings"
+              onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition group ${
+                pathname === '/mail/settings'
+                  ? 'bg-slate-800 text-white font-semibold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <ShieldBan className="h-4 w-4 text-slate-500 group-hover:text-rose-400 transition" />
+              <span>스팸 / 수신 차단 설정</span>
+            </Link>
           </div>
         </div>
 

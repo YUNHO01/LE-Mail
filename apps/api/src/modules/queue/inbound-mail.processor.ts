@@ -18,9 +18,18 @@ import {
   RecipientType,
 } from '../database/entities/mail-recipient.entity';
 import { MailAttachment } from '../database/entities/mail-attachment.entity';
-import { User, MailFolder, UserMail } from '../database/entities';
+import {
+  User,
+  MailFolder,
+  UserMail,
+  SpamRule,
+  SpamRuleType,
+} from '../database/entities';
 import { FolderType } from '@lemail/shared-types';
 import { WorkerPoolService } from '../worker-pool/worker-pool.service';
+import { SpamScoreService } from '../spam/spam-score.service';
+import { AttachmentSecurityService } from '../spam/attachment-security.service';
+import { BayesianSpamService } from '../spam/bayesian-spam.service';
 import {
   InboundMailJobData,
   INBOUND_MAIL_QUEUE_NAME,
@@ -43,6 +52,9 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
+    private readonly spamScoreService: SpamScoreService,
+    private readonly attachmentSecurityService: AttachmentSecurityService,
+    private readonly bayesianSpamService: BayesianSpamService,
   ) {
     super();
     this.spoolCleanup =
@@ -75,7 +87,7 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
   }
 
   async process(job: Job<InboundMailJobData>): Promise<void> {
-    const { id, rawFilePath, from, to } = job.data;
+    const { id, rawFilePath, from, to, clientIp } = job.data;
     this.logger.log(`Processing inbound mail job ${job.id} (File: ${rawFilePath})`);
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -85,21 +97,60 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
     let finalRawFilePath = rawFilePath;
 
     try {
-      // 1. Piscina Worker Threads를 통한 MIME 파싱 오프로딩
-      const parsedData = await this.workerPool.parseMail(rawFilePath);
+      // 1. Piscina Worker Threads를 통한 MIME 파싱 및 실제 SPF/DKIM/DMARC 검증 오프로딩
+      const parsedData = await this.workerPool.parseMail(rawFilePath, {
+        clientIp,
+        sender: from,
+      });
 
-      // 2. MailMessage 엔티티 생성
+      // 2. 첨부파일 보안 검사 (위험 확장자, 매크로 오피스 문서, 이중 확장자, ClamAV 백신 실시간 검사)
+      const attachmentThreat = await this.attachmentSecurityService.scanAttachments(
+        parsedData.attachments || [],
+      );
+
+      // 3. 베이지안 스팸 확률 분류 (Naive Bayes 머신러닝 학습 모델)
+      const bayesResult = await this.bayesianSpamService.classify({
+        subject: parsedData.subject,
+        text: parsedData.text,
+        html: parsedData.html,
+      });
+
+      // 4. 스팸 스코어링 엔진 평가 (헤더 인증 + 본문 피싱/스팸 키워드 + 베이지안 점수 + 첨부파일 악성코드 종합)
+      const effectiveSender = (from || parsedData.from || 'unknown@unknown')
+        .toLowerCase()
+        .trim();
+      const spamEval = this.spamScoreService.evaluateMail({
+        subject: parsedData.subject,
+        text: parsedData.text,
+        html: parsedData.html,
+        from: effectiveSender,
+        spfResult: parsedData.spfResult as SpfResult,
+        dkimResult: parsedData.dkimResult as DkimResult,
+        dmarcResult: parsedData.dmarcResult as DmarcResult,
+        attachmentThreatScore: attachmentThreat.score,
+        attachmentThreatReasons: attachmentThreat.reasons,
+        bayesianScore: bayesResult.score,
+        bayesianReason: bayesResult.reason,
+      });
+
+      // 4. MailMessage 엔티티 생성
       const message = queryRunner.manager.create(MailMessage, {
         id,
         direction: Direction.INBOUND,
         messageId: parsedData.messageId || null,
-        sender: from || parsedData.from || 'unknown@unknown',
+        sender: effectiveSender,
         subject: parsedData.subject || null,
         rawFilePath: finalRawFilePath,
         spfResult: (parsedData.spfResult as SpfResult) || SpfResult.NONE,
         dkimResult: (parsedData.dkimResult as DkimResult) || DkimResult.NONE,
         dmarcResult: (parsedData.dmarcResult as DmarcResult) || DmarcResult.NONE,
-        status: MailStatus.PROCESSED,
+        spamScore: spamEval.score,
+        spamReasons:
+          spamEval.reasons.length > 0 ? JSON.stringify(spamEval.reasons) : null,
+        status:
+          spamEval.action === 'QUARANTINE'
+            ? MailStatus.QUARANTINED
+            : MailStatus.PROCESSED,
       });
       await queryRunner.manager.save(message);
 
@@ -194,13 +245,9 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
         }
       }
 
-      // 6. 편지함(UserMail) 매핑 (수신자의 받은편지함 또는 스팸메일함)
-      const isSpam =
-        parsedData.spfResult === SpfResult.FAIL ||
-        parsedData.dmarcResult === DmarcResult.FAIL;
-      const targetFolderType = isSpam ? FolderType.SPAM : FolderType.INBOX;
-
+      // 6. 편지함(UserMail) 매핑 (수신자의 개인별 스팸/정상 규칙 또는 SPF/DMARC 인증 결과에 따른 분류)
       const notifyEvents: Array<{ userId: string; folderId: string; uid: number }> = [];
+      const senderDomain = effectiveSender.includes('@') ? effectiveSender.split('@')[1] : '';
 
       for (const address of allToAddresses) {
         const normEmail = address.toLowerCase().trim();
@@ -208,6 +255,58 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
           where: { email: normEmail },
         });
         if (targetUser) {
+          // 6-1. 사용자/글로벌 화이트리스트 및 블랙리스트 판별
+          let targetFolderType: FolderType = FolderType.INBOX;
+
+          // 화이트리스트 체크 (사용자 지정 or 전사 공통)
+          const whitelistRule = await queryRunner.manager
+            .createQueryBuilder(SpamRule, 'rule')
+            .where('(rule.userId = :userId OR rule.userId IS NULL)', { userId: targetUser.id })
+            .andWhere('rule.type = :ruleType', { ruleType: SpamRuleType.WHITELIST })
+            .andWhere(
+              '(LOWER(rule.pattern) = :sender OR LOWER(rule.pattern) = :domain OR LOWER(rule.pattern) = :atDomain)',
+              {
+                sender: effectiveSender,
+                domain: senderDomain,
+                atDomain: `@${senderDomain}`,
+              },
+            )
+            .getOne();
+
+          // 블랙리스트 체크 (사용자 지정 or 전사 공통)
+          const blacklistRule = await queryRunner.manager
+            .createQueryBuilder(SpamRule, 'rule')
+            .where('(rule.userId = :userId OR rule.userId IS NULL)', { userId: targetUser.id })
+            .andWhere('rule.type = :ruleType', { ruleType: SpamRuleType.BLACKLIST })
+            .andWhere(
+              '(LOWER(rule.pattern) = :sender OR LOWER(rule.pattern) = :domain OR LOWER(rule.pattern) = :atDomain)',
+              {
+                sender: effectiveSender,
+                domain: senderDomain,
+                atDomain: `@${senderDomain}`,
+              },
+            )
+            .getOne();
+
+          if (whitelistRule) {
+            targetFolderType = FolderType.INBOX;
+          } else if (blacklistRule) {
+            targetFolderType = FolderType.SPAM;
+          } else if (spamEval.action === 'QUARANTINE') {
+            this.logger.warn(
+              `[Quarantine] Mail ${id} (Score: ${spamEval.score}) quarantined for user ${targetUser.email}. Delivery suspended for admin review. Reasons: ${spamEval.reasons.join(', ')}`,
+            );
+            // 고위험 스팸/피싱 메일은 사용자 편지함에 매핑하지 않고 관리자 격리 상태 유지
+            continue;
+          } else {
+            // 스팸 점수(5~9.9점) 또는 SPF/DMARC 인증 실패 시 SPAM 편지함 분류
+            const isSpam =
+              spamEval.action === 'SPAM' ||
+              parsedData.spfResult === SpfResult.FAIL ||
+              parsedData.dmarcResult === DmarcResult.FAIL;
+            targetFolderType = isSpam ? FolderType.SPAM : FolderType.INBOX;
+          }
+
           const folder = await queryRunner.manager.findOne(MailFolder, {
             where: { userId: targetUser.id, type: targetFolderType },
             lock: { mode: 'pessimistic_write' },

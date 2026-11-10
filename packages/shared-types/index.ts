@@ -14,6 +14,7 @@ export const MailStatus = {
   QUEUED: 'QUEUED',
   PROCESSED: 'PROCESSED',
   FAILED: 'FAILED',
+  QUARANTINED: 'QUARANTINED',
 } as const;
 export type MailStatus = (typeof MailStatus)[keyof typeof MailStatus];
 
@@ -162,6 +163,8 @@ export interface DomainDto {
   createdAt: string;
   updatedAt: string;
   mailboxCount?: number;
+  dkimSelector?: string | null;
+  dkimPublicKey?: string | null;
 }
 
 export interface CreateDomainDto {
@@ -204,8 +207,11 @@ export interface MailMessageDto {
   dkimResult: DkimResult;
   dmarcResult: DmarcResult;
   status: MailStatus;
+  spamScore?: number;
+  spamReasons?: string[];
   failureReason?: string | null;
   createdAt: string;
+  folderId?: string;
   uid?: number;
   isRead?: boolean;
   isStarred?: boolean;
@@ -242,6 +248,9 @@ export interface TodayMailStatsDto {
   todayInboundFailed?: number;
   todayOutboundTotal?: number;
   todayOutboundFailed?: number;
+  todayQuarantined?: number;
+  todaySpamBlocked?: number;
+  todaySpamRate?: number;
 }
 
 export interface SystemOverviewDto {
@@ -263,6 +272,12 @@ export interface SystemOverviewDto {
     processedMails?: number;
     failedMails?: number;
     activeMailboxes: number;
+  };
+  spamSecurity?: {
+    totalQuarantined: number;
+    todayQuarantined: number;
+    todaySpamBlocked: number;
+    spamBlockRate: number;
   };
 }
 
@@ -306,6 +321,8 @@ export interface RetryMailResponseDto {
   mailId: string;
   messageId?: string | null;
   status: MailStatus;
+  spamScore?: number;
+  spamReasons?: string[];
   failureReason?: string | null;
 }
 
@@ -378,4 +395,69 @@ export interface SaveStepSettingsResponseDto {
   targetModules: TargetModule[];
   changedKeys: string[];
 }
+
+// ----------------------------------------------------
+// Spam Rule Types
+// ----------------------------------------------------
+
+export const SpamRuleType = {
+  WHITELIST: 'WHITELIST',
+  BLACKLIST: 'BLACKLIST',
+} as const;
+export type SpamRuleType = (typeof SpamRuleType)[keyof typeof SpamRuleType];
+
+export const SpamRuleTargetType = {
+  EMAIL: 'EMAIL',
+  DOMAIN: 'DOMAIN',
+  IP: 'IP',
+} as const;
+export type SpamRuleTargetType =
+  (typeof SpamRuleTargetType)[keyof typeof SpamRuleTargetType];
+
+export interface SpamRuleDto {
+  id: string;
+  userId: string | null;
+  type: SpamRuleType;
+  targetType: SpamRuleTargetType;
+  pattern: string;
+  reason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSpamRuleDto {
+  type: SpamRuleType;
+  targetType: SpamRuleTargetType;
+  pattern: string;
+  reason?: string;
+  isGlobal?: boolean;
+}
+
+export interface ReportSpamResponseDto {
+  success: boolean;
+  message: string;
+  rule?: SpamRuleDto;
+}
+
+export interface QuarantineItemDto {
+  id: string;
+  sender: string;
+  subject: string | null;
+  spamScore: number;
+  spamReasons: string[];
+  spfResult: SpfResult;
+  dkimResult: DkimResult;
+  dmarcResult: DmarcResult;
+  status: MailStatus;
+  recipients: string[];
+  createdAt: string;
+}
+
+export interface ReleaseMailResponseDto {
+  success: boolean;
+  message: string;
+  releasedTo: string[];
+}
+
+
 

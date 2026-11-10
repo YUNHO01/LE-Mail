@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailMessage } from '../database/entities/mail-message.entity';
 import { MailAttachment } from '../database/entities/mail-attachment.entity';
@@ -8,6 +8,7 @@ import { MailService } from './mail.service';
 import { MailController } from './mail.controller';
 import { WorkerPoolModule } from '../worker-pool/worker-pool.module';
 import { SettingsModule } from '../settings/settings.module';
+import { SpamModule } from '../spam/spam.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { SettingsModule } from '../settings/settings.module';
     ]),
     WorkerPoolModule,
     SettingsModule,
+    forwardRef(() => SpamModule),
   ],
   controllers: [MailController],
   providers: [MailService],

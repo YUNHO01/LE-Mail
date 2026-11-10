@@ -15,6 +15,1083 @@
         ]
       }
     },
+    "/api/spam/analytics": {
+      "get": {
+        "operationId": "SpamController_getAnalytics",
+        "parameters": [
+          {
+            "name": "range",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/config": {
+      "get": {
+        "operationId": "SpamController_getConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      },
+      "patch": {
+        "operationId": "SpamController_updateConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/security-incidents": {
+      "get": {
+        "operationId": "SpamController_getSecurityIncidents",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/security-incidents/{userId}/unlock": {
+      "post": {
+        "operationId": "SpamController_unlockAccount",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/dmarc-reports/parse": {
+      "post": {
+        "operationId": "SpamController_parseDmarcReport",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/bayesian/stats": {
+      "get": {
+        "operationId": "SpamController_getBayesianStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/rules": {
+      "get": {
+        "operationId": "SpamController_getRules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      },
+      "post": {
+        "operationId": "SpamController_createRule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpamRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/rules/{id}": {
+      "delete": {
+        "operationId": "SpamController_deleteRule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/report/{messageId}": {
+      "post": {
+        "operationId": "SpamController_reportSpam",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/spam/unreport/{messageId}": {
+      "post": {
+        "operationId": "SpamController_unreportSpam",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Spam"
+        ]
+      }
+    },
+    "/api/admin/quarantine": {
+      "get": {
+        "operationId": "QuarantineController_getQuarantined",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Quarantine"
+        ]
+      }
+    },
+    "/api/admin/quarantine/stats": {
+      "get": {
+        "operationId": "QuarantineController_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Quarantine"
+        ]
+      }
+    },
+    "/api/admin/quarantine/purge-expired": {
+      "post": {
+        "operationId": "QuarantineController_purgeExpired",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Quarantine"
+        ]
+      }
+    },
+    "/api/admin/quarantine/{id}": {
+      "get": {
+        "operationId": "QuarantineController_getDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Quarantine"
+        ]
+      },
+      "delete": {
+        "operationId": "QuarantineController_dropMail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Quarantine"
+        ]
+      }
+    },
+    "/api/admin/quarantine/{id}/release": {
+      "post": {
+        "operationId": "QuarantineController_releaseMail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Quarantine"
+        ]
+      }
+    },
+    "/api/mails/send": {
+      "post": {
+        "operationId": "MailController_sendMail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "메일 발송 성공 및 보낸편지함 저장"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "새 메일 작성 및 발송",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/drafts": {
+      "post": {
+        "operationId": "MailController_saveDraft",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "임시보관함 저장 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "작성 중인 메일 임시저장",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/bulk-delete": {
+      "post": {
+        "operationId": "MailController_bulkDelete",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "일괄 삭제 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "선택한 메일 일괄 삭제 (일반삭제 또는 영구완전삭제)",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/bulk-move": {
+      "post": {
+        "operationId": "MailController_bulkMove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "일괄 이동 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "선택한 메일 일괄 편지함 이동",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/bulk-retry": {
+      "post": {
+        "operationId": "MailController_bulkRetrySendMail",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "일괄 재발송 결과"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "선택한 메일 일괄 재발송 시도",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/retry": {
+      "post": {
+        "operationId": "MailController_retrySendMail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "재발송 결과"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "발송 실패 메일 단건 재발송 시도",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails": {
+      "get": {
+        "operationId": "MailController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "페이지 번호",
+            "schema": {
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "페이지당 항목 수",
+            "schema": {
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "mailbox",
+            "required": false,
+            "in": "query",
+            "description": "특정 사서함 주소 필터",
+            "schema": {
+              "example": "user@example.com",
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "제목 및 발신자 검색어",
+            "schema": {
+              "example": "meeting",
+              "type": "string"
+            }
+          },
+          {
+            "name": "folderId",
+            "required": false,
+            "in": "query",
+            "description": "편지함 ID 필터 (특정 편지함의 메일 조회)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "메일 상태 필터",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "QUEUED",
+                "PROCESSED",
+                "FAILED",
+                "QUARANTINED"
+              ]
+            }
+          },
+          {
+            "name": "direction",
+            "required": false,
+            "in": "query",
+            "description": "수신/발신 구분 필터",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INBOUND",
+                "OUTBOUND"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "메일 목록 및 페이징 정보"
+          }
+        },
+        "summary": "메일 목록 조회 (페이징, 사서함별, 편지함별, 검색)",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/move": {
+      "patch": {
+        "operationId": "MailController_move",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "이동 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일을 다른 편지함으로 이동",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/read": {
+      "patch": {
+        "operationId": "MailController_markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "처리 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일 읽음/안읽음 처리",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}": {
+      "get": {
+        "operationId": "MailController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folderId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "메일 상세 정보 반환"
+          },
+          "404": {
+            "description": "메일을 찾을 수 없음"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일 상세 조회 (본문 Text/HTML 및 첨부파일 목록, 자동 읽음 처리)",
+        "tags": [
+          "Mails"
+        ]
+      },
+      "delete": {
+        "operationId": "MailController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folderId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "permanent",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "삭제/이동 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일 삭제 (일반함은 휴지통 이동, permanent=true 또는 휴지통은 완전삭제 및 마지막 참조자일 때 물리 파일 삭제)",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/raw": {
+      "get": {
+        "operationId": "MailController_downloadRaw",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "원본 EML 파일 다운로드",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/attachments/{attachmentId}": {
+      "get": {
+        "operationId": "MailController_downloadAttachment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "description": "첨부파일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "메일 첨부파일 다운로드",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/report-spam": {
+      "post": {
+        "operationId": "MailController_reportSpam",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "스팸 이동 및 차단 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "스팸 메일 신고 및 발신자 차단",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/mails/{id}/unreport-spam": {
+      "post": {
+        "operationId": "MailController_unreportSpam",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "받은편지함 복원 및 허용 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "스팸 해제 및 정상 메일 복원",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
+    "/api/admin/settings/step/{step}": {
+      "get": {
+        "description": "지정된 단계의 설정을 조회합니다. 비밀번호 및 시크릿 키는 마스킹 처리되어 반환됩니다.",
+        "operationId": "SettingsController_getStepSettings",
+        "parameters": [
+          {
+            "name": "step",
+            "required": true,
+            "in": "path",
+            "description": "단계 번호 (1: 서버, 2: 수신, 3: 발송/릴레이, 4: 보안/인증, 5: 인프라)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "환경설정 단계(Step)별 설정 조회 (마스킹 포함)",
+        "tags": [
+          "Admin Settings"
+        ]
+      },
+      "put": {
+        "description": "지정된 단계의 설정을 저장하고, 변경 사항에 따른 모듈 재시작 필요 여부와 대상 모듈 목록을 반환합니다.",
+        "operationId": "SettingsController_saveStepSettings",
+        "parameters": [
+          {
+            "name": "step",
+            "required": true,
+            "in": "path",
+            "description": "단계 번호 (1~5)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStepSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "환경설정 단계(Step)별 설정 저장 및 재시작 필요 여부 확인",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/test-relay": {
+      "post": {
+        "description": "입력된 릴레이 호스트, 포트, 계정, 비밀번호로 SMTP 연결 및 인증 가능 여부를 점검합니다.",
+        "operationId": "SettingsController_testRelay",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestRelayConnectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "외부 SMTP 릴레이(Smarthost) 연결 사전 테스트",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/test-redis": {
+      "post": {
+        "description": "입력된 Redis 호스트, 포트, 비밀번호로 연결 및 PING 응답을 점검합니다.",
+        "operationId": "SettingsController_testRedis",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestRedisConnectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Redis 인프라 연결 사전 테스트",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/restart-module": {
+      "post": {
+        "description": "설정 변경 후 해당 모듈(SMTP_INGESTION, HARAKA, API_SERVER)을 실시간으로 안전하게 재시작합니다.",
+        "operationId": "SettingsController_restartModule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestartModuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "시스템 서브 모듈 재시작 (Graceful Restart)",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/modules-status": {
+      "get": {
+        "description": "SMTP 수신 리스너, Haraka MTA, IMAP 서비스의 가동 여부 및 포트를 점검합니다.",
+        "operationId": "SettingsController_getModulesStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "시스템 핵심 모듈 실시간 가동 상태 조회",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
+    "/api/admin/settings/reveal-secret": {
+      "post": {
+        "description": "관리자가 암호보기 버튼을 클릭했을 때 DB에 저장된 실제 암호화된 비밀번호를 복호화하여 반환합니다.",
+        "operationId": "SettingsController_revealSecret",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevealSecretDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "암호화된 비밀번호 원본 복호화 조회 (암호보기 기능)",
+        "tags": [
+          "Admin Settings"
+        ]
+      }
+    },
     "/api/auth/login": {
       "post": {
         "description": "이메일과 비밀번호로 로그인하여 JWT 액세스 토큰을 발급받습니다.",
@@ -65,6 +1142,265 @@
         "summary": "현재 로그인 사용자 프로필 조회",
         "tags": [
           "Auth"
+        ]
+      }
+    },
+    "/api/domains": {
+      "get": {
+        "operationId": "DomainController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "페이지 번호",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "페이지당 표시 수",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "도메인 검색어",
+            "schema": {
+              "example": "lineedge",
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "활성화 상태 필터",
+            "schema": {
+              "example": "true",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "도메인 목록 및 통계 반환"
+          }
+        },
+        "summary": "도메인 목록 조회 (페이징, 검색, 필터)",
+        "tags": [
+          "Domains"
+        ]
+      },
+      "post": {
+        "operationId": "DomainController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDomainDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "도메인 생성 완료"
+          },
+          "409": {
+            "description": "이미 존재하는 도메인 또는 유효하지 않은 도메인"
+          }
+        },
+        "summary": "신규 도메인 등록",
+        "tags": [
+          "Domains"
+        ]
+      }
+    },
+    "/api/domains/active": {
+      "get": {
+        "operationId": "DomainController_findActive",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "활성 도메인 목록"
+          }
+        },
+        "summary": "활성화된 도메인 목록 조회 (사서함/유저 등록용)",
+        "tags": [
+          "Domains"
+        ]
+      }
+    },
+    "/api/domains/{id}": {
+      "get": {
+        "operationId": "DomainController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "도메인 상세 정보"
+          },
+          "404": {
+            "description": "도메인을 찾을 수 없음"
+          }
+        },
+        "summary": "도메인 단일 상세 조회",
+        "tags": [
+          "Domains"
+        ]
+      },
+      "patch": {
+        "operationId": "DomainController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDomainDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "수정 완료"
+          }
+        },
+        "summary": "도메인 정보 수정 (활성화 상태, 기본 도메인 설정 등)",
+        "tags": [
+          "Domains"
+        ]
+      },
+      "delete": {
+        "operationId": "DomainController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "삭제 완료"
+          },
+          "409": {
+            "description": "사서함이 속해있거나 기본 도메인인 경우 삭제 불가"
+          }
+        },
+        "summary": "도메인 삭제",
+        "tags": [
+          "Domains"
+        ]
+      }
+    },
+    "/api/domains/{id}/generate-dkim": {
+      "post": {
+        "operationId": "DomainController_generateDkim",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DKIM 키 생성 및 DNS 레코드 반환"
+          }
+        },
+        "summary": "도메인 아웃바운드 발신용 DKIM 키 쌍 생성",
+        "tags": [
+          "Domains"
+        ]
+      }
+    },
+    "/api/domains/{id}/dkim": {
+      "get": {
+        "operationId": "DomainController_getDkim",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DKIM DNS 레코드 정보 반환"
+          }
+        },
+        "summary": "도메인의 DKIM DNS 레코드 정보 조회",
+        "tags": [
+          "Domains"
+        ]
+      }
+    },
+    "/api/domains/{id}/health-check": {
+      "get": {
+        "operationId": "DomainController_checkHealth",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "도메인 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "실시간 DNS 보안 진단 리포트 반환"
+          }
+        },
+        "summary": "도메인의 DNS 보안 4종(MX/SPF/DKIM/DMARC) 및 RBL 평판 실시간 진단",
+        "tags": [
+          "Domains"
         ]
       }
     },
@@ -261,201 +1597,6 @@
         ]
       }
     },
-    "/api/mails": {
-      "get": {
-        "operationId": "MailController_findAll",
-        "parameters": [
-          {
-            "name": "page",
-            "required": false,
-            "in": "query",
-            "description": "페이지 번호",
-            "schema": {
-              "default": 1,
-              "example": 1,
-              "type": "number"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "description": "페이지당 항목 수",
-            "schema": {
-              "default": 20,
-              "example": 20,
-              "type": "number"
-            }
-          },
-          {
-            "name": "mailbox",
-            "required": false,
-            "in": "query",
-            "description": "특정 사서함 주소 필터",
-            "schema": {
-              "example": "user@example.com",
-              "type": "string"
-            }
-          },
-          {
-            "name": "search",
-            "required": false,
-            "in": "query",
-            "description": "제목 및 발신자 검색어",
-            "schema": {
-              "example": "meeting",
-              "type": "string"
-            }
-          },
-          {
-            "name": "status",
-            "required": false,
-            "in": "query",
-            "description": "메일 상태 필터",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "QUEUED",
-                "PROCESSED",
-                "FAILED"
-              ]
-            }
-          },
-          {
-            "name": "direction",
-            "required": false,
-            "in": "query",
-            "description": "수신/발신 구분 필터",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "INBOUND",
-                "OUTBOUND"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "메일 목록 및 페이징 정보"
-          }
-        },
-        "summary": "메일 목록 조회 (페이징, 사서함별, 검색)",
-        "tags": [
-          "Mails"
-        ]
-      }
-    },
-    "/api/mails/{id}": {
-      "get": {
-        "operationId": "MailController_findOne",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "메일 고유 ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "메일 상세 정보 반환"
-          },
-          "404": {
-            "description": "메일을 찾을 수 없음"
-          }
-        },
-        "summary": "메일 상세 조회 (본문 Text/HTML 및 첨부파일 목록)",
-        "tags": [
-          "Mails"
-        ]
-      },
-      "delete": {
-        "operationId": "MailController_delete",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "메일 고유 ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "삭제 완료"
-          }
-        },
-        "summary": "메일 삭제 및 스토리지 파일 정리",
-        "tags": [
-          "Mails"
-        ]
-      }
-    },
-    "/api/mails/{id}/raw": {
-      "get": {
-        "operationId": "MailController_downloadRaw",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "메일 고유 ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "원본 EML 파일 다운로드",
-        "tags": [
-          "Mails"
-        ]
-      }
-    },
-    "/api/mails/{id}/attachments/{attachmentId}": {
-      "get": {
-        "operationId": "MailController_downloadAttachment",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "메일 고유 ID",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "attachmentId",
-            "required": true,
-            "in": "path",
-            "description": "첨부파일 고유 ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "메일 첨부파일 다운로드",
-        "tags": [
-          "Mails"
-        ]
-      }
-    },
     "/api/admin/monitoring/queue": {
       "get": {
         "operationId": "MonitoringController_getQueueStats",
@@ -582,6 +1723,27 @@
         ]
       }
     },
+    "/api/users/me/storage-usage": {
+      "get": {
+        "description": "현재 접속 중인 사용자의 메일 용량, 할당량, 사용률(%), 보관 메일 건수를 조회합니다.",
+        "operationId": "UsersController_getMyStorageUsage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "사용량 조회 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "현재 로그인한 사용자의 사서함 스토리지 사용량 조회",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/api/users/{id}": {
       "get": {
         "description": "사용자 ID로 사용자 상세 정보를 조회합니다.",
@@ -689,6 +1851,124 @@
           "Users"
         ]
       }
+    },
+    "/api/mail-folders": {
+      "get": {
+        "description": "로그인 사용자의 기본 편지함 및 계층형 트리 구조 편지함 목록과 안 읽은 메일 수를 조회합니다.",
+        "operationId": "MailFolderController_getTree",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "편지함 목록 조회 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "편지함 트리 목록 조회",
+        "tags": [
+          "MailFolders"
+        ]
+      },
+      "post": {
+        "description": "개인편지함 또는 특정 상위 편지함 하위에 새로운 하위 편지함을 생성합니다.",
+        "operationId": "MailFolderController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMailFolderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "편지함 생성 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "하위 편지함 생성",
+        "tags": [
+          "MailFolders"
+        ]
+      }
+    },
+    "/api/mail-folders/{id}": {
+      "patch": {
+        "description": "하위 편지함의 이름, 순서 또는 상위 편지함 위치(트리 재배치)를 변경합니다.",
+        "operationId": "MailFolderController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMailFolderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "편지함 수정 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "편지함 수정 (이름 변경 / 위치 이동)",
+        "tags": [
+          "MailFolders"
+        ]
+      },
+      "delete": {
+        "description": "하위 편지함을 삭제하고 소속된 메일을 휴지통으로 이동합니다. 시스템 기본 편지함은 삭제할 수 없습니다.",
+        "operationId": "MailFolderController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "편지함 삭제 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "편지함 삭제",
+        "tags": [
+          "MailFolders"
+        ]
+      }
     }
   },
   "info": {
@@ -729,6 +2009,158 @@
       }
     },
     "schemas": {
+      "CreateSpamRuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "SendMailAttachmentInputDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string",
+            "description": "파일명"
+          },
+          "contentType": {
+            "type": "string",
+            "description": "MIME 타입"
+          },
+          "sizeBytes": {
+            "type": "number",
+            "description": "파일 크기 (bytes)"
+          },
+          "contentBase64": {
+            "type": "string",
+            "description": "서버 임시 경로 또는 base64 데이터"
+          }
+        },
+        "required": [
+          "filename",
+          "contentType",
+          "sizeBytes"
+        ]
+      },
+      "SendMailDto": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "description": "받는 사람 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cc": {
+            "description": "참조(Cc) 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bcc": {
+            "description": "숨은참조(Bcc) 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string",
+            "description": "메일 제목"
+          },
+          "bodyText": {
+            "type": "string",
+            "description": "메일 본문 (일반 텍스트)"
+          },
+          "bodyHtml": {
+            "type": "string",
+            "description": "메일 본문 (HTML)"
+          },
+          "attachments": {
+            "description": "첨부파일 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SendMailAttachmentInputDto"
+            }
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "bodyHtml"
+        ]
+      },
+      "SaveDraftDto": {
+        "type": "object",
+        "properties": {
+          "draftId": {
+            "type": "string",
+            "description": "기존 임시저장 메일 ID"
+          },
+          "to": {
+            "description": "받는 사람 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cc": {
+            "description": "참조(Cc) 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bcc": {
+            "description": "숨은참조(Bcc) 이메일 주소 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string",
+            "description": "메일 제목"
+          },
+          "bodyText": {
+            "type": "string",
+            "description": "메일 본문 (일반 텍스트)"
+          },
+          "bodyHtml": {
+            "type": "string",
+            "description": "메일 본문 (HTML)"
+          },
+          "attachments": {
+            "description": "첨부파일 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SendMailAttachmentInputDto"
+            }
+          }
+        }
+      },
+      "UpdateStepSettingsDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TestRelayConnectionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TestRedisConnectionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RestartModuleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RevealSecretDto": {
+        "type": "object",
+        "properties": {}
+      },
       "LoginDto": {
         "type": "object",
         "properties": {
@@ -747,6 +2179,56 @@
           "email",
           "password"
         ]
+      },
+      "CreateDomainDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "lineedge.com",
+            "description": "도메인 이름"
+          },
+          "description": {
+            "type": "string",
+            "example": "본사 공식 메일 도메인",
+            "description": "도메인 설명"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": false,
+            "description": "기본 도메인 여부",
+            "default": false
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "활성화 여부",
+            "default": true
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateDomainDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "example": "변경할 설명",
+            "description": "도메인 설명"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": true,
+            "description": "기본 도메인 여부"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "활성화 여부"
+          }
+        }
       },
       "CreateMailboxDto": {
         "type": "object",
@@ -808,13 +2290,39 @@
             ],
             "default": "USER",
             "description": "사용자 권한 (SYSTEM_ADMIN, USER)"
+          },
+          "mailboxQuotaMb": {
+            "type": "number",
+            "example": 512,
+            "default": 512,
+            "description": "메일 사서함 용량 (MB 단위)"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "example": "ko",
+            "default": "ko",
+            "description": "선호 사용 언어"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Seoul",
+            "default": "Asia/Seoul",
+            "description": "타임존"
+          },
+          "employeeId": {
+            "type": "string",
+            "example": "EMP1001",
+            "description": "사번 / 직원 ID"
           }
         },
         "required": [
           "email",
           "name",
           "password",
-          "role"
+          "role",
+          "mailboxQuotaMb",
+          "preferredLanguage",
+          "timezone"
         ]
       },
       "UpdateUserDto": {
@@ -842,6 +2350,69 @@
             "type": "boolean",
             "example": true,
             "description": "계정 활성 여부"
+          },
+          "mailboxQuotaMb": {
+            "type": "number",
+            "example": 512,
+            "description": "메일 사서함 용량 (MB 단위)"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "example": "ko",
+            "description": "선호 사용 언어"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Seoul",
+            "description": "타임존"
+          },
+          "employeeId": {
+            "type": "string",
+            "example": "EMP1001",
+            "description": "사번 / 직원 ID"
+          }
+        }
+      },
+      "CreateMailFolderDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "편지함 이름",
+            "example": "프로젝트 A"
+          },
+          "parentId": {
+            "type": "object",
+            "description": "상위 편지함 ID (트리 구조의 부모 폴더 ID)",
+            "example": "d3b07384-d113-406a-a664-d65e7be60c91"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서",
+            "example": 1
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateMailFolderDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "편지함 이름",
+            "example": "프로젝트 B"
+          },
+          "parentId": {
+            "type": "object",
+            "description": "상위 편지함 ID (트리 구조의 부모 변경/이동)",
+            "example": "d3b07384-d113-406a-a664-d65e7be60c91"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서",
+            "example": 2
           }
         }
       }

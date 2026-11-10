@@ -15,10 +15,16 @@ import {
   Radio,
   Send,
   ArrowUpRight,
+  Shield,
+  ShieldAlert,
+  FileWarning,
+  Filter,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState<SystemOverviewDto | null>(null);
+  const [spamAnalytics, setSpamAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,8 +32,12 @@ export default function AdminDashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetchApi<SystemOverviewDto>('/admin/monitoring/overview');
-      setData(res);
+      const [overviewRes, spamRes] = await Promise.all([
+        fetchApi<SystemOverviewDto>('/admin/monitoring/overview'),
+        fetchApi<any>('/spam/analytics?range=7d').catch(() => null),
+      ]);
+      setData(overviewRes);
+      setSpamAnalytics(spamRes);
     } catch (err: any) {
       setError(err.message || '데이터를 불러오는 중 오류가 발생했습니다.');
     } finally {
@@ -215,6 +225,132 @@ export default function AdminDashboardPage() {
           <div className="rounded-lg bg-purple-50 p-4 border border-purple-100">
             <div className="text-xs text-purple-600 font-medium">Delayed</div>
             <div className="mt-2 text-xl font-bold text-purple-800">{data?.queue.counts.delayed ?? 0}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Spam & Security Defense Analytics Section (Phase 4) */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-indigo-600" />
+              <span>스팸 및 보안 위협 방어 현황 (최근 7일)</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              SPF/DKIM/DMARC 인증, RBL 블랙리스트, 악성 첨부파일 차단 및 격리소 수용 현황입니다.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/quarantine"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 transition border border-rose-200"
+            >
+              <span>격리함 이동</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+            <Link
+              href="/admin/spam-rules"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-50 text-slate-700 hover:bg-slate-100 transition border border-slate-200"
+            >
+              <span>스팸 룰 관리</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+
+        {/* 4 Mini KPI Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="rounded-xl bg-slate-50 p-4 border border-slate-200/80">
+            <span className="text-xs font-medium text-slate-500">전체 스팸 차단율</span>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl font-extrabold text-indigo-600">
+                {spamAnalytics?.kpi?.blockRatePercent ?? 0}%
+              </span>
+              <span className="text-xs text-slate-500">차단됨</span>
+            </div>
+            <div className="mt-1 text-[11px] text-slate-400">
+              수신 {spamAnalytics?.kpi?.totalInbound ?? 0}건 중 { (spamAnalytics?.kpi?.spamMails ?? 0) + (spamAnalytics?.kpi?.quarantinedMails ?? 0) }건 방어
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-rose-50/60 p-4 border border-rose-200/80">
+            <span className="text-xs font-medium text-rose-600">고위험 격리(Quarantined)</span>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl font-extrabold text-rose-700">
+                {spamAnalytics?.kpi?.quarantinedMails ?? 0}
+              </span>
+              <span className="text-xs text-rose-600">건</span>
+            </div>
+            <div className="mt-1 text-[11px] text-rose-500">
+              스팸 점수 10점 이상 / 악성코드
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-amber-50/60 p-4 border border-amber-200/80">
+            <span className="text-xs font-medium text-amber-700">스팸메일함 이동</span>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl font-extrabold text-amber-700">
+                {spamAnalytics?.kpi?.spamMails ?? 0}
+              </span>
+              <span className="text-xs text-amber-600">건</span>
+            </div>
+            <div className="mt-1 text-[11px] text-amber-600">
+              의심 메일 (5.0 ~ 9.9점)
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-emerald-50/60 p-4 border border-emerald-200/80">
+            <span className="text-xs font-medium text-emerald-700">활성 방어 규칙</span>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl font-extrabold text-emerald-700">
+                {(spamAnalytics?.kpi?.activeRulesCount?.whitelist ?? 0) + (spamAnalytics?.kpi?.activeRulesCount?.blacklist ?? 0)}
+              </span>
+              <span className="text-xs text-emerald-600">개</span>
+            </div>
+            <div className="mt-1 text-[11px] text-emerald-600">
+              허용 {spamAnalytics?.kpi?.activeRulesCount?.whitelist ?? 0}개 / 차단 {spamAnalytics?.kpi?.activeRulesCount?.blacklist ?? 0}개
+            </div>
+          </div>
+        </div>
+
+        {/* Threat Breakdown Progress Bars */}
+        <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs space-y-3">
+          <div className="font-semibold text-slate-800">위협 탐지 유형별 상세 분포</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-3 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between text-slate-600 mb-1">
+                <span>SPF/DKIM/DMARC 실패</span>
+                <span className="font-bold text-slate-900">{spamAnalytics?.threatBreakdown?.authFailure ?? 0}건</span>
+              </div>
+              <div className="text-[11px] text-slate-400">발신 도메인 위조 차단</div>
+            </div>
+
+            <div className="bg-white p-3 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between text-slate-600 mb-1">
+                <span>RBL / KISA 블랙리스트</span>
+                <span className="font-bold text-slate-900">{spamAnalytics?.threatBreakdown?.rblBlocked ?? 0}건</span>
+              </div>
+              <div className="text-[11px] text-slate-400">악성 발송 IP 대역 차단</div>
+            </div>
+
+            <div className="bg-white p-3 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between text-slate-600 mb-1">
+                <span>악성 첨부파일 / ClamAV</span>
+                <span className="font-bold text-slate-900">{spamAnalytics?.threatBreakdown?.malwareAttachment ?? 0}건</span>
+              </div>
+              <div className="text-[11px] text-slate-400">위험 확장자 및 바이러스</div>
+            </div>
+
+            <div className="bg-white p-3 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between text-slate-600 mb-1">
+                <span>피싱/사기/블랙리스트</span>
+                <span className="font-bold text-slate-900">
+                  {(spamAnalytics?.threatBreakdown?.phishingKeyword ?? 0) + (spamAnalytics?.threatBreakdown?.blacklistRule ?? 0)}건
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400">계정탈취 및 등록 규칙</div>
+            </div>
           </div>
         </div>
       </div>

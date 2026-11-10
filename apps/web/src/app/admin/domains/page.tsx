@@ -24,6 +24,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Info,
+  Activity,
+  AlertCircle,
 } from 'lucide-react';
 
 export default function DomainsPage() {
@@ -48,6 +50,62 @@ export default function DomainsPage() {
 
   // DNS 가이드 모달
   const [selectedDomainForDns, setSelectedDomainForDns] = useState<DomainDto | null>(null);
+  const [dkimInfo, setDkimInfo] = useState<{
+    hasKey: boolean;
+    selector?: string;
+    dnsHostRecord?: string;
+    dnsTxtRecord?: string;
+  } | null>(null);
+  const [generatingDkim, setGeneratingDkim] = useState(false);
+
+  useEffect(() => {
+    if (selectedDomainForDns) {
+      setDkimInfo(null);
+      fetchApi(`/domains/${selectedDomainForDns.id}/dkim`)
+        .then((res: any) => setDkimInfo(res))
+        .catch(() => setDkimInfo({ hasKey: false }));
+    }
+  }, [selectedDomainForDns]);
+
+  const handleGenerateDkim = async () => {
+    if (!selectedDomainForDns) return;
+    try {
+      setGeneratingDkim(true);
+      const res: any = await fetchApi(`/domains/${selectedDomainForDns.id}/generate-dkim`, {
+        method: 'POST',
+      });
+      setDkimInfo({
+        hasKey: true,
+        selector: res.selector,
+        dnsHostRecord: res.dnsHostRecord,
+        dnsTxtRecord: res.dnsTxtRecord,
+      });
+      alert('DKIM 키 쌍이 안전하게 생성되었습니다. 표시된 DNS TXT 레코드를 도메인 네임서버에 등록해 주세요.');
+    } catch (err: any) {
+      alert(err.message || 'DKIM 키 생성 실패');
+    } finally {
+      setGeneratingDkim(false);
+    }
+  };
+
+  // 도메인 보안 진단 모달
+  const [selectedDomainForHealth, setSelectedDomainForHealth] = useState<DomainDto | null>(null);
+  const [healthReport, setHealthReport] = useState<any>(null);
+  const [loadingHealth, setLoadingHealth] = useState(false);
+
+  const runHealthCheck = async (domain: DomainDto) => {
+    setSelectedDomainForHealth(domain);
+    setHealthReport(null);
+    setLoadingHealth(true);
+    try {
+      const res: any = await fetchApi(`/domains/${domain.id}/health-check`);
+      setHealthReport(res);
+    } catch (err: any) {
+      alert(err.message || '보안 진단 실패');
+    } finally {
+      setLoadingHealth(false);
+    }
+  };
 
   const loadDomains = async () => {
     try {
@@ -435,17 +493,28 @@ export default function DomainsPage() {
                         </span>
                       </td>
 
-                      {/* DNS 설정 가이드 버튼 */}
+                      {/* DNS 설정 가이드 및 실시간 보안 진단 버튼 */}
                       <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDomainForDns(domain)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition"
-                          title="MX / SPF / DKIM DNS 레코드 설정 안내 보기"
-                        >
-                          <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
-                          <span>DNS 가이드</span>
-                        </button>
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDomainForDns(domain)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition"
+                            title="MX / SPF / DKIM DNS 레코드 설정 안내 보기"
+                          >
+                            <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
+                            <span>DNS 가이드</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => runHealthCheck(domain)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-xs"
+                            title="DNS 보안 4종(MX/SPF/DKIM/DMARC) 및 RBL 블랙리스트 실시간 진단"
+                          >
+                            <Activity className="h-3.5 w-3.5 text-indigo-600" />
+                            <span>보안 진단</span>
+                          </button>
+                        </div>
                       </td>
 
                       {/* 수신 상태 (토글 버튼) */}
@@ -637,7 +706,7 @@ export default function DomainsPage() {
       {/* Modal: DNS 설정 가이드 */}
       {selectedDomainForDns && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -694,12 +763,165 @@ export default function DomainsPage() {
                   <div><strong>값(Value):</strong> v=DMARC1; p=none; rua=mailto:postmaster@{selectedDomainForDns.name}</div>
                 </div>
               </div>
+
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-2">
+                <div className="font-bold text-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-violet-600"></span>
+                    4. DKIM 레코드 (발신 메일 암호화 서명 및 무결성)
+                  </div>
+                  <button
+                    type="button"
+                    disabled={generatingDkim}
+                    onClick={handleGenerateDkim}
+                    className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition disabled:opacity-50"
+                  >
+                    {generatingDkim ? '생성 중...' : dkimInfo?.hasKey ? 'DKIM 재발급' : 'DKIM 키 생성'}
+                  </button>
+                </div>
+                {dkimInfo?.hasKey ? (
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700 space-y-1 break-all">
+                    <div><strong>호스트:</strong> {dkimInfo.dnsHostRecord}</div>
+                    <div><strong>타입:</strong> TXT</div>
+                    <div><strong>값(Value):</strong> {dkimInfo.dnsTxtRecord}</div>
+                  </div>
+                ) : (
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-[11px] text-slate-500">
+                    아직 등록된 DKIM 서명 키가 없습니다. 우측 'DKIM 키 생성' 버튼을 클릭하면 2048-bit RSA 서명 키 쌍이 자동 생성됩니다.
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setSelectedDomainForDns(null)}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: 도메인 DNS 보안 및 평판 실시간 진단 (Health Check) */}
+      {selectedDomainForHealth && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-indigo-600" />
+                  <span>DNS 보안 4종 및 평판 실시간 진단 (Health Check)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 font-mono">
+                  대상 도메인: <strong className="text-indigo-600 font-bold">{selectedDomainForHealth.name}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDomainForHealth(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingHealth ? (
+              <div className="py-12 flex flex-col items-center justify-center space-y-3 text-slate-500 text-xs">
+                <RefreshCw className="h-7 w-7 animate-spin text-indigo-600" />
+                <span>네임서버(DNS) 레코드 및 RBL 블랙리스트 실시간 조회 중...</span>
+              </div>
+            ) : healthReport ? (
+              <div className="space-y-4">
+                {/* 종합 점수 카드 */}
+                <div className="rounded-xl p-4 border flex items-center justify-between bg-gradient-to-r from-slate-50 to-indigo-50/40 border-slate-200">
+                  <div>
+                    <div className="text-xs text-slate-500 font-medium">종합 보안 인증 점수</div>
+                    <div className="text-2xl font-black text-slate-900 mt-0.5">
+                      {healthReport.overallScore} <span className="text-xs font-normal text-slate-500">/ 100점</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                        healthReport.grade === 'EXCELLENT'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : healthReport.grade === 'GOOD'
+                          ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          : healthReport.grade === 'WARNING'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-rose-50 text-rose-700 border-rose-200'
+                      }`}
+                    >
+                      {healthReport.grade === 'EXCELLENT' && '최우수 (안전)'}
+                      {healthReport.grade === 'GOOD' && '우수 (정상)'}
+                      {healthReport.grade === 'WARNING' && '주의 (보안 취약)'}
+                      {healthReport.grade === 'CRITICAL' && '위험 (설정 누락)'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 5종 체크리스트 항목 */}
+                <div className="space-y-2 text-xs">
+                  {Object.entries(healthReport.items).map(([key, item]: [string, any]) => (
+                    <div key={key} className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-800">{item.name}</span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            item.status === 'PASS'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : item.status === 'WARN'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {item.status} ({item.score}/{item.maxScore}점)
+                        </span>
+                      </div>
+                      <p className="text-slate-600 text-[11px]">{item.message}</p>
+                      {item.value && (
+                        <div className="font-mono text-[10px] bg-white p-1.5 rounded border border-slate-200 text-slate-700 truncate">
+                          {item.value}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 권장 개선 가이드 및 KISA 화이트도메인 안내 */}
+                {healthReport.recommendations?.length > 0 && (
+                  <div className="rounded-xl p-3.5 bg-amber-50/70 border border-amber-200 text-xs space-y-2">
+                    <div className="font-bold text-amber-900 flex items-center gap-1.5">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <span>보안 권고안 및 도달률 개선 가이드</span>
+                    </div>
+                    <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-800">
+                      {healthReport.recommendations.map((rec: string, i: number) => (
+                        <li key={i}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
+              <button
+                type="button"
+                onClick={() => runHealthCheck(selectedDomainForHealth)}
+                disabled={loadingHealth}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingHealth ? 'animate-spin' : ''}`} />
+                <span>다시 진단</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDomainForHealth(null)}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition"
               >
                 닫기
