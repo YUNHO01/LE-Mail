@@ -638,7 +638,6 @@ export interface ContactDto {
   postalCode?: string | null;
   address?: string | null;
   websiteUrl?: string | null;
-  isPublic?: boolean;
   memo?: string | null;
   isStarred: boolean;
   createdAt: string;
@@ -660,7 +659,6 @@ export interface CreateContactDto {
   postalCode?: string | null;
   address?: string | null;
   websiteUrl?: string | null;
-  isPublic?: boolean;
   memo?: string | null;
   isStarred?: boolean;
 }
@@ -680,7 +678,6 @@ export interface UpdateContactDto {
   postalCode?: string | null;
   address?: string | null;
   websiteUrl?: string | null;
-  isPublic?: boolean;
   memo?: string | null;
   isStarred?: boolean;
 }

@@ -61,9 +61,6 @@ export class Contact {
   @Column({ name: 'website_url', type: 'varchar', length: 255, nullable: true })
   websiteUrl: string | null;
 
-  @Column({ name: 'is_public', type: 'boolean', default: false })
-  isPublic: boolean;
-
   @Column({ type: 'text', nullable: true })
   memo: string | null;
 

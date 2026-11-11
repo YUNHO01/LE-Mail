@@ -3278,11 +3278,6 @@
             "description": "웹사이트 URL",
             "example": "https://example.com"
           },
-          "isPublic": {
-            "type": "boolean",
-            "description": "공개 여부",
-            "example": false
-          },
           "memo": {
             "type": "object",
             "description": "메모",
@@ -3457,11 +3452,6 @@
             "type": "object",
             "description": "웹사이트 URL",
             "example": "https://example.com"
-          },
-          "isPublic": {
-            "type": "boolean",
-            "description": "공개 여부",
-            "example": false
           },
           "memo": {
             "type": "object",

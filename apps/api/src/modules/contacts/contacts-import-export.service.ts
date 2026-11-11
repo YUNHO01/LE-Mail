@@ -118,12 +118,11 @@ export class ContactsImportExportService {
       ['label', 'type', 'pref'],
     );
 
-    // 6. 생일, 우편번호, 주소, URL, 공개여부, 메모
+    // 6. 생일, 우편번호, 주소, URL, 메모
     const birthdayIdx = findExact(['생일', '생년월일', 'birthday']);
     const postalCodeIdx = findExact(['우편번호', 'postal code', 'zip code', 'zip']);
     const addressIdx = findExact(['주소', 'address', 'address 1 - formatted', 'address 1 - street']);
     const urlIdx = findExact(['url', 'website', '홈페이지', '웹사이트', 'website 1 - value']);
-    const isPublicIdx = findExact(['공개여부', '공개', 'is public', 'public']);
     const memoIdx = findWithPattern(['메모', 'notes', 'note', '설명', '비고'], []);
 
     const contacts: CreateContactDto[] = [];
@@ -175,14 +174,7 @@ export class ContactsImportExportService {
       const address = addressIdx !== -1 && row[addressIdx] ? row[addressIdx].trim() || null : null;
       const websiteUrl = urlIdx !== -1 && row[urlIdx] ? row[urlIdx].trim() || null : null;
 
-      // 7. 공개여부 (1, '1', '공개', 'true' -> true)
-      let isPublic = false;
-      if (isPublicIdx !== -1 && row[isPublicIdx]) {
-        const val = row[isPublicIdx].trim().toLowerCase();
-        isPublic = val === '1' || val === '공개' || val === 'true' || val === 'y';
-      }
-
-      // 8. 메모
+      // 7. 메모
       const memo = memoIdx !== -1 && row[memoIdx] ? row[memoIdx].trim() || null : null;
 
       if (!name && !email && !phone && !company) {
@@ -207,7 +199,6 @@ export class ContactsImportExportService {
         postalCode,
         address,
         websiteUrl,
-        isPublic,
         memo,
       });
     }
@@ -299,7 +290,6 @@ export class ContactsImportExportService {
       '우편번호',
       '주소',
       'URL',
-      '공개여부',
       '메모',
     ];
 
@@ -317,7 +307,6 @@ export class ContactsImportExportService {
       c.postalCode || '',
       c.address || '',
       c.websiteUrl || '',
-      c.isPublic ? 1 : 0,
       c.memo || '',
     ]);
 
@@ -338,7 +327,6 @@ export class ContactsImportExportService {
       { wch: 10 }, // 우편번호
       { wch: 35 }, // 주소
       { wch: 22 }, // URL
-      { wch: 10 }, // 공개여부
       { wch: 30 }, // 메모
     ];
 
@@ -350,7 +338,7 @@ export class ContactsImportExportService {
   }
 
   /**
-   * 15개 표준 컬럼 CSV 내보내기 (Excel 및 Outlook 호환 UTF-8 BOM 포함)
+   * 14개 표준 컬럼 CSV 내보내기 (Excel 및 Outlook 호환 UTF-8 BOM 포함)
    */
   exportToCsv(contacts: any[]): string {
     const headers = [
@@ -367,7 +355,6 @@ export class ContactsImportExportService {
       '우편번호',
       '주소',
       'URL',
-      '공개여부',
       '메모',
     ];
 
@@ -394,7 +381,6 @@ export class ContactsImportExportService {
         c.postalCode || '',
         c.address || '',
         c.websiteUrl || '',
-        c.isPublic ? 1 : 0,
         c.memo || '',
       ];
       lines.push(row.map(escapeCsv).join(','));

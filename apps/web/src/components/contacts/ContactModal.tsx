@@ -18,7 +18,6 @@ import {
   Calendar,
   Printer,
   Plus,
-  Eye,
 } from 'lucide-react';
 import { contactsApi } from '@/lib/api';
 import { ContactDto, ContactGroupDto, CreateContactDto } from '@lemail/shared-types';
@@ -59,7 +58,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   const [postalCode, setPostalCode] = useState('');
   const [address, setAddress] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
 
   // 추가 항목 아코디언 펼침 여부
   const [showAdditionalFields, setShowAdditionalFields] = useState(false);
@@ -86,7 +84,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       setPostalCode(contact.postalCode || '');
       setAddress(contact.address || '');
       setWebsiteUrl(contact.websiteUrl || '');
-      setIsPublic(Boolean(contact.isPublic));
 
       // 추가 항목 데이터가 있으면 자동으로 펼침
       if (
@@ -96,7 +93,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
         contact.postalCode ||
         contact.address ||
         contact.websiteUrl ||
-        contact.isPublic ||
         (contact.mobileCountryCode && contact.mobileCountryCode !== '+82')
       ) {
         setShowAdditionalFields(true);
@@ -121,7 +117,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       setPostalCode('');
       setAddress('');
       setWebsiteUrl('');
-      setIsPublic(false);
       setShowAdditionalFields(false);
     }
     setError(null);
@@ -161,7 +156,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
         postalCode: postalCode.trim() || null,
         address: address.trim() || null,
         websiteUrl: websiteUrl.trim() || null,
-        isPublic,
       };
 
       if (isEditing && contact) {
@@ -438,26 +432,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none"
                     />
                   </div>
-                </div>
-
-                {/* 공개 여부 (1 / 0) */}
-                <div className="pt-1 flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
-                  <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-slate-500" />
-                    <div>
-                      <div className="text-xs font-semibold text-slate-800">공개 여부</div>
-                      <div className="text-[11px] text-slate-400">사내 또는 그룹 구성원에게 연락처를 공개합니다.</div>
-                    </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isPublic}
-                      onChange={(e) => setIsPublic(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
-                  </label>
                 </div>
               </div>
             )}

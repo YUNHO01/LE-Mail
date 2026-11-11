@@ -264,7 +264,7 @@ export default function ContactsPage() {
 
   // 클립보드 복사 유틸
   const handleCopy = () => {
-    const header = ['이름', '이메일', '전화번호', '회사명', '부서명', '직급', '공개여부', '그룹'];
+    const header = ['이름', '이메일', '전화번호', '회사명', '부서명', '직급', '그룹'];
     const rows = filteredContacts.map((c) => [
       c.name || '',
       c.email || '',
@@ -272,7 +272,6 @@ export default function ContactsPage() {
       c.company || '',
       c.department || '',
       c.position || '',
-      c.isPublic ? '공개' : '비공개',
       c.groupName || '미분류',
     ]);
     const text = [header.join('\t'), ...rows.map((r) => r.join('\t'))].join('\n');
@@ -527,7 +526,6 @@ export default function ContactsPage() {
                 <th className="w-36 px-3 py-3 whitespace-nowrap">전화번호</th>
                 <th className="w-36 px-3 py-3 whitespace-nowrap">회사명</th>
                 <th className="w-32 px-3 py-3 whitespace-nowrap">부서명</th>
-                <th className="w-20 px-2 py-3 text-center whitespace-nowrap">공개여부</th>
                 <th className="w-28 px-3 py-3 whitespace-nowrap">그룹</th>
                 <th className="w-32 px-3 py-3 text-center whitespace-nowrap">등록일시</th>
                 <th className="w-24 px-3 py-3 text-right whitespace-nowrap">관리</th>
@@ -537,7 +535,7 @@ export default function ContactsPage() {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-20 text-center text-slate-400">
+                  <td colSpan={10} className="py-20 text-center text-slate-400">
                     <div className="flex items-center justify-center gap-2">
                       <RefreshCw className="h-5 w-5 animate-spin text-sky-600" />
                       <span className="font-medium">주소록 데이터를 불러오는 중...</span>
@@ -548,7 +546,7 @@ export default function ContactsPage() {
                 /* 사내 임직원 목록 */
                 paginatedCompanyUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-20 text-center text-slate-400">
+                    <td colSpan={10} className="py-20 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center">
                         <Users className="h-10 w-10 text-slate-300 mb-2 stroke-1" />
                         <p className="font-semibold text-slate-600 text-sm">
@@ -623,27 +621,20 @@ export default function ContactsPage() {
                           {u.employeeId ? `사번: ${u.employeeId}` : '-'}
                         </td>
 
-                        {/* 8. 공개여부 */}
-                        <td className="px-2 py-3.5 text-center whitespace-nowrap">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            공개
-                          </span>
-                        </td>
-
-                        {/* 9. 그룹 */}
+                        {/* 8. 그룹 */}
                         <td className="px-3 py-3.5 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 border border-indigo-200">
                             {u.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원'}
                           </span>
                         </td>
 
-                        {/* 10. 등록일시 */}
+                        {/* 9. 등록일시 */}
                         <td className="px-3 py-3.5 text-center whitespace-nowrap font-mono text-slate-500">
                           <div>{dateStr}</div>
                           <div className="text-[10px] text-slate-400">{timeStr}</div>
                         </td>
 
-                        {/* 11. 관리 */}
+                        {/* 10. 관리 */}
                         <td className="px-3 py-3.5 text-right whitespace-nowrap">
                           <button
                             type="button"
@@ -661,7 +652,7 @@ export default function ContactsPage() {
               ) : paginatedContacts.length === 0 ? (
                 /* 일반 주소록 비어있을 때 */
                 <tr>
-                  <td colSpan={11} className="py-20 text-center text-slate-400">
+                  <td colSpan={10} className="py-20 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center">
                       <Users className="h-10 w-10 text-slate-300 mb-2 stroke-1" />
                       <p className="font-semibold text-slate-600 text-sm">
@@ -781,20 +772,7 @@ export default function ContactsPage() {
                         {c.department || <span className="text-slate-300">-</span>}
                       </td>
 
-                      {/* 8. 공개여부 (분리된 컬럼) */}
-                      <td className="px-2 py-3.5 text-center whitespace-nowrap">
-                        {c.isPublic ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            공개
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
-                            비공개
-                          </span>
-                        )}
-                      </td>
-
-                      {/* 9. 그룹 */}
+                      {/* 8. 그룹 */}
                       <td className="px-3 py-3.5 whitespace-nowrap">
                         {c.groupName ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-200">
@@ -806,13 +784,13 @@ export default function ContactsPage() {
                         )}
                       </td>
 
-                      {/* 10. 등록일시 */}
+                      {/* 9. 등록일시 */}
                       <td className="px-3 py-3.5 text-center whitespace-nowrap font-mono text-slate-500">
                         <div>{dateStr}</div>
                         <div className="text-[10px] text-slate-400">{timeStr}</div>
                       </td>
 
-                      {/* 11. 관리 (메일 쓰기, 수정, 삭제) */}
+                      {/* 10. 관리 (메일 쓰기, 수정, 삭제) */}
                       <td className="px-3 py-3.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {c.email && (

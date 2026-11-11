@@ -72,11 +72,6 @@ export class CreateContactDto {
   @IsString()
   websiteUrl?: string | null;
 
-  @ApiPropertyOptional({ description: '공개 여부', example: false })
-  @IsOptional()
-  @IsBoolean()
-  isPublic?: boolean;
-
   @ApiPropertyOptional({ description: '메모', example: '주요 협력사 담당자' })
   @IsOptional()
   @IsString()

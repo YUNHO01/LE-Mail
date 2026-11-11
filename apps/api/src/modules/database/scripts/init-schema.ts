@@ -203,7 +203,6 @@ const schemaStatements = [
     \`postal_code\` VARCHAR(20) NULL,
     \`address\` VARCHAR(255) NULL,
     \`website_url\` VARCHAR(255) NULL,
-    \`is_public\` BOOLEAN DEFAULT FALSE,
     \`memo\` TEXT NULL,
     \`is_starred\` BOOLEAN DEFAULT FALSE,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -382,7 +381,6 @@ async function run() {
     { name: 'postal_code', ddl: 'ALTER TABLE `contact` ADD COLUMN `postal_code` VARCHAR(20) NULL AFTER `birthday`;' },
     { name: 'address', ddl: 'ALTER TABLE `contact` ADD COLUMN `address` VARCHAR(255) NULL AFTER `postal_code`;' },
     { name: 'website_url', ddl: 'ALTER TABLE `contact` ADD COLUMN `website_url` VARCHAR(255) NULL AFTER `address`;' },
-    { name: 'is_public', ddl: 'ALTER TABLE `contact` ADD COLUMN `is_public` BOOLEAN DEFAULT FALSE AFTER `website_url`;' },
   ];
 
   for (const col of contactNewColumns) {
@@ -395,6 +393,18 @@ async function run() {
       } else {
         console.warn(`Column migration note for contact.${col.name}: ${err.message}`);
       }
+    }
+  }
+
+  // Drop deprecated is_public column if exists
+  try {
+    await conn.query('ALTER TABLE `contact` DROP COLUMN `is_public`;');
+    console.log('Dropped deprecated column is_public from contact table.');
+  } catch (err: any) {
+    if (err.errno === 1091) {
+      // Column does not exist
+    } else {
+      console.warn(`Column drop note for contact.is_public: ${err.message}`);
     }
   }
 
