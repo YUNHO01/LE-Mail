@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, DragEvent } from 'react';
-import { Paperclip, X, File, AlertCircle } from 'lucide-react';
+import { Paperclip, X, File, AlertCircle, Loader2 } from 'lucide-react';
 
 export interface LocalAttachment {
   id: string;
@@ -24,6 +24,7 @@ export const AttachmentUploader: React.FC<AttachmentUploaderProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isReading, setIsReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const formatSize = (bytes: number): string => {
@@ -36,33 +37,38 @@ export const AttachmentUploader: React.FC<AttachmentUploaderProps> = ({
 
   const processFiles = async (files: FileList | File[]) => {
     setError(null);
-    const newAttachments: LocalAttachment[] = [];
-    let currentTotalSize = attachments.reduce((acc, a) => acc + a.sizeBytes, 0);
+    setIsReading(true);
+    try {
+      const newAttachments: LocalAttachment[] = [];
+      let currentTotalSize = attachments.reduce((acc, a) => acc + a.sizeBytes, 0);
 
-    for (const file of Array.from(files)) {
-      if (currentTotalSize + file.size > maxSizeBytes) {
-        setError(`총 첨부 용량이 최대 한도(${formatSize(maxSizeBytes)})를 초과했습니다.`);
-        break;
+      for (const file of Array.from(files)) {
+        if (currentTotalSize + file.size > maxSizeBytes) {
+          setError(`총 첨부 용량이 최대 한도(${formatSize(maxSizeBytes)})를 초과했습니다.`);
+          break;
+        }
+
+        currentTotalSize += file.size;
+
+        try {
+          const base64 = await fileToBase64(file);
+          newAttachments.push({
+            id: `${file.name}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            filename: file.name,
+            contentType: file.type || 'application/octet-stream',
+            sizeBytes: file.size,
+            contentBase64: base64,
+          });
+        } catch (err) {
+          setError(`파일 처리 실패: ${file.name}`);
+        }
       }
 
-      currentTotalSize += file.size;
-
-      try {
-        const base64 = await fileToBase64(file);
-        newAttachments.push({
-          id: `${file.name}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          filename: file.name,
-          contentType: file.type || 'application/octet-stream',
-          sizeBytes: file.size,
-          contentBase64: base64,
-        });
-      } catch (err) {
-        setError(`파일 처리 실패: ${file.name}`);
+      if (newAttachments.length > 0) {
+        onChange([...attachments, ...newAttachments]);
       }
-    }
-
-    if (newAttachments.length > 0) {
-      onChange([...attachments, ...newAttachments]);
+    } finally {
+      setIsReading(false);
     }
   };
 
@@ -130,14 +136,21 @@ export const AttachmentUploader: React.FC<AttachmentUploaderProps> = ({
         <div className="flex items-center gap-3">
           <button
             type="button"
+            disabled={isReading}
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 transition"
           >
-            <Paperclip className="h-3.5 w-3.5 text-slate-500" />
-            <span>파일 첨부</span>
+            {isReading ? (
+              <Loader2 className="h-3.5 w-3.5 text-sky-600 animate-spin" />
+            ) : (
+              <Paperclip className="h-3.5 w-3.5 text-slate-500" />
+            )}
+            <span>{isReading ? '파일 처리 중...' : '파일 첨부'}</span>
           </button>
           <span className="text-xs text-slate-400 hidden sm:inline">
-            또는 여기에 파일을 끌어다 놓으세요 (최대 {formatSize(maxSizeBytes)})
+            {isReading
+              ? '첨부파일 데이터를 읽고 있습니다...'
+              : `또는 여기에 파일을 끌어다 놓으세요 (최대 ${formatSize(maxSizeBytes)})`}
           </span>
         </div>
 

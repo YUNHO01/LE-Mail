@@ -27,6 +27,7 @@ import {
     EyeOff,
     KeyRound,
     Star,
+    Upload,
 } from 'lucide-react';
 
 function ComposeMailContent() {
@@ -44,6 +45,16 @@ function ComposeMailContent() {
     const [bodyText, setBodyText] = useState('');
     const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
     const [draftId, setDraftId] = useState<string | null>(null);
+
+    const totalAttachmentBytes = attachments.reduce((acc, a) => acc + a.sizeBytes, 0);
+
+    const formatFileSize = (bytes: number): string => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+    };
 
     // 보안 메일(비밀번호 설정) 및 중요 메일 상태
     const [isImportant, setIsImportant] = useState(false);
@@ -333,6 +344,70 @@ function ComposeMailContent() {
 
     return (
         <div className="w-full max-w-5xl space-y-5 pb-12">
+            {/* 편지 발송 및 첨부파일 업로드 로딩 오버레이 */}
+            {sending && (
+                <div
+                    role="alertdialog"
+                    aria-busy="true"
+                    aria-modal="true"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+                >
+                    <div className="relative w-full max-w-md rounded-2xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-5">
+                        {/* 상단 애니메이션 아이콘 */}
+                        <div className="relative flex items-center justify-center">
+                            <div className="h-20 w-20 rounded-full bg-sky-50 flex items-center justify-center">
+                                {attachments.length > 0 ? (
+                                    <Upload className="h-9 w-9 text-sky-600 animate-bounce" />
+                                ) : (
+                                    <Send className="h-9 w-9 text-sky-600 animate-pulse" />
+                                )}
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <Loader2 className="h-24 w-24 text-sky-500 animate-spin opacity-30" />
+                            </div>
+                        </div>
+
+                        {/* 메시지 영역 */}
+                        <div className="space-y-2">
+                            <h3 className="text-lg font-bold text-slate-900">
+                                {attachments.length > 0
+                                    ? '첨부파일 업로드 및 메일 발송 중'
+                                    : '메일을 발송하고 있습니다'}
+                            </h3>
+                            {attachments.length > 0 ? (
+                                <div className="space-y-1.5">
+                                    <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 border border-sky-100">
+                                        <span>첨부파일 {attachments.length}개</span>
+                                        <span className="text-sky-400">·</span>
+                                        <span>{formatFileSize(totalAttachmentBytes)}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                        대용량 파일 인코딩 및 서버 전송이 진행 중입니다.
+                                    </p>
+                                    <p className="text-[11px] text-slate-400">
+                                        네트워크 및 파일 용량에 따라 시간이 걸릴 수 있습니다.
+                                    </p>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-slate-500">
+                                    수신 서버로 메일을 안전하게 전송하고 있습니다. 잠시만 기다려 주세요.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* 진행 프로그레스 바 */}
+                        <div className="w-full space-y-2.5 pt-1">
+                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 rounded-full w-full animate-pulse" />
+                            </div>
+                            <p className="text-[11px] font-medium text-amber-600 bg-amber-50 rounded-lg py-1.5 px-3 border border-amber-200/60">
+                                메일 전송이 완료될 때까지 브라우저 창을 닫거나 새로고침하지 마세요.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header bar */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                 <div className="flex items-center gap-3">
