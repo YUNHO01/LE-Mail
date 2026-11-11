@@ -13,7 +13,7 @@ import { User, Mailbox, Domain } from '../database/entities';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
-import { UserDto, UserRole, UserStorageUsageDto } from '@lemail/shared-types';
+import { UserDto, UserRole, UserStorageUsageDto, UserSignatureDto, UpdateUserSignatureDto } from '@lemail/shared-types';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
 import { MailFolderService } from '../mail-folder/mail-folder.service';
 
@@ -58,6 +58,8 @@ export class UsersService {
       timezone: user.timezone || 'Asia/Seoul',
       employeeId: user.employeeId || null,
       lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+      useSignature: Boolean(user.useSignature),
+      signatureHtml: user.signatureHtml || null,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
@@ -372,5 +374,35 @@ export class UsersService {
 
     await this.userRepository.remove(user);
     return { success: true, message: '사용자가 성공적으로 삭제되었습니다.' };
+  }
+
+  async getSignature(userId: string): Promise<UserSignatureDto> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    return {
+      useSignature: Boolean(user.useSignature),
+      signatureHtml: user.signatureHtml || '',
+    };
+  }
+
+  async updateSignature(
+    userId: string,
+    dto: UpdateUserSignatureDto,
+  ): Promise<UserSignatureDto> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    user.useSignature = Boolean(dto.useSignature);
+    if (dto.signatureHtml !== undefined) {
+      user.signatureHtml = dto.signatureHtml;
+    }
+    await this.userRepository.save(user);
+    return {
+      useSignature: user.useSignature,
+      signatureHtml: user.signatureHtml || '',
+    };
   }
 }

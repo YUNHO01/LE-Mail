@@ -130,6 +130,21 @@ export class MailController {
     return this.mailService.markRead(user.id, id, Boolean(isRead), folderId);
   }
 
+  @Patch(':id/star')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '메일 중요(별표) 설정/해제' })
+  @ApiParam({ name: 'id', description: '메일 고유 ID' })
+  @ApiResponse({ status: 200, description: '처리 완료' })
+  markStarred(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body('isStarred') isStarred: boolean,
+    @Body('folderId') folderId?: string,
+  ) {
+    return this.mailService.markStarred(user.id, id, Boolean(isStarred), folderId);
+  }
+
   @Get(':id')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

@@ -112,6 +112,26 @@ export class SeedService implements OnApplicationBootstrap {
       'ALTER TABLE `domain` ADD COLUMN `dkim_public_key` TEXT NULL;',
       'Successfully ensured domain.dkim_public_key column.',
     );
+
+    await runSafeQuery(
+      'ALTER TABLE `user_mail` ADD COLUMN `is_forwarded` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_answered`;',
+      'Successfully ensured user_mail.is_forwarded column.',
+    );
+
+    await runSafeQuery(
+      'ALTER TABLE `mail_message` ADD COLUMN `is_secure` BOOLEAN NOT NULL DEFAULT FALSE AFTER `failure_reason`;',
+      'Successfully ensured mail_message.is_secure column.',
+    );
+
+    await runSafeQuery(
+      'ALTER TABLE `mail_message` ADD COLUMN `is_important` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_secure`;',
+      'Successfully ensured mail_message.is_important column.',
+    );
+
+    await runSafeQuery(
+      'ALTER TABLE `user_mail` ADD COLUMN `is_seen` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_read`;',
+      'Successfully ensured user_mail.is_seen column.',
+    );
   }
 
   async seedSystemAdmin(): Promise<void> {

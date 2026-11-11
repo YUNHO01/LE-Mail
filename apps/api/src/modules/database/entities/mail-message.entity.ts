@@ -105,6 +105,12 @@ export class MailMessage {
   @Column({ name: 'failure_reason', type: 'text', nullable: true })
   failureReason: string | null;
 
+  @Column({ name: 'is_secure', type: 'boolean', default: false })
+  isSecure: boolean;
+
+  @Column({ name: 'is_important', type: 'boolean', default: false })
+  isImportant: boolean;
+
   @Index('idx_created_at')
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

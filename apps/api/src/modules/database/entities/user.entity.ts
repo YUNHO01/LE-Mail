@@ -52,6 +52,12 @@ export class User {
   @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
   lastLoginAt: Date | null;
 
+  @Column({ name: 'use_signature', type: 'boolean', default: false })
+  useSignature: boolean;
+
+  @Column({ name: 'signature_html', type: 'mediumtext', nullable: true })
+  signatureHtml: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -19,11 +20,12 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
+import { UpdateUserSignatureDto } from './dto/update-signature.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserRole, UserStorageUsageDto } from '@lemail/shared-types';
+import { UserRole, UserStorageUsageDto, UserSignatureDto } from '@lemail/shared-types';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -51,6 +53,29 @@ export class UsersController {
   @ApiResponse({ status: 200, description: '사용량 조회 성공' })
   async getMyStorageUsage(@CurrentUser() user: any): Promise<UserStorageUsageDto> {
     return this.usersService.getUserStorageUsage(user.id);
+  }
+
+  @Get('me/signature')
+  @ApiOperation({
+    summary: '현재 로그인한 사용자의 서명 설정 조회',
+    description: '서명 사용 여부 및 DHTML HTML 서명 본문을 조회합니다.',
+  })
+  @ApiResponse({ status: 200, description: '서명 설정 조회 성공' })
+  async getMySignature(@CurrentUser() user: any): Promise<UserSignatureDto> {
+    return this.usersService.getSignature(user.id);
+  }
+
+  @Put('me/signature')
+  @ApiOperation({
+    summary: '현재 로그인한 사용자의 서명 설정 갱신',
+    description: '서명 사용 여부 및 DHTML HTML 서명 본문을 저장합니다.',
+  })
+  @ApiResponse({ status: 200, description: '서명 설정 저장 성공' })
+  async updateMySignature(
+    @CurrentUser() user: any,
+    @Body() dto: UpdateUserSignatureDto,
+  ): Promise<UserSignatureDto> {
+    return this.usersService.updateSignature(user.id, dto);
   }
 
   @Get(':id')

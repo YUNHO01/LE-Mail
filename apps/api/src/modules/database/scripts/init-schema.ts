@@ -103,6 +103,7 @@ const schemaStatements = [
     \`message_id\` VARCHAR(36) NOT NULL,
     \`uid\` INT UNSIGNED NOT NULL DEFAULT 1,
     \`is_read\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`is_seen\` BOOLEAN NOT NULL DEFAULT FALSE,
     \`is_starred\` BOOLEAN NOT NULL DEFAULT FALSE,
     \`is_deleted\` BOOLEAN NOT NULL DEFAULT FALSE,
     \`is_answered\` BOOLEAN NOT NULL DEFAULT FALSE,
@@ -153,6 +154,25 @@ const schemaStatements = [
     INDEX \`idx_license_id\` (\`license_id\`),
     INDEX \`idx_license_is_active\` (\`is_active\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`mail_backup\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`folder_id\` VARCHAR(36) NULL,
+    \`folder_name\` VARCHAR(100) NOT NULL,
+    \`status\` ENUM('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'EXPIRED') NOT NULL DEFAULT 'PENDING',
+    \`total_count\` INT NOT NULL DEFAULT 0,
+    \`file_size_bytes\` BIGINT NOT NULL DEFAULT 0,
+    \`file_path\` VARCHAR(500) NULL,
+    \`download_token\` VARCHAR(128) NOT NULL UNIQUE,
+    \`error_message\` TEXT NULL,
+    \`expires_at\` TIMESTAMP NOT NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`fk_backup_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE,
+    INDEX \`idx_backup_user_created\` (\`user_id\`, \`created_at\`),
+    INDEX \`idx_backup_token\` (\`download_token\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 async function run() {
@@ -177,6 +197,8 @@ async function run() {
     { name: 'preferred_language', ddl: 'ALTER TABLE `user` ADD COLUMN `preferred_language` VARCHAR(20) NOT NULL DEFAULT "ko" AFTER `mailbox_quota_mb`;' },
     { name: 'timezone', ddl: 'ALTER TABLE `user` ADD COLUMN `timezone` VARCHAR(50) NOT NULL DEFAULT "Asia/Seoul" AFTER `preferred_language`;' },
     { name: 'employee_id', ddl: 'ALTER TABLE `user` ADD COLUMN `employee_id` VARCHAR(50) NULL AFTER `timezone`;' },
+    { name: 'use_signature', ddl: 'ALTER TABLE `user` ADD COLUMN `use_signature` BOOLEAN NOT NULL DEFAULT FALSE AFTER `last_login_at`;' },
+    { name: 'signature_html', ddl: 'ALTER TABLE `user` ADD COLUMN `signature_html` MEDIUMTEXT NULL AFTER `use_signature`;' },
   ];
 
   for (const col of alterColumns) {
@@ -197,6 +219,14 @@ async function run() {
     {
       name: 'failure_reason',
       ddl: 'ALTER TABLE `mail_message` ADD COLUMN `failure_reason` TEXT NULL AFTER `status`;',
+    },
+    {
+      name: 'is_secure',
+      ddl: 'ALTER TABLE `mail_message` ADD COLUMN `is_secure` BOOLEAN NOT NULL DEFAULT FALSE AFTER `failure_reason`;',
+    },
+    {
+      name: 'is_important',
+      ddl: 'ALTER TABLE `mail_message` ADD COLUMN `is_important` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_secure`;',
     },
   ];
 
@@ -242,9 +272,11 @@ async function run() {
   // Migrate user_mail columns for IMAP
   const userMailColumns = [
     { name: 'uid', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `uid` INT UNSIGNED NOT NULL DEFAULT 1 AFTER `message_id`;' },
+    { name: 'is_seen', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_seen` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_read`;' },
     { name: 'is_deleted', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_deleted` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_starred`;' },
     { name: 'is_answered', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_answered` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_deleted`;' },
-    { name: 'is_draft', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_draft` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_answered`;' },
+    { name: 'is_forwarded', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_forwarded` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_answered`;' },
+    { name: 'is_draft', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_draft` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_forwarded`;' },
   ];
 
   for (const col of userMailColumns) {

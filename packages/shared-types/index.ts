@@ -106,6 +106,8 @@ export interface UserDto {
   timezone: string;
   employeeId: string | null;
   lastLoginAt: string | null;
+  useSignature?: boolean;
+  signatureHtml?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -214,10 +216,15 @@ export interface MailMessageDto {
   folderId?: string;
   uid?: number;
   isRead?: boolean;
+  isSeen?: boolean;
+  isNew?: boolean;
   isStarred?: boolean;
   isDeleted?: boolean;
   isAnswered?: boolean;
+  isForwarded?: boolean;
   isDraft?: boolean;
+  isSecure?: boolean;
+  isImportant?: boolean;
   recipients?: MailRecipientDto[];
   attachments?: MailAttachmentDto[];
   body?: {
@@ -325,6 +332,9 @@ export interface SendMailDto {
   attachments?: SendMailAttachmentDto[];
   isSecure?: boolean;
   securityPassword?: string;
+  isImportant?: boolean;
+  replyToMailId?: string;
+  forwardFromMailId?: string;
 }
 
 export interface SaveDraftDto {
@@ -532,6 +542,51 @@ export interface SystemLicenseInfo {
 export interface RegisterLicenseDto {
   licenseContent: string;
 }
+
+// ==========================================
+// User Preferences & Signature Types
+// ==========================================
+export interface UserSignatureDto {
+  useSignature: boolean;
+  signatureHtml: string | null;
+}
+
+export interface UpdateUserSignatureDto {
+  useSignature: boolean;
+  signatureHtml?: string | null;
+}
+
+// ==========================================
+// Mailbox Backup Types
+// ==========================================
+export const BackupStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  EXPIRED: 'EXPIRED',
+} as const;
+export type BackupStatus = (typeof BackupStatus)[keyof typeof BackupStatus];
+
+export interface MailBackupDto {
+  id: string;
+  userId: string;
+  folderId: string | null;
+  folderName: string;
+  status: BackupStatus;
+  totalCount: number;
+  fileSizeBytes: number;
+  downloadToken?: string;
+  downloadUrl?: string;
+  errorMessage?: string | null;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface RequestMailBackupDto {
+  folderId?: string | null;
+}
+
 
 
 

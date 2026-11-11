@@ -10,4 +10,6 @@ export * from './system-setting.entity';
 export * from './spam-rule.entity';
 export * from './bayesian-token.entity';
 export * from './system-license.entity';
+export * from './mail-backup.entity';
+
 

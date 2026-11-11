@@ -70,4 +70,19 @@ export class SendMailDto {
   @IsString()
   @MinLength(4, { message: '보안 메일 비밀번호는 최소 4자 이상이어야 합니다.' })
   securityPassword?: string;
+
+  @ApiPropertyOptional({ description: '중요 메일 발송 여부' })
+  @IsOptional()
+  @IsBoolean()
+  isImportant?: boolean;
+
+  @ApiPropertyOptional({ description: '답장 대상 원본 메일 ID' })
+  @IsOptional()
+  @IsString()
+  replyToMailId?: string;
+
+  @ApiPropertyOptional({ description: '전달 대상 원본 메일 ID' })
+  @IsOptional()
+  @IsString()
+  forwardFromMailId?: string;
 }

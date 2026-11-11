@@ -46,6 +46,9 @@ export class UserMail {
   @Column({ name: 'is_read', type: 'boolean', default: false })
   isRead: boolean;
 
+  @Column({ name: 'is_seen', type: 'boolean', default: false })
+  isSeen: boolean;
+
   @Column({ name: 'is_starred', type: 'boolean', default: false })
   isStarred: boolean;
 
@@ -54,6 +57,9 @@ export class UserMail {
 
   @Column({ name: 'is_answered', type: 'boolean', default: false })
   isAnswered: boolean;
+
+  @Column({ name: 'is_forwarded', type: 'boolean', default: false })
+  isForwarded: boolean;
 
   @Column({ name: 'is_draft', type: 'boolean', default: false })
   isDraft: boolean;

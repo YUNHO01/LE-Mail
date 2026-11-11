@@ -29,6 +29,11 @@ import {
   FolderInput,
   Inbox,
   FileEdit,
+  Filter,
+  Star,
+  Lock,
+  Reply,
+  Forward,
 } from 'lucide-react';
 
 export interface MailDataTableProps {
@@ -40,6 +45,8 @@ export interface MailDataTableProps {
   folderName?: string;
   search: string;
   onSearchChange: (value: string) => void;
+  statusFilter?: string;
+  onStatusFilterChange?: (filter: string) => void;
   onDelete?: (e: React.MouseEvent, mailId: string) => void;
   onToggleRead?: (e: React.MouseEvent, mailId: string, currentIsRead: boolean) => void;
   onBulkDelete?: (mailIds: string[]) => Promise<void>;
@@ -61,6 +68,8 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   folderName,
   search,
   onSearchChange,
+  statusFilter: propsStatusFilter,
+  onStatusFilterChange,
   onDelete,
   onToggleRead,
   onBulkDelete,
@@ -77,10 +86,25 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const [copied, setCopied] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [internalStatusFilter, setInternalStatusFilter] = useState('all');
+  const activeStatusFilter =
+    propsStatusFilter !== undefined ? propsStatusFilter : internalStatusFilter;
+
+  const handleStatusFilterChange = (val: string) => {
+    setInternalStatusFilter(val);
+    setPage(1);
+    if (onStatusFilterChange) {
+      onStatusFilterChange(val);
+    }
+  };
 
   const [folders, setFolders] = useState<MailFolderDto[]>([]);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const moveMenuRef = useRef<HTMLDivElement>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  const [starredOverrides, setStarredOverrides] = useState<Record<string, boolean>>({});
+  const [readOverrides, setReadOverrides] = useState<Record<string, boolean>>({});
 
   const fetchFolders = async () => {
     try {
@@ -103,17 +127,20 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!isMoveOpen) return;
+    if (!isMoveOpen && !isFilterOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (moveMenuRef.current && !moveMenuRef.current.contains(e.target as Node)) {
         setIsMoveOpen(false);
+      }
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setIsFilterOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isMoveOpen]);
+  }, [isMoveOpen, isFilterOpen]);
 
   interface FlatFolderItem extends MailFolderDto {
     depth: number;
@@ -326,14 +353,131 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const isTrash = type === 'trash';
   const isDraft = type === 'drafts';
 
+  // 메일 상태 판별 헬퍼 (신규, 안읽음, 읽음, 보안, 중요, 답장, 전달)
+  const getMailStatusFlags = (mail: MailMessageDto) => {
+    const isRead =
+      readOverrides[mail.id] !== undefined ? readOverrides[mail.id] : Boolean(mail.isRead);
+    const isStarred =
+      starredOverrides[mail.id] !== undefined
+        ? starredOverrides[mail.id]
+        : Boolean(mail.isStarred || mail.isImportant);
+    const isNew =
+      !isRead &&
+      !isSent &&
+      !isDraft &&
+      (mail.isNew !== undefined ? mail.isNew : !Boolean(mail.isSeen));
+    const isSecure = Boolean(
+      mail.isSecure ||
+        mail.subject?.includes('[보안메일]') ||
+        mail.attachments?.some((a) => a.filename?.includes('[보안메일]'))
+    );
+    const isAnswered = Boolean(
+      mail.isAnswered || (mail.subject && /^(Re:|답장:)/i.test(mail.subject.trim()))
+    );
+    const isForwarded = Boolean(
+      mail.isForwarded || (mail.subject && /^(Fwd?:|전달:)/i.test(mail.subject.trim()))
+    );
+
+    const labels: string[] = [];
+    if (isNew) labels.push('신규');
+    labels.push(isRead ? '읽음' : '안읽음');
+    if (isSecure) labels.push('보안');
+    if (isStarred) labels.push('중요');
+    if (isAnswered) labels.push('답장');
+    if (isForwarded) labels.push('전달');
+
+    return {
+      isRead,
+      isStarred,
+      isNew,
+      isSecure,
+      isAnswered,
+      isForwarded,
+      statusText: labels.join('/'),
+    };
+  };
+
+  // 중요(별표) 상태 토글 핸들러
+  const handleToggleStar = async (e: React.MouseEvent, mail: MailMessageDto, currentStarred: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nextStarred = !currentStarred;
+    setStarredOverrides((prev) => ({ ...prev, [mail.id]: nextStarred }));
+    try {
+      await fetchApi(`/mails/${mail.id}/star`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isStarred: nextStarred, folderId }),
+      });
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (err: any) {
+      setStarredOverrides((prev) => ({ ...prev, [mail.id]: currentStarred }));
+      alert(err.message || '중요 상태 변경 실패');
+    }
+  };
+
+  // 상태 아이콘 클릭으로 읽음/안읽음 토글
+  const handleStatusToggleRead = async (e: React.MouseEvent, mail: MailMessageDto, currentIsRead: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onToggleRead) {
+      onToggleRead(e, mail.id, currentIsRead);
+      return;
+    }
+    const nextRead = !currentIsRead;
+    setReadOverrides((prev) => ({ ...prev, [mail.id]: nextRead }));
+    try {
+      await fetchApi(`/mails/${mail.id}/read`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isRead: nextRead, folderId }),
+      });
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (err: any) {
+      setReadOverrides((prev) => ({ ...prev, [mail.id]: currentIsRead }));
+      alert(err.message || '읽음 상태 변경 실패');
+    }
+  };
+
+  // 필터 적용 메일 목록
+  const filteredMails = useMemo(() => {
+    if (activeStatusFilter === 'all') return mails;
+    return mails.filter((mail) => {
+      const flags = getMailStatusFlags(mail);
+      switch (activeStatusFilter) {
+        case 'unread':
+          return !flags.isRead;
+        case 'read':
+          return flags.isRead;
+        case 'important':
+          return flags.isStarred;
+        case 'new':
+          return flags.isNew;
+        case 'secure':
+          return flags.isSecure;
+        case 'answered':
+          return flags.isAnswered;
+        case 'forwarded':
+          return flags.isForwarded;
+        case 'attachment':
+          return Boolean(mail.attachments && mail.attachments.length > 0);
+        default:
+          return true;
+      }
+    });
+  }, [mails, activeStatusFilter, readOverrides, starredOverrides, isSent, isDraft]);
+
   // Client-side pagination slice if all fetched at once
-  const totalPages = Math.max(1, Math.ceil(mails.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredMails.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
-  const paginatedMails = mails.slice(startIndex, startIndex + pageSize);
+  const paginatedMails = filteredMails.slice(startIndex, startIndex + pageSize);
 
-  const displayStart = mails.length === 0 ? 0 : startIndex + 1;
-  const displayEnd = Math.min(startIndex + pageSize, mails.length);
+  const displayStart = filteredMails.length === 0 ? 0 : startIndex + 1;
+  const displayEnd = Math.min(startIndex + pageSize, filteredMails.length);
 
   // Checkbox handlers
   const allCurrentSelected =
@@ -375,29 +519,29 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const handleCopy = async () => {
     const targetMails =
       selectedIds.length > 0
-        ? mails.filter((m) => selectedIds.includes(m.id))
+        ? filteredMails.filter((m) => selectedIds.includes(m.id))
         : paginatedMails;
 
     if (targetMails.length === 0) return;
 
-    const header = ['일자', isSent ? '수신자' : '발신자', '상태', '제목', '시각', '비고'].join(
-      '\t'
-    );
+    const header = [
+      '상태',
+      isSent ? '수신자' : '발신자',
+      '제목',
+      isSent ? '발송일시' : '수신일시',
+    ].join('\t');
     const rows = targetMails.map((m) => {
-      const date = new Date(m.createdAt);
-      const dateStr = date.toISOString().slice(0, 10);
-      const timeStr = date.toTimeString().slice(0, 8);
+      const { dateStr, timeStr } = formatDateParts(m.createdAt);
       const person = isSent
         ? m.recipients?.map((r) => r.address).join(', ') || '(수신자 없음)'
         : m.sender;
-      const status = m.isRead ? '읽음' : '안읽음';
-      const remark = [
-        m.spfResult ? `SPF:${m.spfResult}` : '',
-        m.dkimResult ? `DKIM:${m.dkimResult}` : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
-      return [dateStr, person, status, m.subject || '(제목 없음)', timeStr, remark].join('\t');
+      const { statusText } = getMailStatusFlags(m);
+      return [
+        statusText,
+        person,
+        m.subject || '(제목 없음)',
+        `${dateStr} ${timeStr}`,
+      ].join('\t');
     });
 
     const textToCopy = [header, ...rows].join('\n');
@@ -410,44 +554,34 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const handleExcelExport = () => {
     const targetMails =
       selectedIds.length > 0
-        ? mails.filter((m) => selectedIds.includes(m.id))
-        : mails;
+        ? filteredMails.filter((m) => selectedIds.includes(m.id))
+        : filteredMails;
 
     if (targetMails.length === 0) {
       alert('내보낼 메일 데이터가 없습니다.');
       return;
     }
 
-    const header = ['일자', isSent ? '수신자' : '발신자', '상태', '제목', '시각', '비고'];
+    const header = [
+      '상태',
+      isSent ? '수신자' : '발신자',
+      '제목',
+      isSent ? '발송일시' : '수신일시',
+    ];
     const escapeCsv = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
 
     const rows = targetMails.map((m) => {
-      const date = new Date(m.createdAt);
-      const dateStr = date.toISOString().slice(0, 10);
-      const timeStr = date.toTimeString().slice(0, 8);
+      const { dateStr, timeStr } = formatDateParts(m.createdAt);
       const person = isSent
         ? m.recipients?.map((r) => r.address).join(', ') || '(수신자 없음)'
         : m.sender;
-      const status = isSpam
-        ? '스팸'
-        : m.isRead
-        ? '읽음'
-        : '안읽음';
-      const remark = [
-        m.spfResult ? `SPF:${m.spfResult}` : '',
-        m.dkimResult ? `DKIM:${m.dkimResult}` : '',
-        m.dmarcResult ? `DMARC:${m.dmarcResult}` : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
+      const { statusText } = getMailStatusFlags(m);
 
       return [
-        escapeCsv(dateStr),
+        escapeCsv(statusText),
         escapeCsv(person),
-        escapeCsv(status),
         escapeCsv(m.subject || '(제목 없음)'),
-        escapeCsv(timeStr),
-        escapeCsv(remark),
+        escapeCsv(`${dateStr} ${timeStr}`),
       ].join(',');
     });
 
@@ -499,18 +633,139 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     searchPlaceholder ||
     (isSent || isDraft ? '수신자, 제목 검색...' : '보낸사람, 제목 검색...');
 
+  const statusFilterOptions: {
+    value: string;
+    label: string;
+    icon: React.ReactNode;
+  }[] = [
+    {
+      value: 'all',
+      label: '전체',
+      icon: <Filter className="w-3.5 h-3.5 text-slate-500" />,
+    },
+    {
+      value: 'unread',
+      label: '안읽음',
+      icon: <Mail className="w-3.5 h-3.5 text-sky-600" />,
+    },
+    {
+      value: 'read',
+      label: '읽음',
+      icon: <MailOpen className="w-3.5 h-3.5 text-slate-400" />,
+    },
+    {
+      value: 'important',
+      label: '중요',
+      icon: <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />,
+    },
+    {
+      value: 'new',
+      label: '신규',
+      icon: (
+        <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-extrabold text-white">
+          N
+        </span>
+      ),
+    },
+    {
+      value: 'secure',
+      label: '보안',
+      icon: <Lock className="w-3.5 h-3.5 text-emerald-600" />,
+    },
+    {
+      value: 'answered',
+      label: '답장',
+      icon: <Reply className="w-3.5 h-3.5 text-indigo-600" />,
+    },
+    {
+      value: 'forwarded',
+      label: '전달',
+      icon: <Forward className="w-3.5 h-3.5 text-violet-600" />,
+    },
+    {
+      value: 'attachment',
+      label: '첨부파일',
+      icon: <Paperclip className="w-3.5 h-3.5 text-slate-500" />,
+    },
+  ];
+
+  const currentFilterOption =
+    statusFilterOptions.find((opt) => opt.value === activeStatusFilter) ||
+    statusFilterOptions[0];
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
-      {/* 1. 상단 툴바: 검색창 (좌) + 다중선택 액션군 + Copy / Excel / Print 버튼 (우) */}
+      {/* 1. 상단 툴바: 상태 필터 + 검색창 (좌) + 다중선택 액션군 + Copy / Excel / Print 버튼 (우) */}
       <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar">
-        {/* 검색창 */}
-        <div className="w-full sm:w-64">
-          <SearchInput
-            value={search}
-            onChange={onSearchChange}
-            placeholder={effectivePlaceholder}
-            size="md"
-          />
+        {/* 필터 + 검색창 */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* 상태 필터 드롭다운 (커스텀 팝오버) */}
+          <div className="relative shrink-0" ref={filterMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen((prev) => !prev)}
+              className="flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:border-slate-300 hover:bg-slate-50 transition cursor-pointer select-none"
+              title="메일 상태 필터 선택"
+            >
+              <span className="flex items-center justify-center w-3.5 h-3.5 shrink-0">
+                {currentFilterOption.icon}
+              </span>
+              <span className="font-semibold text-slate-800">{currentFilterOption.label}</span>
+              <ChevronDown
+                className={`w-3 h-3 text-slate-400 transition-transform duration-150 ${
+                  isFilterOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {isFilterOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-44 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                  메일 상태 필터
+                </div>
+                <div className="py-1 max-h-72 overflow-y-auto">
+                  {statusFilterOptions.map((opt) => {
+                    const isSelected = opt.value === activeStatusFilter;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          handleStatusFilterChange(opt.value);
+                          setIsFilterOpen(false);
+                        }}
+                        className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between transition ${
+                          isSelected
+                            ? 'bg-sky-50 text-sky-800 font-semibold'
+                            : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="flex items-center justify-center w-4 h-4 shrink-0">
+                            {opt.icon}
+                          </span>
+                          <span>{opt.label}</span>
+                        </span>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 검색창 */}
+          <div className="w-full sm:w-64">
+            <SearchInput
+              value={search}
+              onChange={onSearchChange}
+              placeholder={effectivePlaceholder}
+              size="md"
+            />
+          </div>
         </div>
 
         {/* 우측 유틸리티 버튼군 */}
@@ -619,15 +874,17 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                 </button>
               )}
 
-              {/* 삭제 버튼 (기본: 휴지통 이동) */}
-              <button
-                type="button"
-                onClick={handleBulkDeleteAction}
-                className="btn btn-sm btn-secondary text-xs font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
-                title={type === 'trash' ? '휴지통에서 삭제' : '휴지통으로 이동'}
-              >
-                삭제
-              </button>
+              {/* 삭제 버튼 (기본: 휴지통 이동, 휴지통에서는 미노출) */}
+              {!isTrash && (
+                <button
+                  type="button"
+                  onClick={handleBulkDeleteAction}
+                  className="btn btn-sm btn-secondary text-xs font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
+                  title="휴지통으로 이동"
+                >
+                  삭제
+                </button>
+              )}
 
               {/* 완전삭제 버튼 (휴지통으로 이동하지 않고 바로 삭제) */}
               <button
@@ -667,16 +924,19 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   title="전체 선택"
                 />
               </th>
-              <th className="w-28 px-4 py-3 whitespace-nowrap">일자</th>
+              <th
+                className="w-32 px-3 py-3 text-center whitespace-nowrap"
+                title="신규 / 안읽음 / 읽음 / 보안 / 중요 / 답장 / 전달"
+              >
+                상태
+              </th>
               <th className="w-56 px-4 py-3 whitespace-nowrap">
                 {isSent ? '수신 정보' : '사원 정보'}
               </th>
-              <th className="w-24 px-4 py-3 text-center whitespace-nowrap">상태</th>
               <th className="px-4 py-3 whitespace-nowrap">제목</th>
-              <th className="w-24 px-4 py-3 whitespace-nowrap text-center">
-                {isSent ? '발송 시각' : '수신 시각'}
+              <th className="w-40 px-4 py-3 whitespace-nowrap text-center">
+                {isSent ? '발송일시' : '수신일시'}
               </th>
-              <th className="w-48 px-4 py-3 whitespace-nowrap">비고</th>
               <th className="w-20 px-4 py-3 text-right whitespace-nowrap">관리</th>
             </tr>
           </thead>
@@ -685,7 +945,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {loading ? (
               <tr>
-                <td colSpan={8} className="py-16 text-center text-slate-400">
+                <td colSpan={6} className="py-16 text-center text-slate-400">
                   <div className="flex items-center justify-center gap-2">
                     <RefreshCw className="h-5 w-5 animate-spin text-sky-600" />
                     <span className="font-medium">메일 목록을 불러오는 중...</span>
@@ -694,7 +954,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
               </tr>
             ) : paginatedMails.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-16 text-center text-slate-400">
+                <td colSpan={6} className="py-16 text-center text-slate-400">
                   <div className="flex flex-col items-center justify-center">
                     <Mail className="h-10 w-10 text-slate-300 mb-2 stroke-1" />
                     <p className="font-semibold text-slate-600 text-sm">{emptyMessage}</p>
@@ -707,7 +967,14 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
             ) : (
               paginatedMails.map((mail) => {
                 const { dateStr, timeStr } = formatDateParts(mail.createdAt);
-                const isRead = Boolean(mail.isRead);
+                const {
+                  isRead,
+                  isStarred,
+                  isNew,
+                  isSecure,
+                  isAnswered,
+                  isForwarded,
+                } = getMailStatusFlags(mail);
                 const isSelected = selectedIds.includes(mail.id);
 
                 const personRaw = isSent
@@ -738,9 +1005,85 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                       />
                     </td>
 
-                    {/* 1. 일자 */}
-                    <td className="px-4 py-3.5 whitespace-nowrap text-slate-600 font-mono">
-                      {dateStr}
+                    {/* 1. 첫번째 자리: 메일상태 아이콘 (신규, 안읽음, 읽음, 보안, 중요, 답장, 전달) */}
+                    <td
+                      className="px-3 py-3.5 whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-center gap-1.5">
+                        {/* 중요 상태 아이콘 */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleStar(e, mail, isStarred)}
+                          title={isStarred ? '중요 (클릭하여 해제)' : '중요 표시'}
+                          aria-label={isStarred ? '중요' : '중요 표시'}
+                          className="p-0.5 rounded hover:bg-amber-50 transition shrink-0"
+                        >
+                          <Star
+                            className={`h-4 w-4 ${
+                              isStarred
+                                ? 'fill-amber-400 text-amber-400'
+                                : 'text-slate-300 hover:text-amber-400'
+                            }`}
+                          />
+                        </button>
+
+                        {/* 읽음 / 안읽음 + 신규 상태 아이콘 */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleStatusToggleRead(e, mail, isRead)}
+                          title={isNew ? '신규 / 안읽음 (클릭하여 읽음 처리)' : isRead ? '읽음 (클릭하여 안읽음 처리)' : '안읽음 (클릭하여 읽음 처리)'}
+                          aria-label={isNew ? '신규 안읽음' : isRead ? '읽음' : '안읽음'}
+                          className="relative p-0.5 rounded hover:bg-sky-50 transition shrink-0 inline-flex items-center"
+                        >
+                          {isRead ? (
+                            <MailOpen className="h-4 w-4 text-slate-400" />
+                          ) : (
+                            <Mail className="h-4 w-4 text-sky-600" />
+                          )}
+                          {isNew && (
+                            <span
+                              title="신규"
+                              className="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-extrabold text-white shadow-2xs"
+                            >
+                              N
+                            </span>
+                          )}
+                        </button>
+
+                        {/* 보안 상태 아이콘 */}
+                        {isSecure && (
+                          <span
+                            title="보안"
+                            aria-label="보안"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0"
+                          >
+                            <Lock className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+
+                        {/* 답장 상태 아이콘 */}
+                        {isAnswered && (
+                          <span
+                            title="답장"
+                            aria-label="답장"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0"
+                          >
+                            <Reply className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+
+                        {/* 전달 상태 아이콘 */}
+                        {isForwarded && (
+                          <span
+                            title="전달"
+                            aria-label="전달"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded bg-violet-50 text-violet-600 border border-violet-200 shrink-0"
+                          >
+                            <Forward className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* 2. 사원 정보 (발신자 / 수신자 아바타 + 이름 + 주소) */}
@@ -772,24 +1115,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                       </div>
                     </td>
 
-                    {/* 3. 상태 뱃지 */}
-                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                      {isSpam ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200">
-                          스팸 분류
-                        </span>
-                      ) : !isRead ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
-                          정상 수신
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 border border-slate-200">
-                          읽음 완료
-                        </span>
-                      )}
-                    </td>
-
-                    {/* 4. 제목 */}
+                    {/* 3. 제목 */}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <span
@@ -811,36 +1137,12 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                       </div>
                     </td>
 
-                    {/* 5. 수신 / 발송 시각 */}
+                    {/* 4. 수신일시 / 발송일시 (날짜 + 시간 함께 출력) */}
                     <td className="px-4 py-3.5 text-center whitespace-nowrap text-slate-600 font-mono">
-                      {timeStr}
+                      {dateStr} {timeStr}
                     </td>
 
-                    {/* 6. 비고 (보안 인증 및 메타 정보) */}
-                    <td className="px-4 py-3.5 text-slate-500 whitespace-nowrap text-[11px]">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {mail.spfResult === 'PASS' && (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
-                            SPF 통과
-                          </span>
-                        )}
-                        {mail.dkimResult === 'PASS' && (
-                          <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 border border-sky-200">
-                            DKIM 통과
-                          </span>
-                        )}
-                        {mail.spfResult && mail.spfResult !== 'PASS' && (
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
-                            SPF: {mail.spfResult}
-                          </span>
-                        )}
-                        {!mail.spfResult && !mail.dkimResult && (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* 7. 관리 액션 버튼 */}
+                    {/* 5. 관리 액션 버튼 */}
                     <td
                       className="px-4 py-3.5 text-right whitespace-nowrap"
                       onClick={(e) => e.stopPropagation()}
@@ -883,7 +1185,11 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       {/* 3. 하단 페이징 및 카운트 바 */}
       <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
         <div>
-          총 <span className="font-semibold text-slate-800">{mails.length}</span>건 중{' '}
+          총 <span className="font-semibold text-slate-800">{filteredMails.length}</span>건
+          {activeStatusFilter !== 'all' && (
+            <span className="text-slate-400"> (전체 {mails.length}건)</span>
+          )}{' '}
+          중{' '}
           <span className="font-semibold text-slate-800">
             {displayStart} - {displayEnd}
           </span>

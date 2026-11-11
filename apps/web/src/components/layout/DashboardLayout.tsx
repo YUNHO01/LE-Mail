@@ -22,7 +22,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
         <div className="flex h-screen overflow-hidden bg-slate-50 font-inter relative">
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-            <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
+            <div className="relative flex flex-1 flex-col h-full overflow-hidden min-w-0">
                 <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
                 {/* 상단 씬(Slim) 로딩 프로그레스 인디케이터 (페이지 전환 중일 때 즉각 표시) */}
@@ -36,7 +36,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
                     </div>
                 )}
 
-                <main className="grow relative">
+                <main className="flex-1 relative overflow-y-auto overflow-x-hidden min-h-0">
                     {/* 전환 중일 때 상단 전체를 덮는 0ms 즉각 오버레이 (배경 블러 + 스피너 + 스켈레톤 안내) */}
                     {isNavigating && (
                         <div className="absolute inset-0 bg-slate-50/90 backdrop-blur-xs z-40 transition-all duration-150">

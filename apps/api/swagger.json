@@ -687,6 +687,36 @@
         ]
       }
     },
+    "/api/mails/{id}/star": {
+      "patch": {
+        "operationId": "MailController_markStarred",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "메일 고유 ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "처리 완료"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일 중요(별표) 설정/해제",
+        "tags": [
+          "Mails"
+        ]
+      }
+    },
     "/api/mails/{id}": {
       "get": {
         "operationId": "MailController_findOne",
@@ -1758,6 +1788,56 @@
         ]
       }
     },
+    "/api/users/me/signature": {
+      "get": {
+        "description": "서명 사용 여부 및 DHTML HTML 서명 본문을 조회합니다.",
+        "operationId": "UsersController_getMySignature",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "서명 설정 조회 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "현재 로그인한 사용자의 서명 설정 조회",
+        "tags": [
+          "Users"
+        ]
+      },
+      "put": {
+        "description": "서명 사용 여부 및 DHTML HTML 서명 본문을 저장합니다.",
+        "operationId": "UsersController_updateMySignature",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserSignatureDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "서명 설정 저장 성공"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "현재 로그인한 사용자의 서명 설정 갱신",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/api/users/{id}": {
       "get": {
         "description": "사용자 ID로 사용자 상세 정보를 조회합니다.",
@@ -2033,6 +2113,81 @@
           "Admin License (시스템 라이선스 관리)"
         ]
       }
+    },
+    "/api/mail/backup": {
+      "get": {
+        "description": "현재 로그인한 사용자의 메일함 백업 요청 및 생성 목록을 조회합니다.",
+        "operationId": "MailBackupController_getMyBackups",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 메일함 백업 이력 조회",
+        "tags": [
+          "Mailbox Backup"
+        ]
+      },
+      "post": {
+        "description": "전체 메일함 또는 지정된 특정 편지함의 메일들을 .zip 압축 파일로 패키징하는 백그라운드 작업을 요청합니다.",
+        "operationId": "MailBackupController_requestBackup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestMailBackupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일함 백업 파일 생성 요청",
+        "tags": [
+          "Mailbox Backup"
+        ]
+      }
+    },
+    "/api/mail/backup/download/{token}": {
+      "get": {
+        "description": "유효한 다운로드 토큰을 통해 생성된 백업 ZIP 파일을 다운로드합니다. 만료일 이후에는 다운로드할 수 없습니다.",
+        "operationId": "MailBackupController_downloadBackup",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "백업 압축 파일 다운로드 (링크 제공)",
+        "tags": [
+          "Mailbox Backup"
+        ]
+      }
     }
   },
   "info": {
@@ -2156,6 +2311,18 @@
           "securityPassword": {
             "type": "string",
             "description": "보안 메일 열람용 비밀번호 (최소 4자리)"
+          },
+          "isImportant": {
+            "type": "boolean",
+            "description": "중요 메일 발송 여부"
+          },
+          "replyToMailId": {
+            "type": "string",
+            "description": "답장 대상 원본 메일 ID"
+          },
+          "forwardFromMailId": {
+            "type": "string",
+            "description": "전달 대상 원본 메일 ID"
           }
         },
         "required": [
@@ -2336,6 +2503,24 @@
           }
         }
       },
+      "UpdateUserSignatureDto": {
+        "type": "object",
+        "properties": {
+          "useSignature": {
+            "type": "boolean",
+            "description": "서명 사용 여부",
+            "example": true
+          },
+          "signatureHtml": {
+            "type": "object",
+            "description": "DHTML 서명 HTML 본문",
+            "example": "<p>감사합니다.<br/><strong>홍길동 드림</strong></p>"
+          }
+        },
+        "required": [
+          "useSignature"
+        ]
+      },
       "CreateUserDto": {
         "type": "object",
         "properties": {
@@ -2500,6 +2685,16 @@
         "required": [
           "licenseContent"
         ]
+      },
+      "RequestMailBackupDto": {
+        "type": "object",
+        "properties": {
+          "folderId": {
+            "type": "object",
+            "description": "백업할 메일함 폴더 ID (생략 시 전체 메일함 백업)",
+            "example": "uuid-folder-id"
+          }
+        }
       }
     }
   }

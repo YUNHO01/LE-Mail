@@ -26,6 +26,7 @@ import {
     Eye,
     EyeOff,
     KeyRound,
+    Star,
 } from 'lucide-react';
 
 function ComposeMailContent() {
@@ -44,7 +45,8 @@ function ComposeMailContent() {
     const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
     const [draftId, setDraftId] = useState<string | null>(null);
 
-    // 보안 메일(비밀번호 설정) 상태
+    // 보안 메일(비밀번호 설정) 및 중요 메일 상태
+    const [isImportant, setIsImportant] = useState(false);
     const [isSecure, setIsSecure] = useState(false);
     const [securityPassword, setSecurityPassword] = useState('');
     const [securityPasswordConfirm, setSecurityPasswordConfirm] = useState('');
@@ -76,8 +78,20 @@ function ComposeMailContent() {
         const targetMailId = replyId || existingDraftId;
         if (targetMailId) {
             loadInitialMail(targetMailId, mode);
+        } else {
+            // 신규 메일 작성 시 사용자 서명 로드 및 적용
+            loadUserSignature();
         }
     }, [searchParams]);
+
+    const loadUserSignature = async () => {
+        try {
+            const sig = await fetchApi<{ useSignature: boolean; signatureHtml: string | null }>('/users/me/signature');
+            if (sig && sig.useSignature && sig.signatureHtml) {
+                setBodyHtml(`<p><br/></p><br/>${sig.signatureHtml}`);
+            }
+        } catch (_) {}
+    };
 
     const loadInitialMail = async (mailId: string, mode: string | null) => {
         try {
@@ -88,12 +102,23 @@ function ComposeMailContent() {
             const mailBodyHtml = mail.body?.html || (mail.body?.text ? `<p>${mail.body.text}</p>` : '');
             const formattedDate = new Date(mail.createdAt).toLocaleString('ko-KR');
 
+            // 서명 로드 (답장/전달 시 인용문 앞에 첨부)
+            let userSigHtml = '';
+            if (mode === 'reply' || mode === 'replyAll' || mode === 'forward') {
+                try {
+                    const sig = await fetchApi<{ useSignature: boolean; signatureHtml: string | null }>('/users/me/signature');
+                    if (sig && sig.useSignature && sig.signatureHtml) {
+                        userSigHtml = `<br/>${sig.signatureHtml}`;
+                    }
+                } catch (_) {}
+            }
+
             if (mode === 'reply') {
                 // 보낸사람에게 답장
                 setTo([mail.sender]);
                 setSubject(mail.subject?.startsWith('Re:') ? mail.subject : `Re: ${mail.subject || ''}`);
                 setBodyHtml(
-                    `<p></p><br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
+                    `<p></p>${userSigHtml}<br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
                     `----- Original Message -----<br/>` +
                     `<b>From:</b> ${mail.sender}<br/>` +
                     `<b>Date:</b> ${formattedDate}<br/>` +
@@ -113,7 +138,7 @@ function ComposeMailContent() {
                 }
                 setSubject(mail.subject?.startsWith('Re:') ? mail.subject : `Re: ${mail.subject || ''}`);
                 setBodyHtml(
-                    `<p></p><br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
+                    `<p></p>${userSigHtml}<br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
                     `----- Original Message -----<br/>` +
                     `<b>From:</b> ${mail.sender}<br/>` +
                     `<b>Date:</b> ${formattedDate}<br/>` +
@@ -124,7 +149,7 @@ function ComposeMailContent() {
                 // 전달
                 setSubject(mail.subject?.startsWith('Fwd:') ? mail.subject : `Fwd: ${mail.subject || ''}`);
                 setBodyHtml(
-                    `<p></p><br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
+                    `<p></p>${userSigHtml}<br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
                     `---------- Forwarded message ---------<br/>` +
                     `<b>From:</b> ${mail.sender}<br/>` +
                     `<b>Date:</b> ${formattedDate}<br/>` +
@@ -192,6 +217,9 @@ function ComposeMailContent() {
             setSending(true);
             setStatusMessage(null);
 
+            const mode = searchParams.get('mode');
+            const replyId = searchParams.get('replyId');
+
             const payload: any = {
                 to,
                 cc: cc.length > 0 ? cc : undefined,
@@ -205,8 +233,12 @@ function ComposeMailContent() {
                     sizeBytes: att.sizeBytes,
                     contentBase64: att.contentBase64,
                 })),
+                isImportant,
                 isSecure,
                 securityPassword: isSecure ? securityPassword.trim() : undefined,
+                replyToMailId:
+                    (mode === 'reply' || mode === 'replyAll') && replyId ? replyId : undefined,
+                forwardFromMailId: mode === 'forward' && replyId ? replyId : undefined,
             };
 
             await fetchApi('/mails/send', {
@@ -470,6 +502,29 @@ function ComposeMailContent() {
                             placeholder="메일 제목을 입력하세요"
                             className="flex-1 border-none bg-transparent py-1 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         />
+                        <label
+                            className="inline-flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-200 transition shrink-0"
+                            title="중요 메일로 발송"
+                        >
+                            <input
+                                type="checkbox"
+                                checked={isImportant}
+                                onChange={(e) => setIsImportant(e.target.checked)}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                            />
+                            <Star
+                                className={`h-3.5 w-3.5 ${
+                                    isImportant ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
+                                }`}
+                            />
+                            <span
+                                className={`text-xs font-semibold ${
+                                    isImportant ? 'text-amber-700' : 'text-slate-600'
+                                }`}
+                            >
+                                중요
+                            </span>
+                        </label>
                     </div>
                 </div>
 

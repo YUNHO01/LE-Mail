@@ -17,6 +17,7 @@ import { MailFolderModule } from './modules/mail-folder/mail-folder.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { SpamModule } from './modules/spam/spam.module';
 import { LicenseModule } from './modules/license/license.module';
+import { MailBackupModule } from './modules/mail-backup/mail-backup.module';
 import { LicenseGuard } from './modules/license/guards/license.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -46,6 +47,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
     SettingsModule,
     SpamModule,
     LicenseModule,
+    MailBackupModule,
     SeedModule,
   ],
   controllers: [AppController],

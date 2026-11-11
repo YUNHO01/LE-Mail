@@ -19,6 +19,7 @@ import {
   Forward,
   Mail as MailIcon,
   MailCheck,
+  Star,
 } from 'lucide-react';
 
 export default function MailDetailPage() {
@@ -69,6 +70,20 @@ export default function MailDetailPage() {
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
     } catch (err: any) {
       alert(err.message || '읽음 상태 변경 실패');
+    }
+  };
+
+  const handleToggleStar = async () => {
+    if (!mail) return;
+    const nextStarred = !mail.isStarred;
+    try {
+      await fetchApi(`/mails/${id}/star`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isStarred: nextStarred }),
+      });
+      setMail({ ...mail, isStarred: nextStarred });
+    } catch (err: any) {
+      alert(err.message || '중요 표시 변경 실패');
     }
   };
 
@@ -240,9 +255,25 @@ export default function MailDetailPage() {
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {/* Header Info */}
         <div className="border-b border-slate-100 bg-slate-50/50 p-6 space-y-4">
-          <h1 className="text-xl font-bold text-slate-900">
-            {mail.subject || '(제목 없음)'}
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleToggleStar}
+              title={mail.isStarred ? '중요 메일 해제' : '중요 메일 표시'}
+              className="p-1 rounded-lg hover:bg-amber-50 transition shrink-0"
+            >
+              <Star
+                className={`h-5 w-5 ${
+                  mail.isStarred
+                    ? 'fill-amber-400 text-amber-400'
+                    : 'text-slate-300 hover:text-amber-400'
+                }`}
+              />
+            </button>
+            <h1 className="text-xl font-bold text-slate-900">
+              {mail.subject || '(제목 없음)'}
+            </h1>
+          </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
             <div className="space-y-1">

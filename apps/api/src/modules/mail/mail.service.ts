@@ -136,17 +136,42 @@ export class MailService {
       const umMap = new Map(userMails.map((um) => [um.messageId, um]));
       const enrichedItems = items.map((m) => {
         const um = umMap.get(m.id);
+        const decodedSubject = this.decodeMimeWords(m.subject);
+        const isSecure = Boolean(
+          m.isSecure ||
+            decodedSubject?.includes('[보안메일]') ||
+            m.attachments?.some((a) => a.filename?.includes('[보안메일]')),
+        );
+        const isRead = um?.isRead ?? false;
+        const isSeen = um?.isSeen ?? false;
+        const isNew = Boolean(!isRead && !isSeen);
         return {
           ...m,
-          subject: this.decodeMimeWords(m.subject),
+          subject: decodedSubject,
           uid: um?.uid,
-          isRead: um?.isRead ?? false,
-          isStarred: um?.isStarred ?? false,
+          isRead,
+          isSeen,
+          isNew,
+          isStarred: Boolean(um?.isStarred || m.isImportant),
           isDeleted: um?.isDeleted ?? false,
           isAnswered: um?.isAnswered ?? false,
+          isForwarded: um?.isForwarded ?? false,
           isDraft: um?.isDraft ?? false,
+          isSecure,
+          isImportant: Boolean(m.isImportant || um?.isStarred),
         };
       });
+
+      // 이번 목록에 노출된 메일 중 아직 미확인(is_seen = false)인 메일들을 비동기로 is_seen = true 업데이트
+      // (클라이언트는 이번 조회에서 isNew: true를 받고, 다음 목록 조회부터는 isNew: false가 됨)
+      const unseenUserMailIds = userMails
+        .filter((um) => !um.isSeen)
+        .map((um) => um.id);
+      if (unseenUserMailIds.length > 0) {
+        this.userMailRepo
+          .update({ id: In(unseenUserMailIds) }, { isSeen: true })
+          .catch((err) => this.logger.warn(`Failed to mark user_mails as seen: ${err.message}`));
+      }
       return {
         items: enrichedItems,
         total,
@@ -156,10 +181,21 @@ export class MailService {
       };
     }
 
-    const decodedItems = items.map((m) => ({
-      ...m,
-      subject: this.decodeMimeWords(m.subject),
-    }));
+    const decodedItems = items.map((m) => {
+      const decodedSubject = this.decodeMimeWords(m.subject);
+      const isSecure = Boolean(
+        m.isSecure ||
+          decodedSubject?.includes('[보안메일]') ||
+          m.attachments?.some((a) => a.filename?.includes('[보안메일]')),
+      );
+      return {
+        ...m,
+        subject: decodedSubject,
+        isSecure,
+        isStarred: Boolean(m.isImportant),
+        isImportant: Boolean(m.isImportant),
+      };
+    });
 
     return {
       items: decodedItems,
@@ -261,6 +297,7 @@ export class MailService {
         folderId: folderId || (inbox ? inbox.id : ''),
         uid: nextUid,
         isRead,
+        isSeen: isRead ? true : false,
         isStarred: false,
         isDeleted: false,
         isAnswered: false,
@@ -270,6 +307,55 @@ export class MailService {
     } else {
       for (const um of userMails) {
         um.isRead = isRead;
+        if (isRead) {
+          um.isSeen = true;
+        }
+      }
+      await this.userMailRepo.save(userMails);
+      return userMails[0];
+    }
+  }
+
+  async markStarred(
+    userId: string,
+    messageId: string,
+    isStarred: boolean,
+    folderId?: string,
+  ) {
+    const whereClause: any = { userId, messageId };
+    if (folderId) {
+      whereClause.folderId = folderId;
+    }
+
+    const userMails = await this.userMailRepo.find({
+      where: whereClause,
+    });
+
+    if (userMails.length === 0) {
+      const inbox = await this.folderRepo.findOne({
+        where: { userId, type: FolderType.INBOX },
+      });
+      const nextUid = inbox ? (inbox.uidnext || 1) : 1;
+      if (inbox) {
+        inbox.uidnext = nextUid + 1;
+        await this.folderRepo.save(inbox);
+      }
+      const newMail = this.userMailRepo.create({
+        userId,
+        messageId,
+        folderId: folderId || (inbox ? inbox.id : ''),
+        uid: nextUid,
+        isRead: false,
+        isStarred,
+        isDeleted: false,
+        isAnswered: false,
+        isForwarded: false,
+        isDraft: false,
+      });
+      return this.userMailRepo.save(newMail);
+    } else {
+      for (const um of userMails) {
+        um.isStarred = isStarred;
       }
       await this.userMailRepo.save(userMails);
       return userMails[0];
@@ -408,7 +494,9 @@ export class MailService {
     }
 
     let isRead = false;
-    let isStarred = false;
+    let isStarred = Boolean(message.isImportant);
+    let isAnswered = false;
+    let isForwarded = false;
     let currentFolderId: string | undefined = undefined;
 
     // 로그인한 사용자의 사서함 메일인 경우 조회 시 자동으로 읽음(isRead = true) 처리
@@ -430,12 +518,18 @@ export class MailService {
             um.isRead = true;
             changed = true;
           }
+          if (!um.isSeen) {
+            um.isSeen = true;
+            changed = true;
+          }
         }
         if (changed) {
           await this.userMailRepo.save(userMails);
         }
         isRead = true;
-        isStarred = userMails.some((um) => um.isStarred);
+        isStarred = userMails.some((um) => um.isStarred) || Boolean(message.isImportant);
+        isAnswered = userMails.some((um) => um.isAnswered);
+        isForwarded = userMails.some((um) => um.isForwarded);
       }
     }
 
@@ -460,11 +554,24 @@ export class MailService {
       }
     }
 
+    const decodedSubject = this.decodeMimeWords(message.subject);
+    const isSecure = Boolean(
+      message.isSecure ||
+        decodedSubject?.includes('[보안메일]') ||
+        message.attachments?.some((a) => a.filename?.includes('[보안메일]')),
+    );
+
     return {
       ...message,
-      subject: this.decodeMimeWords(message.subject),
+      subject: decodedSubject,
       isRead,
+      isSeen: true,
+      isNew: false,
       isStarred,
+      isAnswered,
+      isForwarded,
+      isSecure,
+      isImportant: Boolean(message.isImportant || isStarred),
       folderId: currentFolderId,
       body: parsedContent,
     };
@@ -790,6 +897,7 @@ export class MailService {
     writeFileSync(emlPath, emlBuffer);
 
     // 1. MailMessage 생성
+    const isImportantMail = Boolean(dto.isImportant);
     const message = this.messageRepo.create({
       id: mailId,
       direction: Direction.OUTBOUND,
@@ -801,8 +909,24 @@ export class MailService {
       dkimResult: DkimResult.PASS,
       dmarcResult: DmarcResult.PASS,
       status: MailStatus.PROCESSED,
+      isSecure: isSecureMail,
+      isImportant: isImportantMail,
     });
     await this.messageRepo.save(message);
+
+    // 원본 메일에 대한 답장(isAnswered) / 전달(isForwarded) 플래그 업데이트
+    if (dto.replyToMailId) {
+      await this.userMailRepo.update(
+        { userId: user.id, messageId: dto.replyToMailId },
+        { isAnswered: true },
+      );
+    }
+    if (dto.forwardFromMailId) {
+      await this.userMailRepo.update(
+        { userId: user.id, messageId: dto.forwardFromMailId },
+        { isForwarded: true },
+      );
+    }
 
     // 2. MailRecipient 생성
     const recipients: MailRecipient[] = [];
@@ -871,9 +995,10 @@ export class MailService {
         folderId: sentFolder.id,
         uid: sentUid,
         isRead: true,
-        isStarred: false,
+        isStarred: isImportantMail,
         isDeleted: false,
         isAnswered: false,
+        isForwarded: false,
         isDraft: false,
       }),
     );
@@ -915,9 +1040,10 @@ export class MailService {
             folderId: inbox.id,
             uid: inboxUid,
             isRead: false,
-            isStarred: false,
+            isStarred: isImportantMail,
             isDeleted: false,
             isAnswered: false,
+            isForwarded: false,
             isDraft: false,
           }),
         );

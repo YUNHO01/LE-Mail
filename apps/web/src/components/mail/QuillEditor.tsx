@@ -53,6 +53,9 @@ export const QuillEditor: React.FC<QuillEditorProps> = ({
       quill.clipboard.dangerouslyPasteHTML(value);
     }
 
+    // 마운트 시 자동 포커스로 인한 브라우저 스크롤 점프(scrollIntoView) 방지
+    quill.blur();
+
     // 본문 변경 리스너
     quill.on('text-change', () => {
       isInternalChangeRef.current = true;
