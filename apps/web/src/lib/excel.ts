@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 export interface ExportToExcelOptions {
   filename: string;
@@ -9,30 +9,46 @@ export interface ExportToExcelOptions {
 
 /**
  * 2차원 헤더/데이터 배열을 Microsoft Excel(.xlsx) 파일로 변환하여 다운로드합니다.
+ * (exceljs 기반 - SheetJS 프로토타입 오염 취약점 제거)
  */
-export function exportTableToExcel({
+export async function exportTableToExcel({
   filename,
   sheetName = 'Sheet1',
   headers,
   rows,
-}: ExportToExcelOptions): void {
-  // 1. AOA (Array of Arrays) 데이터 구성
-  const sanitizedRows = rows.map((row) =>
-    row.map((cell) => (cell === null || cell === undefined ? '' : cell))
-  );
-  const data = [headers, ...sanitizedRows];
+}: ExportToExcelOptions): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sheetName.slice(0, 31));
 
-  // 2. 워크시트 생성
-  const worksheet = XLSX.utils.aoa_to_sheet(data);
+  // 1. 헤더 행 추가
+  worksheet.addRow(headers);
 
-  // 3. 열 너비 자동 계산 (한글/영문 글자 길이에 따른 자동 맞춤)
-  const colWidths = headers.map((header, colIdx) => {
+  // 헤더 스타일링 (굵은 글씨 및 배경색)
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFF1F5F9' },
+  };
+
+  // 2. 데이터 행 추가
+  for (const row of rows) {
+    const sanitizedRow = row.map((cell) =>
+      cell === null || cell === undefined ? '' : cell,
+    );
+    worksheet.addRow(sanitizedRow);
+  }
+
+  // 3. 열 너비 자동 계산
+  worksheet.columns.forEach((column, colIdx) => {
+    const header = headers[colIdx];
     let maxLen = header ? String(header).length * 2 : 10;
-    sanitizedRows.forEach((row) => {
+
+    rows.forEach((row) => {
       const val = row[colIdx];
       if (val !== undefined && val !== null) {
         const str = String(val);
-        // 한글 등 멀티바이트 문자는 너비를 더 넉넉하게 계산
         const len = Array.from(str).reduce((acc, char) => {
           return acc + (char.charCodeAt(0) > 127 ? 2 : 1);
         }, 0);
@@ -41,25 +57,19 @@ export function exportTableToExcel({
         }
       }
     });
-    // 최소 10, 최대 50으로 제한
-    return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+
+    column.width = Math.min(Math.max(maxLen + 3, 12), 50);
   });
 
-  worksheet['!cols'] = colWidths;
-
-  // 4. 워크북 생성 및 시트 추가
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31)); // 엑셀 시트명 최대 31자 제한
-
-  // 5. 바이너리 버퍼 생성 및 브라우저 다운로드 트리거
-  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([excelBuffer], {
+  // 4. 버퍼 생성 및 브라우저 다운로드 트리거
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
 
+  const safeFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const safeFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
   link.href = url;
   link.setAttribute('download', safeFilename);
   document.body.appendChild(link);

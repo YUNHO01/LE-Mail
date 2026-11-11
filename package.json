@@ -39,16 +39,16 @@
     "license:generate-keys": "node tools/license-issuer/generate-keys.js",
     "license:issue": "node tools/license-issuer/issue-license.js",
     "license:issue:dev": "node tools/license-issuer/issue-license.js --env dev",
-    "license:issue:prod": "node tools/license-issuer/issue-license.js --env prod"
+    "license:issue:prod": "node tools/license-issuer/issue-license.js --env prod",
+    "certs:check": "node scripts/manage-tls-certs.js --check",
+    "certs:renew": "node scripts/manage-tls-certs.js"
   },
   "devDependencies": {
     "archiver": "^7.0.1",
     "concurrently": "^10.0.7",
     "javascript-obfuscator": "^5.10.0",
+    "selfsigned": "^5.5.0",
     "standard-version": "^9.5.0",
     "turbo": "^2.3.3"
-  },
-  "dependencies": {
-    "xlsx": "^0.18.5"
   }
 }

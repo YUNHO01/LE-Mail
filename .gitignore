@@ -43,3 +43,16 @@ Thumbs.db
 # Master Key
 .encryption_key
 *.encryption_key
+
+# TLS Certificates & Private Keys (보안 강화: 저장소 커밋 차단)
+*.key
+*.pem
+!**/license-public.pem
+!license-public.pem
+certs/*.pem
+certs/*.key
+services/haraka/config/tls_key.pem
+services/haraka/config/tls_cert.pem
+services/imap/certs/imap-key.pem
+services/imap/certs/imap-cert.pem
+tools/license-issuer/keys/license-private.pem

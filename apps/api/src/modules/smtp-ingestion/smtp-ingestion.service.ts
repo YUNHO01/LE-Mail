@@ -15,7 +15,7 @@ import {
   SMTPServerAuthentication,
   SMTPServerAuthenticationResponse,
 } from 'smtp-server';
-import { createWriteStream, existsSync, mkdirSync } from 'fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { randomUUID } from 'crypto';
 import { InboundMailProducer } from '../queue/inbound-mail.producer';
@@ -94,9 +94,43 @@ export class SmtpIngestionService
   }
 
   private createServerInstance(): SMTPServer {
+    const certCandidates = [
+      {
+        key: resolve(process.cwd(), 'apps/api/certs/smtp-key.pem'),
+        cert: resolve(process.cwd(), 'apps/api/certs/smtp-cert.pem'),
+      },
+      {
+        key: resolve(process.cwd(), 'certs/smtp-key.pem'),
+        cert: resolve(process.cwd(), 'certs/smtp-cert.pem'),
+      },
+      {
+        key: resolve(process.cwd(), 'services/haraka/config/tls_key.pem'),
+        cert: resolve(process.cwd(), 'services/haraka/config/tls_cert.pem'),
+      },
+    ];
+
+    let tlsKey: string | undefined;
+    let tlsCert: string | undefined;
+
+    for (const cand of certCandidates) {
+      if (existsSync(cand.key) && existsSync(cand.cert)) {
+        try {
+          tlsKey = readFileSync(cand.key, 'utf8');
+          tlsCert = readFileSync(cand.cert, 'utf8');
+          this.logger.log(`[SMTP TLS] Loaded TLS certificate from ${cand.cert}`);
+          break;
+        } catch (e: any) {
+          this.logger.warn(`[SMTP TLS] Failed to read cert from ${cand.cert}: ${e.message}`);
+        }
+      }
+    }
+
     return new SMTPServer({
       banner: 'ESMTP Mail Server Ready (NestJS Production Ready)',
       size: 25 * 1024 * 1024, // 25MB Max
+      key: tlsKey,
+      cert: tlsCert,
+      secure: false, // Port 25/2525 opportunistic STARTTLS
       authOptional: true,
       disabledCommands: ['VRFY'],
       closeTimeout: 30000, // Slowloris DoS 방어: 30초
@@ -116,6 +150,13 @@ export class SmtpIngestionService
         this.logger.debug(
           `[SMTP AUTH] Attempt for user: ${auth.username} from ${session.remoteAddress}`,
         );
+
+        // 평문 인증 차단: TLS 세션이 활성화되지 않은 상태에서의 비밀번호 전송 차단
+        if (tlsKey && tlsCert && !session.secure) {
+          this.logger.warn(`[SMTP AUTH] Plaintext authentication rejected for user: ${auth.username}`);
+          return callback(new Error('530 5.7.0 Must issue a STARTTLS command first'));
+        }
+
         try {
           if (!auth.username || !auth.password) {
             return callback(new Error('535 5.7.8 Authentication credentials invalid'));

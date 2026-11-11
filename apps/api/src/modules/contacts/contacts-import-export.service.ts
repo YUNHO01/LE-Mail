@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import { CreateContactDto } from './dto/create-contact.dto';
 
 @Injectable()
@@ -8,7 +8,7 @@ export class ContactsImportExportService {
    * 파일 버퍼를 분석하여 연락처 목록(CreateContactDto)으로 파싱
    * Excel(.xlsx, .xls), CSV(.csv), vCard(.vcf) 모두 지원
    */
-  parseImportFile(buffer: Buffer, originalFilename: string): CreateContactDto[] {
+  async parseImportFile(buffer: Buffer, originalFilename: string): Promise<CreateContactDto[]> {
     const ext = originalFilename.split('.').pop()?.toLowerCase();
 
     // 1. vCard 포맷
@@ -31,24 +31,37 @@ export class ContactsImportExportService {
   }
 
   /**
-   * Excel 바이너리 버퍼 파싱
+   * Excel 바이너리 버퍼 파싱 (ExcelJS 기반 - Prototype Pollution 방어)
    */
-  private parseExcelBuffer(buffer: Buffer): CreateContactDto[] {
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const firstSheetName = workbook.SheetNames[0];
-    if (!firstSheetName) return [];
+  private async parseExcelBuffer(buffer: Buffer): Promise<CreateContactDto[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as any);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) return [];
 
-    const worksheet = workbook.Sheets[firstSheetName];
-    // 2차원 배열(string[][])로 추출
-    const rawRows = XLSX.utils.sheet_to_json<any[]>(worksheet, {
-      header: 1,
-      defval: '',
-      raw: false,
+    const stringRows: string[][] = [];
+    worksheet.eachRow({ includeEmpty: false }, (row) => {
+      const rowValues: string[] = [];
+      const values = row.values;
+      if (Array.isArray(values)) {
+        // exceljs의 row.values는 1-based index (index 0은 빈 값)
+        for (let i = 1; i < values.length; i++) {
+          const cell = values[i];
+          if (cell !== undefined && cell !== null) {
+            if (typeof cell === 'object' && 'text' in cell) {
+              rowValues.push(String((cell as any).text).trim());
+            } else if (typeof cell === 'object' && 'result' in cell) {
+              rowValues.push(String((cell as any).result).trim());
+            } else {
+              rowValues.push(String(cell).trim());
+            }
+          } else {
+            rowValues.push('');
+          }
+        }
+      }
+      stringRows.push(rowValues);
     });
-
-    const stringRows: string[][] = rawRows.map((row) =>
-      row.map((cell) => (cell !== undefined && cell !== null ? String(cell).trim() : '')),
-    );
 
     return this.parseStandardRows(stringRows);
   }
@@ -275,7 +288,7 @@ export class ContactsImportExportService {
   /**
    * 실제 엑셀 파일(.xlsx) 바이너리 버퍼 생성 (첨부 엑셀 양식과 100% 동일한 헤더 순서 및 데이터)
    */
-  exportToExcel(contacts: any[]): Buffer {
+  async exportToExcel(contacts: any[]): Promise<Buffer> {
     const headers = [
       '이름',
       '회사',
@@ -310,31 +323,41 @@ export class ContactsImportExportService {
       c.memo || '',
     ]);
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('주소록');
 
-    // 컬럼 너비 설정
-    worksheet['!cols'] = [
-      { wch: 16 }, // 이름
-      { wch: 20 }, // 회사
-      { wch: 16 }, // 부서
-      { wch: 14 }, // 직급
-      { wch: 16 }, // 회사전화번호
-      { wch: 16 }, // 회사팩스번호
-      { wch: 12 }, // 휴대전화 국가번호
-      { wch: 16 }, // 휴대전화번호
-      { wch: 28 }, // 메일
-      { wch: 12 }, // 생일
-      { wch: 10 }, // 우편번호
-      { wch: 35 }, // 주소
-      { wch: 22 }, // URL
-      { wch: 30 }, // 메모
+    worksheet.addRow(headers);
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF1F5F9' },
+    };
+
+    worksheet.columns = [
+      { width: 16 }, // 이름
+      { width: 20 }, // 회사
+      { width: 16 }, // 부서
+      { width: 14 }, // 직급
+      { width: 16 }, // 회사전화번호
+      { width: 16 }, // 회사팩스번호
+      { width: 12 }, // 휴대전화 국가번호
+      { width: 16 }, // 휴대전화번호
+      { width: 28 }, // 메일
+      { width: 12 }, // 생일
+      { width: 10 }, // 우편번호
+      { width: 35 }, // 주소
+      { width: 22 }, // URL
+      { width: 30 }, // 메모
     ];
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, '주소록');
+    for (const row of dataRows) {
+      worksheet.addRow(row);
+    }
 
-    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
-    return buffer as Buffer;
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 
   /**

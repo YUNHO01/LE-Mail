@@ -13,7 +13,7 @@ import { MailMessage, Direction, SpfResult, DkimResult, DmarcResult, MailStatus 
 import { MailAttachment } from '../database/entities/mail-attachment.entity';
 import { MailRecipient, RecipientType } from '../database/entities/mail-recipient.entity';
 import { MailFolder, UserMail, User } from '../database/entities';
-import { FolderType, RetryMailResponseDto, BulkRetryResponseDto } from '@lemail/shared-types';
+import { FolderType, RetryMailResponseDto, BulkRetryResponseDto, UserRole } from '@lemail/shared-types';
 import { MailQueryDto } from './dto/mail-query.dto';
 import { SendMailDto } from './dto/send-mail.dto';
 import { SaveDraftDto } from './dto/save-draft.dto';
@@ -77,13 +77,28 @@ export class MailService {
       .leftJoinAndSelect('msg.recipients', 'rec')
       .leftJoinAndSelect('msg.attachments', 'att');
 
+    let isAdmin = false;
+    if (currentUserId) {
+      const user = await this.userRepo.findOne({ where: { id: currentUserId } });
+      isAdmin = user?.role === UserRole.SYSTEM_ADMIN;
+    }
+
     // 특정 폴더 ID 필터링
     if (query.folderId) {
       queryBuilder.innerJoin(
         UserMail,
         'um',
-        'um.messageId = msg.id AND um.folderId = :folderId',
-        { folderId: query.folderId },
+        currentUserId && !isAdmin
+          ? 'um.messageId = msg.id AND um.folderId = :folderId AND um.userId = :currentUserId'
+          : 'um.messageId = msg.id AND um.folderId = :folderId',
+        { folderId: query.folderId, currentUserId },
+      );
+    } else if (currentUserId && !isAdmin) {
+      queryBuilder.innerJoin(
+        UserMail,
+        'um',
+        'um.messageId = msg.id AND um.userId = :currentUserId',
+        { currentUserId },
       );
     } else if (query.mailbox) {
       const mb = query.mailbox.toLowerCase().trim();
@@ -483,15 +498,59 @@ export class MailService {
     return { success: true, count: results.length, details: results };
   }
 
-  async findOne(id: string, userId?: string, folderId?: string) {
+  /**
+   * 메일 접근 권한 검증 (BOLA / IDOR 방어)
+   */
+  async verifyMailAccess(messageId: string, userId?: string): Promise<{ authorized: boolean; message: MailMessage }> {
     const message = await this.messageRepo.findOne({
-      where: { id },
+      where: { id: messageId },
       relations: { recipients: true, attachments: true },
     });
 
     if (!message) {
-      throw new NotFoundException(`Mail message with ID ${id} not found`);
+      throw new NotFoundException(`Mail message with ID ${messageId} not found`);
     }
+
+    if (!userId) {
+      // 내부 시스템 호출(데몬/백그라운드 워커) 허용
+      return { authorized: true, message };
+    }
+
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new ForbiddenException('유효하지 않은 사용자입니다.');
+    }
+
+    // 시스템 관리자는 감사 목적으로 열람 허용
+    if (user.role === UserRole.SYSTEM_ADMIN) {
+      return { authorized: true, message };
+    }
+
+    // 사용자 사서함(user_mail)에 매핑되어 있는지 확인
+    const userMailCount = await this.userMailRepo.count({
+      where: { userId, messageId },
+    });
+
+    if (userMailCount > 0) {
+      return { authorized: true, message };
+    }
+
+    // 발신자 또는 수신자 주소 일치 여부 확인
+    const userEmail = user.email?.toLowerCase();
+    const isSenderOrRecipient =
+      userEmail &&
+      (message.sender?.toLowerCase().includes(userEmail) ||
+        message.recipients?.some((r) => r.address?.toLowerCase() === userEmail));
+
+    if (isSenderOrRecipient) {
+      return { authorized: true, message };
+    }
+
+    throw new ForbiddenException('해당 메일에 대한 접근 권한이 없습니다.');
+  }
+
+  async findOne(id: string, userId?: string, folderId?: string) {
+    const { message } = await this.verifyMailAccess(id, userId);
 
     let isRead = false;
     let isStarred = Boolean(message.isImportant);
@@ -577,8 +636,8 @@ export class MailService {
     };
   }
 
-  async getRawFilePath(id: string): Promise<string> {
-    const message = await this.messageRepo.findOne({ where: { id } });
+  async getRawFilePath(id: string, userId?: string): Promise<string> {
+    const { message } = await this.verifyMailAccess(id, userId);
     if (!message || !message.rawFilePath || !existsSync(message.rawFilePath)) {
       throw new NotFoundException(`Raw EML file not found for message ${id}`);
     }
@@ -588,7 +647,10 @@ export class MailService {
   async getAttachment(
     messageId: string,
     attachmentId: string,
+    userId?: string,
   ): Promise<{ path: string; filename: string; contentType: string }> {
+    await this.verifyMailAccess(messageId, userId);
+
     const attachment = await this.attachmentRepo.findOne({
       where: { id: attachmentId, messageId },
     });

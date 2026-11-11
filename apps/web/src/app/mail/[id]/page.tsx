@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import {
   ArrowLeft,
@@ -357,7 +358,7 @@ export default function MailDetailPage() {
           {mail.body?.html ? (
             <div
               className="prose max-w-none text-sm text-slate-800"
-              dangerouslySetInnerHTML={{ __html: mail.body.html }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(mail.body.html) }}
             />
           ) : mail.body?.text ? (
             <pre className="whitespace-pre-wrap font-sans text-sm text-slate-800">

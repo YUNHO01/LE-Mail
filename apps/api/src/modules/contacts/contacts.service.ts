@@ -374,7 +374,7 @@ export class ContactsService {
       }
     }
 
-    const parsedContacts = this.importExportService.parseImportFile(
+    const parsedContacts = await this.importExportService.parseImportFile(
       buffer,
       params.filename,
     );
@@ -461,7 +461,7 @@ export class ContactsService {
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
     if (format === 'xlsx') {
-      const data = this.importExportService.exportToExcel(contacts);
+      const data = await this.importExportService.exportToExcel(contacts);
       return {
         data,
         filename: `contacts_${dateStr}.xlsx`,

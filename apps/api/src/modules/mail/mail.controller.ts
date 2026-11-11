@@ -95,10 +95,12 @@ export class MailController {
   }
 
   @Get()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '메일 목록 조회 (페이징, 사서함별, 편지함별, 검색)' })
   @ApiResponse({ status: 200, description: '메일 목록 및 페이징 정보' })
-  findAll(@Query() query: MailQueryDto) {
-    return this.mailService.findAll(query);
+  findAll(@CurrentUser() user: User, @Query() query: MailQueryDto) {
+    return this.mailService.findAll(query, user?.id);
   }
 
   @Patch(':id/move')
@@ -161,23 +163,32 @@ export class MailController {
   }
 
   @Get(':id/raw')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '원본 EML 파일 다운로드' })
   @ApiParam({ name: 'id', description: '메일 고유 ID' })
-  async downloadRaw(@Param('id') id: string, @Res() res: Response) {
-    const filePath = await this.mailService.getRawFilePath(id);
+  async downloadRaw(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const filePath = await this.mailService.getRawFilePath(id, user?.id);
     res.download(filePath, `${id}.eml`);
   }
 
   @Get(':id/attachments/:attachmentId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '메일 첨부파일 다운로드' })
   @ApiParam({ name: 'id', description: '메일 고유 ID' })
   @ApiParam({ name: 'attachmentId', description: '첨부파일 고유 ID' })
   async downloadAttachment(
+    @CurrentUser() user: User,
     @Param('id') id: string,
     @Param('attachmentId') attachmentId: string,
     @Res() res: Response,
   ) {
-    const att = await this.mailService.getAttachment(id, attachmentId);
+    const att = await this.mailService.getAttachment(id, attachmentId, user?.id);
     res.setHeader('Content-Type', att.contentType);
     res.download(att.path, att.filename);
   }

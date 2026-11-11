@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchApi } from '@/lib/api';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { UserSignatureDto } from '@lemail/shared-types';
 import {
   PenTool,
@@ -227,7 +228,7 @@ export const SignatureSettingsTab: React.FC = () => {
           {signatureHtml ? (
             <div
               className="prose prose-xs max-w-none text-slate-800"
-              dangerouslySetInnerHTML={{ __html: signatureHtml }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(signatureHtml) }}
             />
           ) : (
             <div className="text-slate-400 text-center py-4">
