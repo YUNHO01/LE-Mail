@@ -7,7 +7,7 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { ContactsImportExportService } from './contacts-import-export.service';
-import { DuplicateContactAction, ContactSearchResultDto, ImportContactsResultDto } from '@lemail/shared-types';
+import { DuplicateContactAction, ContactSearchResultDto, ImportContactsResultDto, UserRole, UserDto } from '@lemail/shared-types';
 
 @Injectable()
 export class ContactsService {
@@ -124,6 +124,37 @@ export class ContactsService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  /**
+   * 사내 임직원 주소록 조회 (일반 사용자 USER 권한인 활성 사용자만 조회)
+   */
+  async getCompanyUsers(): Promise<UserDto[]> {
+    const users = await this.userRepo.find({
+      where: {
+        role: UserRole.USER,
+        isActive: true,
+      },
+      order: {
+        name: 'ASC',
+      },
+    });
+
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      isActive: u.isActive,
+      mailboxQuotaMb: u.mailboxQuotaMb,
+      preferredLanguage: u.preferredLanguage,
+      timezone: u.timezone,
+      employeeId: u.employeeId,
+      lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
+      useSignature: u.useSignature,
+      createdAt: u.createdAt.toISOString(),
+      updatedAt: u.updatedAt.toISOString(),
+    }));
   }
 
   /**

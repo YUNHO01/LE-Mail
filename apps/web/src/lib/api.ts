@@ -72,6 +72,9 @@ export const contactsApi = {
     }>(`/contacts${qs ? `?${qs}` : ''}`);
   },
 
+  getCompanyUsers: () =>
+    fetchApi<import('@lemail/shared-types').UserDto[]>('/contacts/company-users'),
+
   getContactById: (id: string) =>
     fetchApi<import('@lemail/shared-types').ContactDto>(`/contacts/${id}`),
 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { fetchApi } from '@/lib/api';
 import { SearchInput, TableUtilityButtons } from '@/components/common';
+import { exportTableToExcel } from '@/lib/excel';
 import {
   Search,
   Copy,
@@ -550,25 +551,24 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Excel (CSV with UTF-8 BOM) Export
+  // Excel (.xlsx) Export (해당 페이지 목록 또는 선택된 항목)
   const handleExcelExport = () => {
     const targetMails =
       selectedIds.length > 0
         ? filteredMails.filter((m) => selectedIds.includes(m.id))
-        : filteredMails;
+        : paginatedMails;
 
     if (targetMails.length === 0) {
       alert('내보낼 메일 데이터가 없습니다.');
       return;
     }
 
-    const header = [
+    const headers = [
       '상태',
       isSent ? '수신자' : '발신자',
       '제목',
       isSent ? '발송일시' : '수신일시',
     ];
-    const escapeCsv = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
 
     const rows = targetMails.map((m) => {
       const { dateStr, timeStr } = formatDateParts(m.createdAt);
@@ -578,24 +578,21 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       const { statusText } = getMailStatusFlags(m);
 
       return [
-        escapeCsv(statusText),
-        escapeCsv(person),
-        escapeCsv(m.subject || '(제목 없음)'),
-        escapeCsv(`${dateStr} ${timeStr}`),
-      ].join(',');
+        statusText,
+        person,
+        m.subject || '(제목 없음)',
+        `${dateStr} ${timeStr}`,
+      ];
     });
 
-    const csvContent = '\uFEFF' + [header.join(','), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
     const today = new Date().toISOString().slice(0, 10);
-    link.href = url;
-    link.setAttribute('download', `LEMail_${type}_${today}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const folderName = isSent ? '보낸편지함' : isTrash ? '휴지통' : isSpam ? '스팸함' : isDraft ? '임시보관함' : '받은편지함';
+    exportTableToExcel({
+      filename: `LEMail_${type}_${today}.xlsx`,
+      sheetName: folderName,
+      headers,
+      rows,
+    });
   };
 
   // Print Action
@@ -695,8 +692,18 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
+      {/* 인쇄 전용 타이틀 헤더 (화면에서는 숨김, 인쇄 시 상단에만 노출) */}
+      <div className="hidden print:block p-4 border-b-2 border-slate-800">
+        <h2 className="text-base font-bold text-slate-900">
+          [LEMail] {isSent ? '보낸편지함' : isTrash ? '휴지통' : isSpam ? '스팸메일함' : isDraft ? '임시보관함' : '받은편지함'} 목록
+        </h2>
+        <div className="text-xs text-slate-600 mt-1">
+          출력일시: {new Date().toLocaleString('ko-KR')} | 목록 {paginatedMails.length}건
+        </div>
+      </div>
+
       {/* 1. 상단 툴바: 상태 필터 + 검색창 (좌) + 다중선택 액션군 + Copy / Excel / Print 버튼 (우) */}
-      <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar">
+      <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
         {/* 필터 + 검색창 */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
           {/* 상태 필터 드롭다운 (커스텀 팝오버) */}
@@ -915,7 +922,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           {/* 테이블 헤더 */}
           <thead>
             <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
-              <th className="w-10 px-4 py-3 text-center">
+              <th className="w-10 px-4 py-3 text-center print:hidden">
                 <input
                   type="checkbox"
                   checked={allCurrentSelected}
@@ -937,7 +944,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
               <th className="w-40 px-4 py-3 whitespace-nowrap text-center">
                 {isSent ? '발송일시' : '수신일시'}
               </th>
-              <th className="w-20 px-4 py-3 text-right whitespace-nowrap">관리</th>
+              <th className="w-20 px-4 py-3 text-right whitespace-nowrap print:hidden">관리</th>
             </tr>
           </thead>
 
@@ -974,6 +981,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   isSecure,
                   isAnswered,
                   isForwarded,
+                  statusText,
                 } = getMailStatusFlags(mail);
                 const isSelected = selectedIds.includes(mail.id);
 
@@ -994,7 +1002,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   >
                     {/* 선택 체크박스 */}
                     <td
-                      className="px-4 py-3.5 text-center"
+                      className="px-4 py-3.5 text-center print:hidden"
                       onClick={(e) => handleToggleSelect(mail.id, e)}
                     >
                       <input
@@ -1005,12 +1013,15 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                       />
                     </td>
 
-                    {/* 1. 첫번째 자리: 메일상태 아이콘 (신규, 안읽음, 읽음, 보안, 중요, 답장, 전달) */}
+                    {/* 1. 첫번째 자리: 메일상태 (화면: 아이콘, 인쇄: 텍스트) */}
                     <td
-                      className="px-3 py-3.5 whitespace-nowrap"
+                      className="px-3 py-3.5 whitespace-nowrap text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex items-center justify-center gap-1.5">
+                      <span className="hidden print:inline-block font-semibold text-slate-800 text-[10px]">
+                        {statusText || '-'}
+                      </span>
+                      <div className="flex items-center justify-center gap-1.5 print:hidden">
                         {/* 중요 상태 아이콘 */}
                         <button
                           type="button"
@@ -1144,7 +1155,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
 
                     {/* 5. 관리 액션 버튼 */}
                     <td
-                      className="px-4 py-3.5 text-right whitespace-nowrap"
+                      className="px-4 py-3.5 text-right whitespace-nowrap print:hidden"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-end gap-1">
@@ -1183,7 +1194,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       </div>
 
       {/* 3. 하단 페이징 및 카운트 바 */}
-      <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
+      <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 print:hidden">
         <div>
           총 <span className="font-semibold text-slate-800">{filteredMails.length}</span>건
           {activeStatusFilter !== 'all' && (

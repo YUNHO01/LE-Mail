@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { fetchApi } from '@/lib/api';
 import { DomainDto } from '@lemail/shared-types';
 import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
+import { exportTableToExcel } from '@/lib/excel';
 import {
   Globe,
   Plus,
@@ -191,46 +192,40 @@ export default function DomainsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 엑셀 내보내기 (CSV UTF-8 BOM)
+  // 엑셀 내보내기 (.xlsx) (해당 페이지 목록 또는 선택된 항목)
   const handleExcelExport = () => {
     const targets =
       selectedIds.length > 0
         ? filteredDomains.filter((d) => selectedIds.includes(d.id))
-        : filteredDomains;
+        : paginatedDomains;
 
     if (targets.length === 0) {
       alert('내보낼 도메인 데이터가 없습니다.');
       return;
     }
 
-    const header = ['등록일자', '도메인명', '기본여부', '등록 사서함수', '설명', '상태'];
-    const escapeCsv = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
-
+    const headers = ['등록일자', '도메인명', '기본여부', '등록 사서함수', '설명', '상태'];
     const rows = targets.map((d) => {
       const created = new Date(d.createdAt).toISOString().slice(0, 10);
       const isDef = d.isDefault ? '대표 도메인' : '일반 도메인';
       const status = d.isActive ? 'Active (수신 허용)' : 'Disabled (차단)';
       return [
-        escapeCsv(created),
-        escapeCsv(d.name),
-        escapeCsv(isDef),
-        escapeCsv(String(d.mailboxCount ?? 0)),
-        escapeCsv(d.description || '-'),
-        escapeCsv(status),
-      ].join(',');
+        created,
+        d.name,
+        isDef,
+        d.mailboxCount ?? 0,
+        d.description || '-',
+        status,
+      ];
     });
 
-    const csvContent = '\uFEFF' + [header.join(','), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
     const today = new Date().toISOString().slice(0, 10);
-    link.href = url;
-    link.setAttribute('download', `LEMail_Domains_${today}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    exportTableToExcel({
+      filename: `LEMail_Domains_${today}.xlsx`,
+      sheetName: '도메인목록',
+      headers,
+      rows,
+    });
   };
 
   // 인쇄
@@ -326,7 +321,7 @@ export default function DomainsPage() {
         action={
           <button
             onClick={() => setIsModalOpen(true)}
-            className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold"
+            className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold print:hidden"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>신규 도메인 등록</span>
@@ -336,8 +331,16 @@ export default function DomainsPage() {
 
       {/* Main Table Container */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
+        {/* 인쇄 전용 헤더 (인쇄 시 상단에만 노출) */}
+        <div className="hidden print:block p-4 border-b-2 border-slate-800">
+          <h2 className="text-base font-bold text-slate-900">[LEMail] 도메인 관리 목록</h2>
+          <div className="text-xs text-slate-600 mt-1">
+            출력일시: {new Date().toLocaleString('ko-KR')} | 목록 {paginatedDomains.length}건
+          </div>
+        </div>
+
         {/* 상단 툴바: 상태 필터 -> 검색창 / 버튼군 */}
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
           {/* 좌측: [상태 필터] -> [검색창] (ams 표준 순서 준수) */}
           <div className="flex flex-wrap items-center gap-2.5">
             <select
@@ -387,7 +390,7 @@ export default function DomainsPage() {
             {/* 테이블 헤더 */}
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
-                <th className="w-10 px-4 py-3 text-center">
+                <th className="w-10 px-4 py-3 text-center print:hidden">
                   <input
                     type="checkbox"
                     checked={allCurrentSelected}
@@ -401,7 +404,7 @@ export default function DomainsPage() {
                 <th className="w-32 px-4 py-3 text-center whitespace-nowrap">연동 사서함</th>
                 <th className="w-32 px-4 py-3 text-center whitespace-nowrap">DNS 설정</th>
                 <th className="w-36 px-4 py-3 text-center whitespace-nowrap">수신 상태</th>
-                <th className="w-24 px-4 py-3 text-right whitespace-nowrap">관리</th>
+                <th className="w-24 px-4 py-3 text-right whitespace-nowrap print:hidden">관리</th>
               </tr>
             </thead>
 
@@ -440,7 +443,7 @@ export default function DomainsPage() {
                     >
                       {/* 선택 체크박스 */}
                       <td
-                        className="px-4 py-3.5 text-center"
+                        className="px-4 py-3.5 text-center print:hidden"
                         onClick={(e) => handleToggleSelect(domain.id, e)}
                       >
                         <input
@@ -544,7 +547,7 @@ export default function DomainsPage() {
                       </td>
 
                       {/* 관리 액션 */}
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap print:hidden">
                         <div className="flex items-center justify-end gap-1">
                           {!domain.isDefault && (
                             <button
@@ -576,7 +579,7 @@ export default function DomainsPage() {
         </div>
 
         {/* 하단 페이징 및 카운트 바 */}
-        <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
+        <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 print:hidden">
           <div>
             총 <span className="font-semibold text-slate-800">{filteredDomains.length}</span>개 도메인 중{' '}
             <span className="font-semibold text-slate-800">

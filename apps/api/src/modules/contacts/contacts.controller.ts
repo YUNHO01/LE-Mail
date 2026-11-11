@@ -54,6 +54,15 @@ export class ContactsController {
     });
   }
 
+  @Get('company-users')
+  @ApiOperation({
+    summary: '사내 임직원 주소록 목록 조회',
+    description: '사내 등록된 활성 사용자 중 일반 사용자(USER) 권한을 가진 목록을 조회합니다.',
+  })
+  async getCompanyUsers() {
+    return this.contactsService.getCompanyUsers();
+  }
+
   @Post()
   @ApiOperation({ summary: '새 연락처 등록' })
   async createContact(@CurrentUser() user: any, @Body() dto: CreateContactDto) {

@@ -21,7 +21,7 @@ export interface TableUtilityButtonsProps {
 
 /**
  * 테이블/목록 우측 표준 3종 유틸리티 버튼 컴포넌트 (ams 표준 규격)
- * Copy(클립보드 복사), Excel(CSV 다운로드), Print(인쇄) 버튼을 일관된 크기/폰트로 제공합니다.
+ * Copy(클립보드 복사), Excel(XLSX 다운로드), Print(목록 인쇄) 버튼을 일관된 크기/폰트로 제공합니다.
  */
 export const TableUtilityButtons: React.FC<TableUtilityButtonsProps> = ({
   onCopy,
@@ -33,8 +33,8 @@ export const TableUtilityButtons: React.FC<TableUtilityButtonsProps> = ({
   excelDisabled,
   printDisabled,
   copyTitle = '테이블 데이터를 클립보드에 복사',
-  excelTitle = 'CSV 엑셀 파일로 내보내기',
-  printTitle = '화면 인쇄',
+  excelTitle = 'Excel 파일(.xlsx)로 내보내기',
+  printTitle = '목록 인쇄',
   extraActions,
   className = '',
 }) => {

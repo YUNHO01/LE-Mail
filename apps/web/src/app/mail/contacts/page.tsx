@@ -27,6 +27,7 @@ import {
 import { contactsApi, fetchApi } from '@/lib/api';
 import { ContactDto, ContactGroupDto, UserDto } from '@lemail/shared-types';
 import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
+import { exportTableToExcel } from '@/lib/excel';
 import { ContactModal } from '@/components/contacts/ContactModal';
 import { ContactImportModal } from '@/components/contacts/ContactImportModal';
 import { ContactGroupModal } from '@/components/contacts/ContactGroupModal';
@@ -93,9 +94,10 @@ export default function ContactsPage() {
       setSelectedIds([]);
 
       if (currentGroupId === 'company') {
-        const res = await fetchApi<UserDto[]>('/users');
-        setCompanyUsers(res || []);
-        setTotal(res?.length || 0);
+        const res = await contactsApi.getCompanyUsers();
+        const usersList = Array.isArray(res) ? res : (res as any)?.items || [];
+        setCompanyUsers(usersList);
+        setTotal(usersList.length);
       } else {
         const res = await contactsApi.getContacts({
           search: searchTerm,
@@ -265,24 +267,79 @@ export default function ContactsPage() {
   // 클립보드 복사 유틸
   const handleCopy = () => {
     const header = ['이름', '이메일', '전화번호', '회사명', '부서명', '직급', '그룹'];
-    const rows = filteredContacts.map((c) => [
-      c.name || '',
-      c.email || '',
-      c.phone || c.companyPhone || '',
-      c.company || '',
-      c.department || '',
-      c.position || '',
-      c.groupName || '미분류',
-    ]);
+    const rows =
+      currentGroupId === 'company'
+        ? filteredCompanyUsers.map((u) => [
+            u.name || '',
+            u.email || '',
+            '-',
+            '사내',
+            u.employeeId ? `사번: ${u.employeeId}` : '-',
+            '-',
+            u.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원',
+          ])
+        : filteredContacts.map((c) => [
+            c.name || '',
+            c.email || '',
+            c.phone || c.companyPhone || '',
+            c.company || '',
+            c.department || '',
+            c.position || '',
+            c.groupName || '미분류',
+          ]);
     const text = [header.join('\t'), ...rows.map((r) => r.join('\t'))].join('\n');
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 엑셀 내보내기 유틸
+  // 목록용 엑셀 내보내기 유틸 (현재 페이지 목록 또는 선택된 항목)
   const handleExcelExport = () => {
-    handleExport('xlsx');
+    const isCompany = currentGroupId === 'company';
+    const targetItems = isCompany
+      ? selectedIds.length > 0
+        ? filteredCompanyUsers.filter((u) => selectedIds.includes(u.id))
+        : paginatedCompanyUsers
+      : selectedIds.length > 0
+        ? filteredContacts.filter((c) => selectedIds.includes(c.id))
+        : paginatedContacts;
+
+    if (targetItems.length === 0) {
+      alert('내보낼 연락처 데이터가 없습니다.');
+      return;
+    }
+
+    const headers = ['이름', '이메일', '전화번호', '회사명', '부서명', '직급', '그룹', '등록일시'];
+    const rows = isCompany
+      ? (targetItems as typeof filteredCompanyUsers).map((u) => [
+          u.name || '',
+          u.email || '',
+          '-',
+          '사내',
+          u.employeeId ? `사번: ${u.employeeId}` : '-',
+          '-',
+          u.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원',
+          u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : '-',
+        ])
+      : (targetItems as typeof filteredContacts).map((c) => [
+          c.name || '',
+          c.email || '',
+          c.phone || c.companyPhone || '',
+          c.company || '',
+          c.department || '',
+          c.position || '',
+          c.groupName || '미분류',
+          c.createdAt ? new Date(c.createdAt).toISOString().slice(0, 10) : '-',
+        ]);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const categoryName = getCategoryTitle().replace(/\s+/g, '_');
+    exportTableToExcel({
+      filename: `LEMail_Contacts_${categoryName}_${today}.xlsx`,
+      sheetName: categoryName.slice(0, 31),
+      headers,
+      rows,
+    });
   };
 
   // 인쇄
@@ -330,7 +387,7 @@ export default function ContactsPage() {
         subtitle="연락처를 관리하고 외부 주소록과 연동하거나 메일을 작성하세요."
         action={
           currentGroupId !== 'company' && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap print:hidden">
               {/* 그룹 관리 버튼 */}
               <button
                 type="button"
@@ -415,8 +472,18 @@ export default function ContactsPage() {
 
       {/* 2. 편지함 스타일 일체형 데이터 테이블 카드 */}
       <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
+        {/* 인쇄 전용 타이틀 헤더 */}
+        <div className="hidden print:block p-4 border-b-2 border-slate-800">
+          <h2 className="text-base font-bold text-slate-900">
+            [LEMail] {getCategoryTitle()} 목록
+          </h2>
+          <div className="text-xs text-slate-600 mt-1">
+            출력일시: {new Date().toLocaleString('ko-KR')} | 목록 {currentGroupId === 'company' ? paginatedCompanyUsers.length : paginatedContacts.length}건
+          </div>
+        </div>
+
         {/* 상단 통합 툴바 영역 (카드 상단 헤더) */}
-        <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+        <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white print:hidden">
           {/* 좌측: 필터 + 검색창 */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {currentGroupId !== 'company' && (
@@ -511,7 +578,7 @@ export default function ContactsPage() {
           <table className="w-full border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
-                <th className="w-10 px-3 py-3 text-center">
+                <th className="w-10 px-3 py-3 text-center print:hidden">
                   <input
                     type="checkbox"
                     checked={allCurrentSelected}
@@ -528,7 +595,7 @@ export default function ContactsPage() {
                 <th className="w-32 px-3 py-3 whitespace-nowrap">부서명</th>
                 <th className="w-28 px-3 py-3 whitespace-nowrap">그룹</th>
                 <th className="w-32 px-3 py-3 text-center whitespace-nowrap">등록일시</th>
-                <th className="w-24 px-3 py-3 text-right whitespace-nowrap">관리</th>
+                <th className="w-24 px-3 py-3 text-right whitespace-nowrap print:hidden">관리</th>
               </tr>
             </thead>
 
@@ -567,7 +634,7 @@ export default function ContactsPage() {
                         }`}
                       >
                         {/* 1. Checkbox */}
-                        <td className="px-3 py-3.5 text-center">
+                        <td className="px-3 py-3.5 text-center print:hidden">
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -635,7 +702,7 @@ export default function ContactsPage() {
                         </td>
 
                         {/* 10. 관리 */}
-                        <td className="px-3 py-3.5 text-right whitespace-nowrap">
+                        <td className="px-3 py-3.5 text-right whitespace-nowrap print:hidden">
                           <button
                             type="button"
                             onClick={(e) => handleComposeMail(u.email, e)}
@@ -696,7 +763,7 @@ export default function ContactsPage() {
                       }`}
                     >
                       {/* 1. Checkbox */}
-                      <td className="px-3 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-3 py-3.5 text-center print:hidden" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -791,7 +858,7 @@ export default function ContactsPage() {
                       </td>
 
                       {/* 10. 관리 (메일 쓰기, 수정, 삭제) */}
-                      <td className="px-3 py-3.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-3 py-3.5 text-right whitespace-nowrap print:hidden" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {c.email && (
                             <button
@@ -833,7 +900,7 @@ export default function ContactsPage() {
         </div>
 
         {/* 4. 편지함 스타일 하단 페이징 및 카운트 바 */}
-        <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
+        <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 print:hidden">
           <div>
             총 <span className="font-semibold text-slate-800">{activeItemsCount}</span>명 중{' '}
             <span className="font-semibold text-slate-800">

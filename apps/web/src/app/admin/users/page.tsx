@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { UserDto, UserRole, DomainDto } from '@lemail/shared-types';
 import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
+import { exportTableToExcel } from '@/lib/excel';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9200';
 
@@ -243,51 +244,46 @@ export default function UsersManagementPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Export to Excel (CSV UTF-8 BOM)
+  // Export to Excel (.xlsx) (해당 페이지 목록 또는 선택된 항목)
   const handleExportExcel = () => {
     const targets =
       selectedIds.length > 0
         ? users.filter((u) => selectedIds.includes(u.id))
-        : users;
+        : paginatedUsers;
 
     if (targets.length === 0) {
       alert('내보낼 데이터가 없습니다.');
       return;
     }
 
-    const header = ['이름', '사번', '이메일', '할당용량(MB)', '언어', '타임존', '역할', '상태', '최종 로그인', '등록일자'];
-    const escapeCsv = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
-
+    const headers = ['이름', '사번', '이메일', '할당용량(MB)', '사용량(MB)', '언어', '타임존', '역할', '상태', '최종 로그인', '등록일자'];
     const rows = targets.map((u) => {
       const roleStr = u.role === UserRole.SYSTEM_ADMIN ? '시스템 관리자' : '일반 사용자';
       const statusStr = u.isActive ? '활성' : '비활성';
       const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('ko-KR') : '미접속';
       const created = new Date(u.createdAt).toISOString().slice(0, 10);
       return [
-        escapeCsv(u.name),
-        escapeCsv(u.employeeId || '-'),
-        escapeCsv(u.email),
-        escapeCsv(String(u.mailboxQuotaMb ?? 512)),
-        escapeCsv(u.preferredLanguage || 'ko'),
-        escapeCsv(u.timezone || 'Asia/Seoul'),
-        escapeCsv(roleStr),
-        escapeCsv(statusStr),
-        escapeCsv(lastLogin),
-        escapeCsv(created),
-      ].join(',');
+        u.name,
+        u.employeeId || '-',
+        u.email,
+        u.mailboxQuotaMb ?? 512,
+        u.usedMb ?? 0,
+        u.preferredLanguage || 'ko',
+        u.timezone || 'Asia/Seoul',
+        roleStr,
+        statusStr,
+        lastLogin,
+        created,
+      ];
     });
 
-    const csvContent = '\uFEFF' + [header.join(','), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
     const today = new Date().toISOString().slice(0, 10);
-    link.href = url;
-    link.setAttribute('download', `LEMail_Users_${today}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    exportTableToExcel({
+      filename: `LEMail_Users_${today}.xlsx`,
+      sheetName: '사용자목록',
+      headers,
+      rows,
+    });
   };
 
   // Print Action
@@ -526,7 +522,7 @@ export default function UsersManagementPage() {
         action={
           <button
             onClick={openCreateModal}
-            className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold"
+            className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold print:hidden"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>신규 사용자 등록</span>
@@ -537,7 +533,7 @@ export default function UsersManagementPage() {
       {/* Alert Message Box */}
       {message && (
         <div
-          className={`flex items-center justify-between rounded-xl p-4 text-xs font-medium border animate-in fade-in duration-200 ${
+          className={`flex items-center justify-between rounded-xl p-4 text-xs font-medium border animate-in fade-in duration-200 print:hidden ${
             message.type === 'success'
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
               : 'bg-rose-50 text-rose-800 border-rose-200'
@@ -562,8 +558,16 @@ export default function UsersManagementPage() {
 
       {/* Main Table Container */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
+        {/* 인쇄 전용 헤더 (인쇄 시 상단에만 노출) */}
+        <div className="hidden print:block p-4 border-b-2 border-slate-800">
+          <h2 className="text-base font-bold text-slate-900">[LEMail] 사용자 계정 목록</h2>
+          <div className="text-xs text-slate-600 mt-1">
+            출력일시: {new Date().toLocaleString('ko-KR')} | 목록 {paginatedUsers.length}건
+          </div>
+        </div>
+
         {/* 상단 툴바: 필터 (좌: 역할 -> 검색) / 유틸리티 버튼군 (우) */}
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
           {/* 좌측 필터 그룹: [상태/권한] -> [검색창] (ams 표준 순서 준수) */}
           <div className="flex flex-wrap items-center gap-2.5">
             <select
@@ -629,7 +633,7 @@ export default function UsersManagementPage() {
           <table className="w-full border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
-                <th className="w-10 px-4 py-3 text-center">
+                <th className="w-10 px-4 py-3 text-center print:hidden">
                   <input
                     type="checkbox"
                     checked={allCurrentSelected}
@@ -645,7 +649,7 @@ export default function UsersManagementPage() {
                 <th className="w-28 px-4 py-3 text-center whitespace-nowrap">권한</th>
                 <th className="w-24 px-4 py-3 text-center whitespace-nowrap">계정 상태</th>
                 <th className="w-28 px-4 py-3 text-center whitespace-nowrap">최종 로그인</th>
-                <th className="w-24 px-4 py-3 text-right whitespace-nowrap">관리</th>
+                <th className="w-24 px-4 py-3 text-right whitespace-nowrap print:hidden">관리</th>
               </tr>
             </thead>
 
@@ -686,7 +690,7 @@ export default function UsersManagementPage() {
                     >
                       {/* 선택 체크박스 */}
                       <td
-                        className="px-4 py-3.5 text-center"
+                        className="px-4 py-3.5 text-center print:hidden"
                         onClick={(e) => handleToggleSelect(item.id, e)}
                       >
                         <input
@@ -845,7 +849,7 @@ export default function UsersManagementPage() {
                       </td>
 
                       {/* 관리 액션 */}
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap print:hidden">
                         <div className="flex items-center justify-end">
                           {/* 삭제 버튼 */}
                           <button
@@ -875,7 +879,7 @@ export default function UsersManagementPage() {
         </div>
 
         {/* 하단 페이징 및 카운트 바 */}
-        <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
+        <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 print:hidden">
           <div>
             총 <span className="font-semibold text-slate-800">{users.length}</span>명 중{' '}
             <span className="font-semibold text-slate-800">

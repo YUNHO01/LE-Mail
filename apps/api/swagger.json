@@ -2305,6 +2305,27 @@
         ]
       }
     },
+    "/api/contacts/company-users": {
+      "get": {
+        "description": "사내 등록된 활성 사용자 중 일반 사용자(USER) 권한을 가진 목록을 조회합니다.",
+        "operationId": "ContactsController_getCompanyUsers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "사내 임직원 주소록 목록 조회",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
     "/api/contacts/search": {
       "get": {
         "description": "개인 주소록과 사내 등록 사용자(User)에서 이름/이메일을 통합 검색합니다.",
