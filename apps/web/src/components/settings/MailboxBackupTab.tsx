@@ -16,12 +16,15 @@ import {
   Calendar,
   HardDrive,
   Info,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 
 export const MailboxBackupTab: React.FC = () => {
   const [backups, setBackups] = useState<MailBackupDto[]>([]);
   const [folders, setFolders] = useState<MailFolderDto[]>([]);
-  const [selectedFolderId, setSelectedFolderId] = useState<string>(''); // 빈 문자열 = 전체 메일함
+  const [backupMode, setBackupMode] = useState<'all' | 'selected'>('all');
+  const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -44,12 +47,33 @@ export const MailboxBackupTab: React.FC = () => {
     }
   };
 
+  // 계층형 편지함 트리를 플랫 배열로 변환하는 헬퍼 함수 (하위 폴더 포함)
+  const flattenFolders = (items: MailFolderDto[], parentName = ''): MailFolderDto[] => {
+    let result: MailFolderDto[] = [];
+    for (const item of items) {
+      const displayName = parentName ? `${parentName} > ${item.name}` : item.name;
+      result.push({
+        ...item,
+        name: displayName,
+      });
+      if (item.children && item.children.length > 0) {
+        result = result.concat(flattenFolders(item.children, displayName));
+      }
+    }
+    return result;
+  };
+
   const loadFolders = async () => {
     try {
-      const data = await fetchApi<MailFolderDto[]>('/folders');
-      setFolders(data || []);
-    } catch (_) {
-      // 폴더 로드 실패 시 무시하고 전체 메일함 백업만 허용
+      const data = await fetchApi<MailFolderDto[]>('/mail-folders');
+      const flatList = flattenFolders(data || []);
+      setFolders(flatList);
+      // 기본적으로 모든 편지함을 선택 상태로 초기화
+      if (flatList.length > 0) {
+        setSelectedFolderIds(flatList.map((f) => f.id));
+      }
+    } catch (err) {
+      console.error('편지함 목록 로드 실패:', err);
     }
   };
 
@@ -89,15 +113,37 @@ export const MailboxBackupTab: React.FC = () => {
     }
   };
 
+  const toggleFolderSelection = (folderId: string) => {
+    setSelectedFolderIds((prev) =>
+      prev.includes(folderId) ? prev.filter((id) => id !== folderId) : [...prev, folderId],
+    );
+  };
+
+  const handleSelectAllFolders = () => {
+    setSelectedFolderIds(folders.map((f) => f.id));
+  };
+
+  const handleDeselectAllFolders = () => {
+    setSelectedFolderIds([]);
+  };
+
   const handleRequestBackup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (backupMode === 'selected' && selectedFolderIds.length === 0) {
+      setMessage({
+        type: 'error',
+        text: '백업할 메일함을 최소 1개 이상 선택해 주세요.',
+      });
+      return;
+    }
+
     try {
       setRequesting(true);
       setMessage(null);
       await fetchApi<MailBackupDto>('/mail/backup', {
         method: 'POST',
         body: JSON.stringify({
-          folderId: selectedFolderId.trim() ? selectedFolderId : null,
+          folderIds: backupMode === 'all' ? [] : selectedFolderIds,
         }),
       });
 
@@ -205,36 +251,151 @@ export const MailboxBackupTab: React.FC = () => {
       )}
 
       {/* 백업 요청 폼 카드 */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <Archive className="h-4 w-4 text-sky-600" />
-          <span>신규 메일함 백업 파일 생성</span>
-        </h3>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Archive className="h-4 w-4 text-sky-600" />
+            <span>신규 메일함 백업 파일 생성</span>
+          </h3>
+          <span className="text-xs text-slate-500">
+            원하는 백업 범위(전체 또는 개별 편지함)를 선택하여 EML 압축본을 생성합니다.
+          </span>
+        </div>
 
-        <form onSubmit={handleRequestBackup} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-          <div className="sm:col-span-8">
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              백업 대상 편지함 선택
-            </label>
-            <select
-              value={selectedFolderId}
-              onChange={(e) => setSelectedFolderId(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white text-slate-800"
+        <form onSubmit={handleRequestBackup} className="space-y-4">
+          {/* 백업 모드 선택 (전체 vs 선택) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label
+              className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+                backupMode === 'all'
+                  ? 'border-sky-500 bg-sky-50/40 text-slate-900 ring-1 ring-sky-500'
+                  : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+              }`}
             >
-              <option value="">전체 메일함 (모든 편지함 및 사용자 폴더 통합 백업)</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} ({f.totalCount ?? 0}통)
-                </option>
-              ))}
-            </select>
+              <input
+                type="radio"
+                name="backupMode"
+                value="all"
+                checked={backupMode === 'all'}
+                onChange={() => setBackupMode('all')}
+                className="mt-0.5 text-sky-600 focus:ring-sky-500"
+              />
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold block">전체 메일함 백업</span>
+                <span className="text-[11px] text-slate-500 block">
+                  받은편지함, 보낸편지함, 임시보관함 등 모든 편지함의 메일을 일괄 압축합니다.
+                </span>
+              </div>
+            </label>
+
+            <label
+              className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
+                backupMode === 'selected'
+                  ? 'border-sky-500 bg-sky-50/40 text-slate-900 ring-1 ring-sky-500'
+                  : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+              }`}
+            >
+              <input
+                type="radio"
+                name="backupMode"
+                value="selected"
+                checked={backupMode === 'selected'}
+                onChange={() => setBackupMode('selected')}
+                className="mt-0.5 text-sky-600 focus:ring-sky-500"
+              />
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold block">메일함 선택적 백업</span>
+                <span className="text-[11px] text-slate-500 block">
+                  백업하고 싶은 특정 편지함들을 직접 체크하여 선택한 메일만 백업합니다.
+                </span>
+              </div>
+            </label>
           </div>
 
-          <div className="sm:col-span-4">
+          {/* 메일함 직접 선택 모드일 때 편지함 체크박스 리스트 */}
+          {backupMode === 'selected' && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-700">
+                    백업할 편지함 선택 ({selectedFolderIds.length}개 선택됨)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllFolders}
+                    className="text-[11px] font-medium text-sky-600 hover:text-sky-700 hover:underline"
+                  >
+                    전체 선택
+                  </button>
+                  <span className="text-slate-300 text-xs">|</span>
+                  <button
+                    type="button"
+                    onClick={handleDeselectAllFolders}
+                    className="text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:underline"
+                  >
+                    전체 해제
+                  </button>
+                </div>
+              </div>
+
+              {folders.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">
+                  불러올 수 있는 편지함 목록이 없습니다.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
+                  {folders.map((f) => {
+                    const isChecked = selectedFolderIds.includes(f.id);
+                    return (
+                      <div
+                        key={f.id}
+                        onClick={() => toggleFolderSelection(f.id)}
+                        className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer select-none text-xs transition ${
+                          isChecked
+                            ? 'bg-white border-sky-300 shadow-sm text-sky-950 font-medium'
+                            : 'bg-white/60 border-slate-200 text-slate-600 hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden mr-2">
+                          {isChecked ? (
+                            <CheckSquare className="h-4 w-4 text-sky-600 flex-shrink-0" />
+                          ) : (
+                            <Square className="h-4 w-4 text-slate-300 flex-shrink-0" />
+                          )}
+                          <Folder className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                          <span className="truncate" title={f.name}>
+                            {f.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 flex-shrink-0">
+                          {f.totalCount ?? 0}통
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 백업 실행 버튼 영역 */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1 border-t border-slate-100">
+            <div className="text-xs text-slate-500">
+              {backupMode === 'all' ? (
+                <span>전체 편지함의 메일이 ZIP 파일로 압축됩니다.</span>
+              ) : (
+                <span>
+                  선택한 <strong>{selectedFolderIds.length}개</strong>의 편지함 메일이 압축됩니다.
+                </span>
+              )}
+            </div>
+
             <button
               type="submit"
-              disabled={requesting}
-              className="h-10 w-full rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
+              disabled={requesting || (backupMode === 'selected' && selectedFolderIds.length === 0)}
+              className="h-10 px-6 w-full sm:w-auto rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {requesting ? (
                 <>

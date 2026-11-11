@@ -1,18 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck, Info } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const reason = searchParams.get('reason');
+    if (reason === 'session_expired') {
+      setInfoMessage('세션이 만료되었거나 인증이 해제되었습니다. 다시 로그인해 주세요.');
+    } else if (reason === 'error') {
+      setInfoMessage('일시적인 시스템 오류로 인해 로그아웃되었습니다. 다시 로그인해 주세요.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +72,13 @@ export default function LoginPage() {
           <Lock className="h-5 w-5 text-blue-600" />
           <span>로그인</span>
         </div>
+
+        {infoMessage && (
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <Info className="h-4 w-4 flex-shrink-0 text-amber-600" />
+            <span>{infoMessage}</span>
+          </div>
+        )}
 
         {error && (
           <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
@@ -142,5 +160,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-white text-slate-400 text-sm">
+        로그인 페이지 로딩 중...
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -21,6 +21,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 import { UpdateUserSignatureDto } from './dto/update-signature.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -76,6 +77,20 @@ export class UsersController {
     @Body() dto: UpdateUserSignatureDto,
   ): Promise<UserSignatureDto> {
     return this.usersService.updateSignature(user.id, dto);
+  }
+
+  @Put('me/password')
+  @ApiOperation({
+    summary: '현재 로그인한 사용자의 비밀번호 변경',
+    description: '현재 비밀번호 확인 후 새로운 비밀번호로 안전하게 변경합니다.',
+  })
+  @ApiResponse({ status: 200, description: '비밀번호 변경 성공' })
+  @ApiResponse({ status: 400, description: '현재 비밀번호 불일치 또는 유효성 검사 실패' })
+  async changeMyPassword(
+    @CurrentUser() user: any,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.usersService.changePassword(user.id, dto);
   }
 
   @Get(':id')

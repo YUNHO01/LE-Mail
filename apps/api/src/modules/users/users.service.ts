@@ -13,6 +13,7 @@ import { User, Mailbox, Domain } from '../database/entities';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserDto, UserRole, UserStorageUsageDto, UserSignatureDto, UpdateUserSignatureDto } from '@lemail/shared-types';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
 import { MailFolderService } from '../mail-folder/mail-folder.service';
@@ -404,5 +405,31 @@ export class UsersService {
       useSignature: user.useSignature,
       signatureHtml: user.signatureHtml || '',
     };
+  }
+
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ success: boolean; message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new BadRequestException('현재 비밀번호가 일치하지 않습니다.');
+    }
+
+    const isSamePassword = await bcrypt.compare(dto.newPassword, user.passwordHash);
+    if (isSamePassword) {
+      throw new BadRequestException('신규 비밀번호는 현재 사용 중인 비밀번호와 다르게 설정해야 합니다.');
+    }
+
+    const saltRounds = 10;
+    user.passwordHash = await bcrypt.hash(dto.newPassword, saltRounds);
+    await this.userRepository.save(user);
+
+    return { success: true, message: '비밀번호가 성공적으로 변경되었습니다.' };
   }
 }

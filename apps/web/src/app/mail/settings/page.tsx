@@ -2,25 +2,27 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { PenTool, ShieldBan, Archive, Settings } from 'lucide-react';
+import { PenTool, ShieldBan, Archive, Settings, KeyRound } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SignatureSettingsTab } from '@/components/settings/SignatureSettingsTab';
 import { SpamBlockSettingsTab } from '@/components/settings/SpamBlockSettingsTab';
 import { MailboxBackupTab } from '@/components/settings/MailboxBackupTab';
+import { PasswordChangeTab } from '@/components/settings/PasswordChangeTab';
 
-type SettingsTab = 'signature' | 'spam' | 'backup';
+type SettingsTab = 'signature' | 'spam' | 'backup' | 'password';
 
 function SettingsContent() {
   const searchParams = useSearchParams();
 
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'signature';
+  const validTabs: SettingsTab[] = ['signature', 'spam', 'backup', 'password'];
   const [activeTab, setActiveTab] = useState<SettingsTab>(
-    ['signature', 'spam', 'backup'].includes(initialTab) ? initialTab : 'signature',
+    validTabs.includes(initialTab) ? initialTab : 'signature',
   );
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as SettingsTab;
-    if (tabParam && ['signature', 'spam', 'backup'].includes(tabParam) && tabParam !== activeTab) {
+    if (tabParam && validTabs.includes(tabParam) && tabParam !== activeTab) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -48,7 +50,7 @@ function SettingsContent() {
       <PageHeader
         title="환경설정"
         icon={<Settings className="h-6 w-6 text-sky-600" />}
-        subtitle="개인 서명 작성, 스팸 및 수신 차단, 메일함 데이터 백업을 한곳에서 통합 관리합니다."
+        subtitle="개인 서명 작성, 스팸 및 수신 차단, 메일함 데이터 백업, 비밀번호 변경을 한곳에서 통합 관리합니다."
       />
 
       {/* 메인 탭 네비게이션 */}
@@ -91,6 +93,19 @@ function SettingsContent() {
           <Archive className="h-4 w-4" />
           <span>메일함 백업</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange('password')}
+          className={`flex items-center gap-2 pb-3.5 px-4 text-sm font-semibold border-b-2 transition ${
+            activeTab === 'password'
+              ? 'border-emerald-600 text-emerald-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <KeyRound className="h-4 w-4" />
+          <span>비밀번호 변경</span>
+        </button>
       </div>
 
       {/* 탭 본문 영역 (메일함 목록과 동일한 w-full 전폭 레이아웃) */}
@@ -98,6 +113,7 @@ function SettingsContent() {
         {activeTab === 'signature' && <SignatureSettingsTab />}
         {activeTab === 'spam' && <SpamBlockSettingsTab />}
         {activeTab === 'backup' && <MailboxBackupTab />}
+        {activeTab === 'password' && <PasswordChangeTab />}
       </div>
     </div>
   );

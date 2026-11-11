@@ -1838,6 +1838,40 @@
         ]
       }
     },
+    "/api/users/me/password": {
+      "put": {
+        "description": "현재 비밀번호 확인 후 새로운 비밀번호로 안전하게 변경합니다.",
+        "operationId": "UsersController_changeMyPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "비밀번호 변경 성공"
+          },
+          "400": {
+            "description": "현재 비밀번호 불일치 또는 유효성 검사 실패"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "현재 로그인한 사용자의 비밀번호 변경",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
     "/api/users/{id}": {
       "get": {
         "description": "사용자 ID로 사용자 상세 정보를 조회합니다.",
@@ -2188,6 +2222,451 @@
           "Mailbox Backup"
         ]
       }
+    },
+    "/api/contacts": {
+      "get": {
+        "description": "검색어, 그룹 필터, 페이징에 따라 로그인한 사용자의 주소록 연락처를 조회합니다.",
+        "operationId": "ContactsController_getContacts",
+        "parameters": [
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "주소록 연락처 목록 조회",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      },
+      "post": {
+        "operationId": "ContactsController_createContact",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "새 연락처 등록",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
+    "/api/contacts/search": {
+      "get": {
+        "description": "개인 주소록과 사내 등록 사용자(User)에서 이름/이메일을 통합 검색합니다.",
+        "operationId": "ContactsController_search",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "메일 작성용 수신자 자동완성 검색",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
+    "/api/contacts/groups": {
+      "get": {
+        "operationId": "ContactsController_getGroups",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "주소록 그룹 목록 및 그룹별 건수 조회",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      },
+      "post": {
+        "operationId": "ContactsController_createGroup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "주소록 그룹 생성",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
+    "/api/contacts/groups/{id}": {
+      "patch": {
+        "operationId": "ContactsController_updateGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "주소록 그룹 수정",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      },
+      "delete": {
+        "operationId": "ContactsController_deleteGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "주소록 그룹 삭제",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
+    "/api/contacts/import": {
+      "post": {
+        "operationId": "ContactsController_importContacts",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportContactsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "외부 주소록 가져오기 (Outlook CSV / vCard 지원)",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
+    "/api/contacts/export": {
+      "get": {
+        "operationId": "ContactsController_exportContacts",
+        "parameters": [
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "주소록 내보내기 (Excel xlsx, Outlook 호환 CSV 또는 vCard 포맷)",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
+    "/api/contacts/bulk-delete": {
+      "post": {
+        "operationId": "ContactsController_bulkDelete",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteContactsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "선택한 연락처 다중 삭제",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
+    "/api/contacts/{id}": {
+      "get": {
+        "operationId": "ContactsController_getContactById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "연락처 상세 조회",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      },
+      "patch": {
+        "operationId": "ContactsController_updateContact",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "연락처 수정",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      },
+      "delete": {
+        "operationId": "ContactsController_deleteContact",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "연락처 삭제",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
+    },
+    "/api/contacts/{id}/star": {
+      "patch": {
+        "operationId": "ContactsController_toggleStar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "중요 연락처 토글",
+        "tags": [
+          "Contacts & Address Book"
+        ]
+      }
     }
   },
   "info": {
@@ -2521,6 +3000,25 @@
           "useSignature"
         ]
       },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "example": "currentPassword123!",
+            "description": "현재 비밀번호"
+          },
+          "newPassword": {
+            "type": "string",
+            "example": "newPassword123!",
+            "description": "신규 비밀번호"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
       "CreateUserDto": {
         "type": "object",
         "properties": {
@@ -2693,6 +3191,287 @@
             "type": "object",
             "description": "백업할 메일함 폴더 ID (생략 시 전체 메일함 백업)",
             "example": "uuid-folder-id"
+          },
+          "folderIds": {
+            "description": "선택적으로 백업할 메일함 폴더 ID 목록 (생략 시 전체 메일함 백업)",
+            "example": [
+              "uuid-folder-1",
+              "uuid-folder-2"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "연락처 이름",
+            "example": "홍길동"
+          },
+          "email": {
+            "type": "object",
+            "description": "이메일 주소",
+            "example": "hong@example.com"
+          },
+          "groupId": {
+            "type": "object",
+            "description": "그룹 ID",
+            "example": "uuid-string"
+          },
+          "phone": {
+            "type": "object",
+            "description": "전화번호",
+            "example": "010-1234-5678"
+          },
+          "company": {
+            "type": "object",
+            "description": "회사명",
+            "example": "라인에지테크놀로지"
+          },
+          "department": {
+            "type": "object",
+            "description": "부서명",
+            "example": "개발본부"
+          },
+          "position": {
+            "type": "object",
+            "description": "직책/직급",
+            "example": "수석연구원"
+          },
+          "companyPhone": {
+            "type": "object",
+            "description": "회사 전화번호",
+            "example": "02-1234-5678"
+          },
+          "companyFax": {
+            "type": "object",
+            "description": "회사 팩스번호",
+            "example": "02-1234-5679"
+          },
+          "mobileCountryCode": {
+            "type": "object",
+            "description": "휴대전화 국가번호",
+            "example": "+82"
+          },
+          "birthday": {
+            "type": "object",
+            "description": "생일",
+            "example": "1985-05-15"
+          },
+          "postalCode": {
+            "type": "object",
+            "description": "우편번호",
+            "example": "13493"
+          },
+          "address": {
+            "type": "object",
+            "description": "주소",
+            "example": "경기도 성남시 분당구"
+          },
+          "websiteUrl": {
+            "type": "object",
+            "description": "웹사이트 URL",
+            "example": "https://example.com"
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "공개 여부",
+            "example": false
+          },
+          "memo": {
+            "type": "object",
+            "description": "메모",
+            "example": "주요 협력사 담당자"
+          },
+          "isStarred": {
+            "type": "boolean",
+            "description": "중요 연락처 여부",
+            "example": false
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "CreateGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "그룹명",
+            "example": "거래처"
+          },
+          "color": {
+            "type": "string",
+            "description": "그룹 라벨 색상",
+            "example": "#0284c7"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서",
+            "example": 0
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "그룹명",
+            "example": "거래처"
+          },
+          "color": {
+            "type": "string",
+            "description": "그룹 라벨 색상",
+            "example": "#0284c7"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서",
+            "example": 0
+          }
+        }
+      },
+      "ImportContactsDto": {
+        "type": "object",
+        "properties": {
+          "fileContent": {
+            "type": "string",
+            "description": "가져올 파일 내용 (텍스트 형식 또는 UTF-8 디코딩된 문자열)",
+            "example": "이름,전자 메일 주소,전화번호\n홍길동,hong@example.com,010-1234-5678"
+          },
+          "filename": {
+            "type": "string",
+            "description": "원본 파일명 (확장자 .csv 또는 .vcf 판별용)",
+            "example": "contacts.csv"
+          },
+          "duplicateAction": {
+            "type": "string",
+            "description": "중복 이메일 처리 전략 (SKIP: 건너뛰기, OVERWRITE: 덮어쓰기, KEEP_BOTH: 모두 유지)",
+            "enum": [
+              "SKIP",
+              "OVERWRITE",
+              "KEEP_BOTH"
+            ],
+            "default": "SKIP"
+          }
+        },
+        "required": [
+          "fileContent",
+          "filename"
+        ]
+      },
+      "BulkDeleteContactsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "삭제할 연락처 ID 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "UpdateContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "연락처 이름",
+            "example": "홍길동"
+          },
+          "email": {
+            "type": "object",
+            "description": "이메일 주소",
+            "example": "hong@example.com"
+          },
+          "groupId": {
+            "type": "object",
+            "description": "그룹 ID",
+            "example": "uuid-string"
+          },
+          "phone": {
+            "type": "object",
+            "description": "전화번호",
+            "example": "010-1234-5678"
+          },
+          "company": {
+            "type": "object",
+            "description": "회사명",
+            "example": "라인에지테크놀로지"
+          },
+          "department": {
+            "type": "object",
+            "description": "부서명",
+            "example": "개발본부"
+          },
+          "position": {
+            "type": "object",
+            "description": "직책/직급",
+            "example": "수석연구원"
+          },
+          "companyPhone": {
+            "type": "object",
+            "description": "회사 전화번호",
+            "example": "02-1234-5678"
+          },
+          "companyFax": {
+            "type": "object",
+            "description": "회사 팩스번호",
+            "example": "02-1234-5679"
+          },
+          "mobileCountryCode": {
+            "type": "object",
+            "description": "휴대전화 국가번호",
+            "example": "+82"
+          },
+          "birthday": {
+            "type": "object",
+            "description": "생일",
+            "example": "1985-05-15"
+          },
+          "postalCode": {
+            "type": "object",
+            "description": "우편번호",
+            "example": "13493"
+          },
+          "address": {
+            "type": "object",
+            "description": "주소",
+            "example": "경기도 성남시 분당구"
+          },
+          "websiteUrl": {
+            "type": "object",
+            "description": "웹사이트 URL",
+            "example": "https://example.com"
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "공개 여부",
+            "example": false
+          },
+          "memo": {
+            "type": "object",
+            "description": "메모",
+            "example": "주요 협력사 담당자"
+          },
+          "isStarred": {
+            "type": "boolean",
+            "description": "중요 연락처 여부",
+            "example": false
           }
         }
       }

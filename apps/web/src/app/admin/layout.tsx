@@ -18,25 +18,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // 1. 미인증 사용자 차단
+  // 1. 미인증 사용자 감지 시 로그인 페이지로 즉시 이동
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isLoading, isAuthenticated, router]);
+
   if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
-        <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 mb-4 border border-slate-700">
-          <LogIn className="w-8 h-8" />
-        </div>
-        <h2 className="text-xl font-bold text-white mb-2">관리자 로그인이 필요합니다</h2>
-        <p className="text-sm text-slate-400 max-w-sm mb-6">
-          시스템 관리 콘솔에 접근하려면 시스템 관리자 계정으로 로그인해 주세요.
-        </p>
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
-        >
-          로그인 페이지로 이동
-        </Link>
-      </div>
-    );
+    return null;
   }
 
   // 2. 일반 사용자 차단 (관리자 권한 없음)

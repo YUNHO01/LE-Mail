@@ -80,14 +80,37 @@ export class MailBackupService {
       throw new ConflictException('이미 진행 중인 메일함 백업 작업이 있습니다. 완료 후 다시 시도해 주세요.');
     }
 
-    // 2. 폴더명 확인
+    // 2. 대상 폴더 및 폴더명 확인
     let folderName = '전체 메일함';
-    if (dto.folderId) {
+    let targetFolderIds: string[] = [];
+    if (Array.isArray(dto.folderIds) && dto.folderIds.length > 0) {
+      targetFolderIds = dto.folderIds.filter((id) => typeof id === 'string' && id.trim().length > 0);
+    } else if (dto.folderId) {
+      targetFolderIds = [dto.folderId];
+    }
+
+    let singleFolderId: string | null = null;
+    if (targetFolderIds.length === 1) {
+      singleFolderId = targetFolderIds[0];
       const folder = await this.folderRepository.findOne({
-        where: { id: dto.folderId, userId },
+        where: { id: singleFolderId, userId },
       });
       if (folder) {
         folderName = folder.name;
+      }
+    } else if (targetFolderIds.length > 1) {
+      const folders = await this.folderRepository.find({
+        where: { id: In(targetFolderIds), userId },
+      });
+      if (folders.length > 0) {
+        const names = folders.map((f) => f.name);
+        if (names.length <= 2) {
+          folderName = names.join(', ');
+        } else {
+          folderName = `${names[0]} 외 ${names.length - 1}개 편지함`;
+        }
+      } else {
+        folderName = `선택 편지함 (${targetFolderIds.length}개)`;
       }
     }
 
@@ -97,7 +120,7 @@ export class MailBackupService {
 
     const backup = this.backupRepository.create({
       userId,
-      folderId: dto.folderId || null,
+      folderId: singleFolderId,
       folderName,
       status: BackupStatus.PENDING,
       totalCount: 0,
@@ -110,7 +133,7 @@ export class MailBackupService {
 
     // 4. 백그라운드 비동기 압축 실행
     setImmediate(() => {
-      this.executeZipGeneration(saved.id).catch((err) => {
+      this.executeZipGeneration(saved.id, targetFolderIds).catch((err) => {
         this.logger.error(`Error in async backup generation for ${saved.id}: ${err.message}`, err.stack);
       });
     });
@@ -118,7 +141,7 @@ export class MailBackupService {
     return this.toDto(saved);
   }
 
-  private async executeZipGeneration(backupId: string): Promise<void> {
+  private async executeZipGeneration(backupId: string, targetFolderIds: string[] = []): Promise<void> {
     const backup = await this.backupRepository.findOne({ where: { id: backupId } });
     if (!backup) return;
 
@@ -134,7 +157,9 @@ export class MailBackupService {
         .where('um.userId = :userId', { userId: backup.userId })
         .andWhere('um.isDeleted = false');
 
-      if (backup.folderId) {
+      if (targetFolderIds.length > 0) {
+        qb.andWhere('um.folderId IN (:...folderIds)', { folderIds: targetFolderIds });
+      } else if (backup.folderId) {
         qb.andWhere('um.folderId = :folderId', { folderId: backup.folderId });
       }
 

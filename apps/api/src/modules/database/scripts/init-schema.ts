@@ -173,6 +173,48 @@ const schemaStatements = [
     INDEX \`idx_backup_user_created\` (\`user_id\`, \`created_at\`),
     INDEX \`idx_backup_token\` (\`download_token\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`contact_group\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`color\` VARCHAR(20) DEFAULT '#0284c7',
+    \`sort_order\` INT DEFAULT 0,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_cg_user\` (\`user_id\`),
+    CONSTRAINT \`fk_cg_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`contact\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`group_id\` VARCHAR(36) NULL,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`email\` VARCHAR(255) NULL,
+    \`phone\` VARCHAR(50) NULL,
+    \`company\` VARCHAR(100) NULL,
+    \`department\` VARCHAR(100) NULL,
+    \`position\` VARCHAR(100) NULL,
+    \`company_phone\` VARCHAR(50) NULL,
+    \`company_fax\` VARCHAR(50) NULL,
+    \`mobile_country_code\` VARCHAR(10) NULL DEFAULT '+82',
+    \`birthday\` VARCHAR(20) NULL,
+    \`postal_code\` VARCHAR(20) NULL,
+    \`address\` VARCHAR(255) NULL,
+    \`website_url\` VARCHAR(255) NULL,
+    \`is_public\` BOOLEAN DEFAULT FALSE,
+    \`memo\` TEXT NULL,
+    \`is_starred\` BOOLEAN DEFAULT FALSE,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_c_user\` (\`user_id\`),
+    INDEX \`idx_c_user_email\` (\`user_id\`, \`email\`),
+    INDEX \`idx_c_user_name\` (\`user_id\`, \`name\`),
+    INDEX \`idx_c_group\` (\`group_id\`),
+    CONSTRAINT \`fk_c_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE,
+    CONSTRAINT \`fk_c_group\` FOREIGN KEY (\`group_id\`) REFERENCES \`contact_group\`(\`id\`) ON DELETE SET NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 async function run() {
@@ -320,6 +362,39 @@ async function run() {
       // Duplicate key name, index already exists
     } else {
       console.warn('Index migration note for idx_folder_uid:', err.message);
+    }
+  }
+
+  // Ensure contact.email allows NULL (e.g. for phone-only contacts from Google/smartphones)
+  try {
+    await conn.query('ALTER TABLE `contact` MODIFY COLUMN `email` VARCHAR(255) NULL;');
+    console.log('Modified contact.email to allow NULL.');
+  } catch (err: any) {
+    console.warn(`Column migration note for contact.email: ${err.message}`);
+  }
+
+  // Migrate contact table new columns for Excel structure
+  const contactNewColumns = [
+    { name: 'company_phone', ddl: 'ALTER TABLE `contact` ADD COLUMN `company_phone` VARCHAR(50) NULL AFTER `position`;' },
+    { name: 'company_fax', ddl: 'ALTER TABLE `contact` ADD COLUMN `company_fax` VARCHAR(50) NULL AFTER `company_phone`;' },
+    { name: 'mobile_country_code', ddl: 'ALTER TABLE `contact` ADD COLUMN `mobile_country_code` VARCHAR(10) NULL DEFAULT "+82" AFTER `company_fax`;' },
+    { name: 'birthday', ddl: 'ALTER TABLE `contact` ADD COLUMN `birthday` VARCHAR(20) NULL AFTER `phone`;' },
+    { name: 'postal_code', ddl: 'ALTER TABLE `contact` ADD COLUMN `postal_code` VARCHAR(20) NULL AFTER `birthday`;' },
+    { name: 'address', ddl: 'ALTER TABLE `contact` ADD COLUMN `address` VARCHAR(255) NULL AFTER `postal_code`;' },
+    { name: 'website_url', ddl: 'ALTER TABLE `contact` ADD COLUMN `website_url` VARCHAR(255) NULL AFTER `address`;' },
+    { name: 'is_public', ddl: 'ALTER TABLE `contact` ADD COLUMN `is_public` BOOLEAN DEFAULT FALSE AFTER `website_url`;' },
+  ];
+
+  for (const col of contactNewColumns) {
+    try {
+      await conn.query(col.ddl);
+      console.log(`Added column ${col.name} to contact table.`);
+    } catch (err: any) {
+      if (err.errno === 1060) {
+        // Already exists
+      } else {
+        console.warn(`Column migration note for contact.${col.name}: ${err.message}`);
+      }
     }
   }
 

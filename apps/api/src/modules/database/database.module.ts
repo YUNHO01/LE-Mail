@@ -15,6 +15,8 @@ import {
   BayesianToken,
   SystemLicense,
   MailBackup,
+  ContactGroup,
+  Contact,
 } from './entities';
 
 @Module({
@@ -45,6 +47,8 @@ import {
             BayesianToken,
             SystemLicense,
             MailBackup,
+            ContactGroup,
+            Contact,
           ],
           synchronize: false,
           timezone: 'Z',
@@ -67,6 +71,8 @@ import {
       SpamRule,
       SystemLicense,
       MailBackup,
+      ContactGroup,
+      Contact,
     ]),
   ],
   exports: [TypeOrmModule],

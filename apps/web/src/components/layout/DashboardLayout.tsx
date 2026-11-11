@@ -1,19 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useNavigation } from '../../contexts/NavigationContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const pathname = usePathname();
+    const router = useRouter();
     const { isNavigating } = useNavigation();
+    const { isAuthenticated, isLoading } = useAuth();
+
+    // /login 경로가 아닐 때 세션 또는 미인증 상태 감지 시 로그인 페이지로 즉시 이동
+    useEffect(() => {
+        if (!isLoading && !isAuthenticated && pathname !== '/login') {
+            router.replace('/login');
+        }
+    }, [isLoading, isAuthenticated, pathname, router]);
 
     // /login 경로에서는 로그인 페이지 전체화면 렌더링
     if (pathname === '/login') {
         return <>{children}</>;
+    }
+
+    // 미인증 상태이거나 세션 확인 중일 때는 대시보드 화면 노출 방지
+    if (!isLoading && !isAuthenticated) {
+        return null;
     }
 
     const isAdminRoute = pathname?.startsWith('/admin');

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchApi } from '@/lib/api';
-import { RecipientInput } from '@/components/mail/RecipientInput';
+import { RecipientInput, extractPureEmail } from '@/components/mail/RecipientInput';
 import { AttachmentUploader, LocalAttachment } from '@/components/mail/AttachmentUploader';
 import { MailEditor } from '@/components/mail/MailEditor';
 import { MailMessageDto } from '@lemail/shared-types';
@@ -221,9 +221,9 @@ function ComposeMailContent() {
             const replyId = searchParams.get('replyId');
 
             const payload: any = {
-                to,
-                cc: cc.length > 0 ? cc : undefined,
-                bcc: bcc.length > 0 ? bcc : undefined,
+                to: to.map(extractPureEmail),
+                cc: cc.length > 0 ? cc.map(extractPureEmail) : undefined,
+                bcc: bcc.length > 0 ? bcc.map(extractPureEmail) : undefined,
                 subject: subject.trim() || '(제목 없음)',
                 bodyHtml: bodyHtml || '<p></p>',
                 bodyText: bodyText || '',
@@ -274,9 +274,9 @@ function ComposeMailContent() {
 
             const payload = {
                 draftId: draftId || undefined,
-                to: to.length > 0 ? to : undefined,
-                cc: cc.length > 0 ? cc : undefined,
-                bcc: bcc.length > 0 ? bcc : undefined,
+                to: to.length > 0 ? to.map(extractPureEmail) : undefined,
+                cc: cc.length > 0 ? cc.map(extractPureEmail) : undefined,
+                bcc: bcc.length > 0 ? bcc.map(extractPureEmail) : undefined,
                 subject: subject.trim() || '(임시저장 메일)',
                 bodyHtml: bodyHtml || '<p></p>',
                 bodyText: bodyText || '',

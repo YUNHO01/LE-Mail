@@ -256,9 +256,6 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
     <div className="space-y-4">
       {/* 1~6 기본 편지함 일체형 목록 */}
       <div>
-        <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          기본 편지함
-        </div>
         <nav className="space-y-1">
           {/* 1. 받은편지함 */}
           <Link

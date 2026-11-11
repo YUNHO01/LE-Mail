@@ -585,7 +585,126 @@ export interface MailBackupDto {
 
 export interface RequestMailBackupDto {
   folderId?: string | null;
+  folderIds?: string[];
 }
+
+export interface ChangePasswordDto {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+// ==========================================
+// Contact & Address Book Types
+// ==========================================
+export interface ContactGroupDto {
+  id: string;
+  userId: string;
+  name: string;
+  color?: string;
+  sortOrder: number;
+  contactCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateContactGroupDto {
+  name: string;
+  color?: string;
+  sortOrder?: number;
+}
+
+export interface UpdateContactGroupDto {
+  name?: string;
+  color?: string;
+  sortOrder?: number;
+}
+
+export interface ContactDto {
+  id: string;
+  userId: string;
+  groupId: string | null;
+  groupName?: string | null;
+  name: string;
+  email: string | null;
+  phone?: string | null;
+  company?: string | null;
+  department?: string | null;
+  position?: string | null;
+  companyPhone?: string | null;
+  companyFax?: string | null;
+  mobileCountryCode?: string | null;
+  birthday?: string | null;
+  postalCode?: string | null;
+  address?: string | null;
+  websiteUrl?: string | null;
+  isPublic?: boolean;
+  memo?: string | null;
+  isStarred: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateContactDto {
+  name: string;
+  email?: string | null;
+  groupId?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  department?: string | null;
+  position?: string | null;
+  companyPhone?: string | null;
+  companyFax?: string | null;
+  mobileCountryCode?: string | null;
+  birthday?: string | null;
+  postalCode?: string | null;
+  address?: string | null;
+  websiteUrl?: string | null;
+  isPublic?: boolean;
+  memo?: string | null;
+  isStarred?: boolean;
+}
+
+export interface UpdateContactDto {
+  name?: string;
+  email?: string | null;
+  groupId?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  department?: string | null;
+  position?: string | null;
+  companyPhone?: string | null;
+  companyFax?: string | null;
+  mobileCountryCode?: string | null;
+  birthday?: string | null;
+  postalCode?: string | null;
+  address?: string | null;
+  websiteUrl?: string | null;
+  isPublic?: boolean;
+  memo?: string | null;
+  isStarred?: boolean;
+}
+
+export type DuplicateContactAction = 'SKIP' | 'OVERWRITE' | 'KEEP_BOTH';
+
+export interface ImportContactsResultDto {
+  total: number;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface ContactSearchResultDto {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  company?: string | null;
+  department?: string | null;
+  position?: string | null;
+  source: 'CONTACT' | 'SYSTEM_USER';
+}
+
 
 
 

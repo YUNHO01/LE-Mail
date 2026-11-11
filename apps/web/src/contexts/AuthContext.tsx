@@ -42,26 +42,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
 
     if (storedToken) {
-      // Background fresh fetch of storage usage
-      fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
+      // Background fresh token verification & profile fetch
+      fetch(`${API_BASE_URL}/api/auth/profile`, {
         headers: { Authorization: `Bearer ${storedToken}` },
       })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((usage) => {
-          if (usage) {
-            setUser((prev) => {
-              if (!prev) return null;
-              const updated: UserDto = {
-                ...prev,
-                mailboxQuotaMb: usage.quotaMb ?? prev.mailboxQuotaMb,
-                usedBytes: usage.usedBytes ?? 0,
-                usedMb: usage.usedMb ?? 0,
-                usagePercent: usage.usagePercent ?? 0,
-                messageCount: usage.messageCount ?? 0,
-              };
-              localStorage.setItem('lemail_user', JSON.stringify(updated));
-              return updated;
-            });
+        .then((res) => {
+          if (res.status === 401) {
+            // 토큰 만료 또는 세션 무효화
+            localStorage.removeItem('lemail_token');
+            localStorage.removeItem('lemail_user');
+            setUser(null);
+            setToken(null);
+            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+              router.replace('/login?reason=session_expired');
+            }
+            return null;
+          }
+          return res.ok ? res.json() : null;
+        })
+        .then((profile) => {
+          if (profile) {
+            // Fresh fetch of storage usage
+            fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
+              headers: { Authorization: `Bearer ${storedToken}` },
+            })
+              .then((res) => (res.ok ? res.json() : null))
+              .then((usage) => {
+                if (usage) {
+                  setUser((prev) => {
+                    if (!prev) return null;
+                    const updated: UserDto = {
+                      ...prev,
+                      mailboxQuotaMb: usage.quotaMb ?? prev.mailboxQuotaMb,
+                      usedBytes: usage.usedBytes ?? 0,
+                      usedMb: usage.usedMb ?? 0,
+                      usagePercent: usage.usagePercent ?? 0,
+                      messageCount: usage.messageCount ?? 0,
+                    };
+                    localStorage.setItem('lemail_user', JSON.stringify(updated));
+                    return updated;
+                  });
+                }
+              })
+              .catch(() => {});
           }
         })
         .catch(() => {});
@@ -76,6 +99,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
         headers: { Authorization: `Bearer ${currentToken}` },
       });
+      if (res.status === 401) {
+        localStorage.removeItem('lemail_token');
+        localStorage.removeItem('lemail_user');
+        setUser(null);
+        setToken(null);
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          router.replace('/login?reason=session_expired');
+        }
+        return;
+      }
       if (res.ok) {
         const usage = await res.json();
         setUser((prev) => {

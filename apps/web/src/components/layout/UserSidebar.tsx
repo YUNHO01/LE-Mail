@@ -6,7 +6,22 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { MailFolderTree } from '../mail/MailFolderTree';
-import { Mail, Shield, ArrowRight, PenSquare, HardDrive, RefreshCw, ShieldBan, Settings } from 'lucide-react';
+import {
+  Mail,
+  Shield,
+  ArrowRight,
+  PenSquare,
+  HardDrive,
+  RefreshCw,
+  Settings,
+  Users,
+  Star,
+  Building2,
+  UserCheck,
+  ChevronDown,
+} from 'lucide-react';
+import { contactsApi } from '../../lib/api';
+import { ContactGroupDto } from '@lemail/shared-types';
 
 interface UserSidebarProps {
   sidebarOpen: boolean;
@@ -21,7 +36,36 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const { user, isAdmin, refreshStorageUsage } = useAuth();
   const { startNavigation } = useNavigation();
   const isCompose = pathname === '/mail/compose';
+  const isContacts = pathname?.startsWith('/mail/contacts');
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  // 상위 메뉴 펼침/접힘 상태 (초기값: 현재 경로에 따라 자동 활성화)
+  const [mailExpanded, setMailExpanded] = React.useState<boolean>(true);
+  const [contactsExpanded, setContactsExpanded] = React.useState<boolean>(isContacts || true);
+  const [groups, setGroups] = React.useState<ContactGroupDto[]>([]);
+
+  React.useEffect(() => {
+    if (isContacts) {
+      setContactsExpanded(true);
+    }
+  }, [isContacts]);
+
+  // 주소록 그룹 목록 로드
+  const loadSidebarGroups = async () => {
+    try {
+      const data = await contactsApi.getGroups();
+      setGroups(data || []);
+    } catch {
+      // ignore
+    }
+  };
+
+  React.useEffect(() => {
+    loadSidebarGroups();
+    const handleRefresh = () => loadSidebarGroups();
+    window.addEventListener('contacts:refresh-groups', handleRefresh);
+    return () => window.removeEventListener('contacts:refresh-groups', handleRefresh);
+  }, []);
 
   const handleRefreshQuota = async () => {
     setIsRefreshing(true);
@@ -104,13 +148,153 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             </div>
           )}
 
-          {/* User Mail Folders (기본 편지함 6종 및 계층형 트리) */}
-          <div>
-            <MailFolderTree onSelectFolder={() => setSidebarOpen(false)} />
+          {/* 1. 메일 상위 메뉴 및 하위 편지함 */}
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => setMailExpanded((prev) => !prev)}
+              className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white hover:bg-slate-800/60 transition group"
+            >
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-sky-400" />
+                <span>메일함</span>
+              </div>
+              <ChevronDown
+                className={`h-3.5 w-3.5 text-slate-500 group-hover:text-slate-300 transition-transform duration-200 ${
+                  mailExpanded ? 'rotate-0' : '-rotate-90'
+                }`}
+              />
+            </button>
+
+            {mailExpanded && (
+              <div className="pl-1 pt-0.5 animate-fadeIn">
+                <MailFolderTree onSelectFolder={() => setSidebarOpen(false)} />
+              </div>
+            )}
+          </div>
+
+          {/* 2. 주소록 상위 메뉴 및 하위 주소록 메뉴 */}
+          <div className="space-y-1 pt-2 border-t border-slate-700/80">
+            <button
+              type="button"
+              onClick={() => setContactsExpanded((prev) => !prev)}
+              className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white hover:bg-slate-800/60 transition group"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-emerald-400" />
+                <span>주소록</span>
+              </div>
+              <ChevronDown
+                className={`h-3.5 w-3.5 text-slate-500 group-hover:text-slate-300 transition-transform duration-200 ${
+                  contactsExpanded ? 'rotate-0' : '-rotate-90'
+                }`}
+              />
+            </button>
+
+            {contactsExpanded && (
+              <div className="space-y-0.5 pl-2 pt-0.5 animate-fadeIn text-xs">
+                {/* 전체 주소록 */}
+                <Link
+                  href="/mail/contacts"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    startNavigation('/mail/contacts');
+                  }}
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
+                    pathname === '/mail/contacts'
+                      ? 'bg-slate-800 text-white font-semibold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="h-3.5 w-3.5 text-slate-400" />
+                    <span>전체 연락처</span>
+                  </div>
+                </Link>
+
+                {/* 중요 연락처 */}
+                <Link
+                  href="/mail/contacts?groupId=starred"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    startNavigation('/mail/contacts?groupId=starred');
+                  }}
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/50`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400/30" />
+                    <span>중요 연락처</span>
+                  </div>
+                </Link>
+
+                {/* 사내 임직원 주소록 */}
+                <Link
+                  href="/mail/contacts?groupId=company"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    startNavigation('/mail/contacts?groupId=company');
+                  }}
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/50`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-3.5 w-3.5 text-sky-400" />
+                    <span>사내 임직원</span>
+                  </div>
+                </Link>
+
+                {/* 미지정 (개인 주소록) */}
+                <Link
+                  href="/mail/contacts?groupId=ungrouped"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    startNavigation('/mail/contacts?groupId=ungrouped');
+                  }}
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/50`}
+                >
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-3.5 w-3.5 text-slate-400" />
+                    <span>미분류 연락처</span>
+                  </div>
+                </Link>
+
+                {/* 사용자 정의 그룹 목록 */}
+                {groups.length > 0 && (
+                  <div className="pt-1.5 mt-1 border-t border-slate-800/60">
+                    <div className="px-3 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                      그룹
+                    </div>
+                    {groups.map((g) => (
+                      <Link
+                        key={g.id}
+                        href={`/mail/contacts?groupId=${g.id}`}
+                        onClick={() => {
+                          setSidebarOpen(false);
+                          startNavigation(`/mail/contacts?groupId=${g.id}`);
+                        }}
+                        className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/50"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: g.color || '#0284c7' }}
+                          />
+                          <span className="truncate">{g.name}</span>
+                        </div>
+                        {g.contactCount !== undefined && g.contactCount > 0 && (
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {g.contactCount}
+                          </span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* User Settings */}
-          <div className="pt-2 border-t border-slate-800">
+          <div className="pt-2 border-t border-slate-700/80">
             <Link
               href="/mail/settings"
               onClick={() => {
@@ -118,7 +302,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                 startNavigation('/mail/settings');
               }}
               onMouseDown={() => startNavigation('/mail/settings')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition group ${
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition group ${
                 pathname === '/mail/settings'
                   ? 'bg-slate-800 text-white font-semibold'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
