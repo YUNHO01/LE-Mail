@@ -29,7 +29,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', 'apps/api/.env'],
+      envFilePath: ['.env', '../.env', '../../.env', 'apps/api/.env'],
       load: [configuration],
       validationSchema,
     }),

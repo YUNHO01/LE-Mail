@@ -179,6 +179,7 @@ WORKER_CONCURRENCY=5
 SMTP_PORT=2525
 MAIL_SPOOL_DIR=./mail-spool
 MAIL_ARCHIVE_DIR=./mail-archive
+MAIL_ATTACHMENT_DIR=./mail-attachments
 MAIL_SPOOL_CLEANUP=false
 
 # MySQL 데이터베이스 설정

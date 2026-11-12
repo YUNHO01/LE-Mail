@@ -156,9 +156,8 @@ notepad .env
 # ==========================================
 # LEMail Production Environment Configuration
 # ==========================================
+# ※ API Core(9200) 및 Webmail(9000) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
 NODE_ENV=production
-PORT=9200
-WEB_PORT=9000
 
 # 1. Database
 DB_HOST=127.0.0.1
@@ -195,10 +194,10 @@ DEFAULT_ADMIN_EMAIL=admin@yourdomain.com
 DEFAULT_ADMIN_PASSWORD=AdminStrongPass123!
 DEFAULT_ADMIN_NAME=시스템관리자
 
-# 7. 디스크 저장소 경로
-SPOOL_DIR=C:/LEMail/mail-spool
-ARCHIVE_DIR=C:/LEMail/mail-archive
-ATTACHMENTS_DIR=C:/LEMail/mail-attachments
+# 7. 디스크 저장소 경로 (마이크로서비스 공통 중앙 절대경로 필수 지정)
+MAIL_SPOOL_DIR=C:/LEMail/mail-spool
+MAIL_ARCHIVE_DIR=C:/LEMail/mail-archive
+MAIL_ATTACHMENT_DIR=C:/LEMail/mail-attachments
 LICENSE_FILE_PATH=C:/LEMail/license/lemail-license.lic
 ```
 

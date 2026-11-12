@@ -51,8 +51,8 @@ export default (): AppConfig => ({
   workerConcurrency: parseInt(process.env.WORKER_CONCURRENCY || '5', 10),
   smtp: {
     port: parseInt(process.env.SMTP_PORT || '2525', 10),
-    spoolDir: process.env.MAIL_SPOOL_DIR || './mail-spool',
-    archiveDir: process.env.MAIL_ARCHIVE_DIR || './mail-archive',
+    spoolDir: process.env.MAIL_SPOOL_DIR || process.env.SPOOL_DIR || './mail-spool',
+    archiveDir: process.env.MAIL_ARCHIVE_DIR || process.env.ARCHIVE_DIR || './mail-archive',
     spoolCleanup: process.env.MAIL_SPOOL_CLEANUP === 'true',
     useProxy: process.env.SMTP_USE_PROXY === 'true',
     maxClients: parseInt(process.env.SMTP_MAX_CLIENTS || '100', 10),

@@ -1,8 +1,22 @@
 import * as mysql from 'mysql2/promise';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import * as fs from 'fs';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+const candidateDirs = [
+  process.cwd(),
+  path.resolve(process.cwd(), '..'),
+  path.resolve(process.cwd(), '../..'),
+  path.resolve(__dirname, '../../../../'),
+  path.resolve(__dirname, '../../../../../'),
+];
+for (const dir of candidateDirs) {
+  const envPath = path.join(dir, '.env');
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    break;
+  }
+}
 
 const schemaStatements = [
   `CREATE TABLE IF NOT EXISTS \`domain\` (

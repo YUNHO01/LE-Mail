@@ -22,5 +22,8 @@ export const imapConfig: ImapServerConfig = {
   authTimeoutMs: parseInt(process.env.IMAP_AUTH_TIMEOUT_MS || '60000', 10),
   certPath: process.env.IMAP_TLS_CERT,
   keyPath: process.env.IMAP_TLS_KEY,
-  archiveDir: path.resolve(process.cwd(), process.env.MAIL_ARCHIVE_DIR || './mail-archive'),
+  archiveDir: path.resolve(
+    process.cwd(),
+    process.env.MAIL_ARCHIVE_DIR || process.env.ARCHIVE_DIR || './mail-archive',
+  ),
 };

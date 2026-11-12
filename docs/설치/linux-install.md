@@ -60,18 +60,41 @@ sudo dnf install -y clamav clamav-update clamd
 
 ---
 
-## 2. ClamAV 안티바이러스 데몬 구성 (필수)
+## 2. ClamAV 안티바이러스 데몬 구성 (선택 및 필수 권장)
 
 LEMail은 메일 수신 시 첨부파일의 바이러스/악성코드를 실시간 검사하기 위해 ClamAV 데몬(`clamd`, 기본 TCP 포트 `3310`)과 통신합니다.
 
-### 2.1 바이러스 시그니처 데이터베이스 업데이트
+> [!IMPORTANT]
+> **시스템 메모리(RAM) 요구사항 및 사전 점검**
+> * ClamAV 데몬(`clamd`)은 고속 실시간 스캔을 위해 수백만 개의 바이러스 시그니처 데이터베이스를 **RAM(인메모리)에 통째로 상주**시킵니다.
+> * 구동 즉시 **최소 1.2GB ~ 1.5GB의 물리 메모리를 상시 점유**하며, 첨부파일 검사 시 순간적으로 2GB 이상까지 메모리가 치솟을 수 있습니다.
+> * 따라서 ClamAV를 활성화하려면 **서버의 전체 메모리가 최소 4GB RAM 이상 (권장 8GB 이상)**이어야 합니다.
+> * **메모리 부족 시 대안**: 만약 AWS EC2 `t3.small`(2GB) 등 저사양 인스턴스이거나 백신 검사가 불필요한 사내 테스트 환경이라면, 본 2단계를 건너뛰고 `.env` 파일에서 `CLAMAV_ENABLED=false`로 설정하여 비활성화하십시오.
+
+### 2.1 스왑 메모리(Swap) 4GB 구성 (RAM 4GB 이하 인스턴스 필수)
+ClamAV 구동 시 리눅스 커널의 OOM(Out Of Memory) Killer에 의해 프로세스가 강제 종료되는 현상을 방지하기 위해 4GB 스왑 공간을 필수로 확보합니다:
+```bash
+# 1. 기존 스왑 확인
+sudo swapon --show
+
+# 2. 4GB 스왑 파일 생성 및 활성화
+sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# 3. 부팅 시 자동 마운트 등록
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+### 2.2 바이러스 시그니처 데이터베이스 업데이트
 ```bash
 sudo systemctl stop clamav-freshclam 2>/dev/null || true
 sudo freshclam
 sudo systemctl enable --now clamav-freshclam
 ```
 
-### 2.2 TCP 소켓 포트(3310) 활성화
+### 2.3 TCP 소켓 포트(3310) 활성화
 
 #### Ubuntu (`/etc/clamav/clamd.conf`)
 파일을 열고 아래 항목을 수정하거나 추가합니다:
@@ -97,7 +120,7 @@ sudo sed -i 's/^#TCPAddr 127.0.0.1/TCPAddr 127.0.0.1/' /etc/clamd.d/scan.conf
 sudo systemctl enable --now clamd@scan
 ```
 
-### 2.3 ClamAV TCP 데몬 동작 검증
+### 2.4 ClamAV TCP 데몬 동작 검증
 ```bash
 # 3310 포트 리스닝 확인
 sudo ss -tulpn | grep 3310
@@ -168,8 +191,19 @@ CREATE USER IF NOT EXISTS 'lemail'@'127.0.0.1' IDENTIFIED BY 'StrongDbPassword12
 GRANT ALL PRIVILEGES ON `lemaildb`.* TO 'lemail'@'localhost';
 GRANT ALL PRIVILEGES ON `lemaildb`.* TO 'lemail'@'127.0.0.1';
 FLUSH PRIVILEGES;
+
+-- [주의] SSL 강제 옵션(require_secure_transport) 해제 (로컬 통신용)
+-- 만약 require_secure_transport가 ON으로 설정되어 있으면 아래 명령으로 OFF 처리합니다.
+SET GLOBAL require_secure_transport = OFF;
+
 EXIT;
 ```
+
+> [!NOTE]
+> **MySQL `require_secure_transport` 설정 안내**
+> * 보안 정책이나 클라우드 환경(AWS EC2/RDS 등)에 따라 MySQL의 `require_secure_transport=ON`이 활성화되어 있을 경우, 스키마 초기화(`init-schema.js`) 시 `ER_SECURE_TRANSPORT_REQUIRED` 에러가 발생할 수 있습니다.
+> * 로컬 통신 환경에서는 위 SQL과 같이 `SET GLOBAL require_secure_transport = OFF;`를 실행하거나, `/etc/mysql/mysql.conf.d/mysqld.cnf` 파일의 `[mysqld]` 섹션에 `require_secure_transport = OFF`를 추가하여 주십시오.
+> * **AWS RDS**를 사용하시는 경우, RDS 파라미터 그룹(Parameter Group)에서 `require_secure_transport`를 `0`(OFF)으로 설정해야 합니다.
 
 ---
 
@@ -186,21 +220,26 @@ sudo chown -R $USER:$USER /opt/lemail
 
 # 2. 배포 패키지 압축 해제
 # (고객사 서버에 업로드한 lemail_vX.Y.Z_obfuscated.zip 파일 경로 지정)
-unzip lemail_v1.1.0_20261110_obfuscated.zip -d /opt/lemail/
-cd /opt/lemail
+unzip lemail_v1.2.0_*_obfuscated.zip -d /opt/lemail/
 
-# 3. 런타임 저장소 디렉터리 준비
-mkdir -p mail-spool mail-archive mail-attachments license
+# ※ ZIP 파일 내부의 최상위 버전 디렉터리(예: lemail_v1.2.0)로 진입합니다:
+cd /opt/lemail/lemail_v*
+
+# 3. 런타임 공용 저장소 및 인증서 디렉터리 준비
+mkdir -p /opt/lemail/mail-spool /opt/lemail/mail-archive /opt/lemail/mail-attachments /opt/lemail/license /opt/lemail/certs
 ```
 
 ### 5.2 운영 전용 의존성 모듈 설치
 배포 패키지 내 루트 및 서비스별 운영 의존성을 설치합니다:
 ```bash
 # 운영 모드 설치 (devDependencies 제외)
-yarn install --production --frozen-lockfile
+yarn install --production
+
+# (참고) 만약 lockfile 충돌 에러 발생 시 아래 명령으로 설치:
+# yarn install --production --no-lockfile
 ```
 
-### 5.3 환경 변수 설정 (`/opt/lemail/.env`)
+### 5.3 환경 변수 설정 (`.env`)
 루트 디렉터리의 `.env.example`을 복사하여 `.env`를 생성합니다:
 ```bash
 cp .env.example .env
@@ -211,9 +250,8 @@ nano .env
 # ==========================================
 # LEMail Production Environment Configuration
 # ==========================================
+# ※ API Core(9200) 및 Webmail(9000) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
 NODE_ENV=production
-PORT=9200
-WEB_PORT=9000
 
 # 1. MySQL Database
 DB_HOST=127.0.0.1
@@ -234,12 +272,12 @@ CLAMAV_PORT=3310
 CLAMAV_ENABLED=true
 CLAMAV_TIMEOUT_MS=3000
 
-# 4. Mail Service TLS Certificates (IMAP / SMTP)
+# 4. Mail Service TLS Certificates (LEMail certs 디렉터리 권장)
 IMAP_PORT=1143
 IMAPS_PORT=1993
 IMAP_STARTTLS=true
-IMAP_TLS_CERT=/etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem
-IMAP_TLS_KEY=/etc/letsencrypt/live/mail.yourdomain.com/privkey.pem
+IMAP_TLS_CERT=/opt/lemail/certs/fullchain.pem
+IMAP_TLS_KEY=/opt/lemail/certs/privkey.pem
 
 # 5. Security & Master Encryption Key
 JWT_SECRET=c28f09d84ef478c9320b9e81d714b901a8f9024cba81001928374655
@@ -250,12 +288,17 @@ DEFAULT_ADMIN_EMAIL=admin@yourdomain.com
 DEFAULT_ADMIN_PASSWORD=AdminStrongPass123!
 DEFAULT_ADMIN_NAME=시스템관리자
 
-# 7. 디스크 저장소 경로
-SPOOL_DIR=/opt/lemail/mail-spool
-ARCHIVE_DIR=/opt/lemail/mail-archive
-ATTACHMENTS_DIR=/opt/lemail/mail-attachments
+# 7. 디스크 저장소 경로 (마이크로서비스 공통 중앙 절대경로 필수 지정)
+MAIL_SPOOL_DIR=/opt/lemail/mail-spool
+MAIL_ARCHIVE_DIR=/opt/lemail/mail-archive
+MAIL_ATTACHMENT_DIR=/opt/lemail/mail-attachments
 LICENSE_FILE_PATH=/opt/lemail/license/lemail-license.lic
 ```
+
+> [!IMPORTANT]
+> **디스크 저장소 절대 경로 설정 주의사항**
+> LEMail은 Core API, Webmail UI, IMAP Microservice, Haraka MTA가 프로세스별로 분리 구동됩니다.
+> 메일 본문(EML) 및 첨부파일 저장소가 각 서비스별 작업 디렉터리로 격리되지 않고 공유될 수 있도록, `MAIL_ARCHIVE_DIR`, `MAIL_ATTACHMENT_DIR`, `MAIL_SPOOL_DIR`는 반드시 `/opt/lemail/...`과 같은 **절대 경로(Absolute Path)**로 구성하십시오.
 
 ### 5.4 데이터베이스 스키마 및 초기 시드 실행
 컴파일된 배포 스크립트를 직접 실행하여 DB 테이블 생성 및 관리자 계정을 초기화합니다:
@@ -264,38 +307,107 @@ node apps/api/dist/modules/database/scripts/init-schema.js
 ```
 > 스크립트 실행 후 `[Database] Schema synchronization & initial seeding completed successfully!` 메시지를 확인합니다.
 
+> [!TIP]
+> **`Connections using insecure transport are prohibited while --require_secure_transport=ON` 에러 발생 시**
+> MySQL 서버에 SSL 암호화 연결이 강제되어 발생하는 오류입니다.
+> 1. 로컬 MySQL인 경우: `sudo mysql -u root` 접속 후 `SET GLOBAL require_secure_transport = OFF;` 실행
+> 2. AWS RDS인 경우: RDS 파라미터 그룹에서 `require_secure_transport`를 `0`(OFF)으로 설정 후 다시 실행합니다.
+
 ---
 
 ## 6. 웹 SSL 및 메일 서비스 TLS 인증서 설치
 
-메일 시스템은 웹(HTTPS) 뿐만 아니라 메일 송수신(SMTP TLS, IMAP SSL/TLS)에도 공인 인증서가 필요합니다.
+메일 시스템은 웹(HTTPS: 443) 뿐만 아니라 메일 송수신(Inbound/Outbound SMTP TLS, IMAP SSL/TLS: 1143/1993)에도 공인 인증서가 필요합니다.
+
+> [!IMPORTANT]
+> **1. AWS 등 Cloud 환경 인바운드 80 포트 사전 개방 (필수)**
+> * Let's Encrypt(`certbot --standalone`)는 도메인의 80번 포트(HTTP-01 Challenge)를 통해 도메인 소유권을 검증합니다.
+> * **AWS EC2 보안 그룹(Security Group)**, **GCP 방화벽**, **NCP/Azure NSG**에서 인바운드 **HTTP (TCP 80, 0.0.0.0/0)** 포트가 사전 개방되어 있어야 합니다. 개방되지 않은 경우 인증서 발급 시 `Timeout during connect` 오류가 발생합니다.
+> * OS 로컬 방화벽에서도 80 포트를 개방해야 합니다:
+>   * Ubuntu (UFW): `sudo ufw allow 80/tcp && sudo ufw allow 443/tcp`
+>   * Rocky Linux / RHEL (firewalld): `sudo firewall-cmd --add-service=http --add-service=https --permanent && sudo firewall-cmd --reload`
+> * Certbot 독립 실행(standalone) 모드 구동 시 80 포트 점유 충돌을 방지하기 위해 Nginx가 실행 중이라면 일시 정지(`sudo systemctl stop nginx`) 후 발급해야 합니다.
+
+> [!WARNING]
+> **2. Root 권한 파일 생성 및 일반 사용자 실행 모듈 권한(EACCES) 문제 해결**
+> * Certbot으로 발급받은 원본 파일(`/etc/letsencrypt/live/`, `/etc/letsencrypt/archive/`)은 `root:root` 소유 및 `0700` / `0600` 권한으로 생성됩니다.
+> * 그러나 LEMail 서비스(특히 IMAP `services/imap` 및 Haraka `services/haraka`)는 일반 사용자 계정(`$USER`)의 PM2 프로세스로 실행되므로, 원본 경로를 직접 참조하면 `EACCES: permission denied` 권한 오류로 인해 서버가 크래시되거나 TLS 연결이 거부됩니다.
+> * 따라서 **발급된 인증서를 LEMail 전용 인증서 디렉터리(`/opt/lemail/certs/`)로 복사하고 일반 사용자(`$USER:$USER`) 소유권 및 읽기 권한(`chmod 600 privkey.pem`)을 부여**하여 사용하는 것이 표준 보안 절차입니다.
 
 ### 6.1 Let's Encrypt를 통한 무료 인증서 발급
 ```bash
-# Nginx를 잠시 중지하거나 독립 실행(standalone) 모드로 발급
+# 1. 80 포트 점유 방지를 위해 Nginx가 실행 중인 경우 일시 정지
+sudo systemctl stop nginx 2>/dev/null || true
+
+# 2. Let's Encrypt 인증서 발급 (도메인명 변경)
 sudo certbot certonly --standalone -d mail.yourdomain.com
 ```
-* 발급 경로:
+* 발급 원본 경로:
   * 인증서(Full Chain): `/etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem`
   * 개인키(Private Key): `/etc/letsencrypt/live/mail.yourdomain.com/privkey.pem`
 
-### 6.2 메일 서비스별 TLS 인증서 적용 위치
+### 6.2 LEMail 전용 `certs` 디렉터리로 복사 및 권한 설정
+발급된 인증서를 LEMail 서비스가 안전하게 접근할 수 있도록 `/opt/lemail/certs/` 디렉터리로 복사하고 소유권을 변경합니다:
+```bash
+# 1. LEMail 전용 certs 디렉터리 준비
+mkdir -p /opt/lemail/certs
 
-1. **IMAP 서비스 (`services/imap`)**:
-   * `.env` 파일에 발급받은 인증서 경로를 지정합니다:
+# 2. 원본 심볼릭 링크의 실체 파일(dereference: -L)을 복사
+sudo cp -L /etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem /opt/lemail/certs/fullchain.pem
+sudo cp -L /etc/letsencrypt/live/mail.yourdomain.com/privkey.pem /opt/lemail/certs/privkey.pem
+
+# 3. LEMail 실행 사용자($USER)에게 소유권 및 안전한 권한 부여
+sudo chown -R $USER:$USER /opt/lemail/certs
+chmod 644 /opt/lemail/certs/fullchain.pem
+chmod 600 /opt/lemail/certs/privkey.pem
+```
+
+### 6.3 메일 서비스별 TLS 인증서 연동
+
+1. **IMAP 마이크로서비스 (`services/imap`)**:
+   * `.env` 파일에 복사한 인증서 경로를 지정합니다:
      ```ini
-     IMAP_TLS_CERT=/etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem
-     IMAP_TLS_KEY=/etc/letsencrypt/live/mail.yourdomain.com/privkey.pem
+     IMAP_TLS_CERT=/opt/lemail/certs/fullchain.pem
+     IMAP_TLS_KEY=/opt/lemail/certs/privkey.pem
      ```
-   * *(선택)* 환경변수를 지정하지 않을 경우 `services/imap/certs/imap-cert.pem`, `imap-key.pem`에 인증서 파일을 복사하거나 심볼릭 링크를 생성할 수 있습니다.
 2. **Haraka SMTP 아웃바운드 릴레이 (`services/haraka`)**:
-   * 발신 메일의 TLS 암호화를 위해 Haraka 설정 디렉터리에 인증서 심볼릭 링크를 연결합니다:
+   * 발신 메일의 TLS 암호화를 위해 Haraka 설정 디렉터리에 인증서를 복사합니다:
      ```bash
      mkdir -p /opt/lemail/services/haraka/config
-     ln -sf /etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem /opt/lemail/services/haraka/config/tls_cert.pem
-     ln -sf /etc/letsencrypt/live/mail.yourdomain.com/privkey.pem /opt/lemail/services/haraka/config/tls_key.pem
+     cp /opt/lemail/certs/fullchain.pem /opt/lemail/services/haraka/config/tls_cert.pem
+     cp /opt/lemail/certs/privkey.pem /opt/lemail/services/haraka/config/tls_key.pem
      ```
    * *(참고)* 인증서 파일이 없으면 Haraka 실행 시 자체 서명(Self-signed) 인증서가 자동 생성되지만, 외부 수신처(Gmail, Naver 등)의 신뢰를 위해 공인 인증서 연결을 권장합니다.
+
+### 6.4 Certbot 자동 갱신 및 LEMail 인증서 동기화 훅(Deploy Hook) 등록
+Let's Encrypt 인증서는 90일마다 갱신됩니다. 갱신될 때마다 자동으로 LEMail 전용 디렉터리로 복사되고 서비스가 리로드되도록 갱신 후크 스크립트를 등록합니다:
+
+```bash
+sudo mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+sudo bash -c 'cat << "EOF" > /etc/letsencrypt/renewal-hooks/deploy/lemail-cert-sync.sh
+#!/bin/bash
+DOMAIN="mail.yourdomain.com"
+LEMAIL_CERTS="/opt/lemail/certs"
+RUN_USER="'"$USER"'"
+
+if [ -d "$LEMAIL_CERTS" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+    cp -L /etc/letsencrypt/live/$DOMAIN/fullchain.pem "$LEMAIL_CERTS/fullchain.pem"
+    cp -L /etc/letsencrypt/live/$DOMAIN/privkey.pem "$LEMAIL_CERTS/privkey.pem"
+    chown -R $RUN_USER:$RUN_USER "$LEMAIL_CERTS"
+    chmod 644 "$LEMAIL_CERTS/fullchain.pem"
+    chmod 600 "$LEMAIL_CERTS/privkey.pem"
+    
+    # Haraka 인증서 동기화
+    cp "$LEMAIL_CERTS/fullchain.pem" /opt/lemail/services/haraka/config/tls_cert.pem 2>/dev/null || true
+    cp "$LEMAIL_CERTS/privkey.pem" /opt/lemail/services/haraka/config/tls_key.pem 2>/dev/null || true
+    
+    # 웹 서버 및 메일 서비스 리로드
+    systemctl reload nginx 2>/dev/null || true
+    pm2 restart lemail-imap lemail-haraka 2>/dev/null || true
+fi
+EOF'
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/lemail-cert-sync.sh
+```
 
 ---
 
@@ -315,9 +427,9 @@ server {
     listen 443 ssl http2;
     server_name mail.yourdomain.com;
 
-    # SSL 인증서
-    ssl_certificate /etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/mail.yourdomain.com/privkey.pem;
+    # SSL 인증서 (/opt/lemail/certs 또는 /etc/letsencrypt/live 원본 경로)
+    ssl_certificate /opt/lemail/certs/fullchain.pem;
+    ssl_certificate_key /opt/lemail/certs/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
@@ -408,6 +520,7 @@ module.exports = {
       time: true,
       env: {
         NODE_ENV: 'production',
+        PORT: 9200,
       },
     },
     {
@@ -662,3 +775,62 @@ sudo firewall-cmd --reload
    * 관리자 콘솔 ➔ **스팸 & 보안 관리 (`/admin/spam-rules`)** 접속.
    * **ClamAV 안티바이러스 연동 설정**에서 `127.0.0.1:3310` **"연결 테스트"** 클릭 ➔ "ClamAV 데몬 연결 성공" 확인.
 4. **메일 송수신 테스트**: 도메인 및 사서함 계정을 추가하여 외부 메일 송수신 및 IMAP 클라이언트 연동을 확인합니다.
+
+---
+
+## 11. 트러블슈팅 및 자주 묻는 질문 (FAQ)
+
+### Q1. 스키마 초기화 시 `require_secure_transport=ON` 에러가 발생합니다.
+* **증상**:
+  ```
+  Schema initialization failed: Error: Connections using insecure transport are prohibited while --require_secure_transport=ON.
+  code: 'ER_SECURE_TRANSPORT_REQUIRED', errno: 3159
+  ```
+* **원인**: MySQL 서버에 SSL/TLS 보안 연결 옵션(`require_secure_transport`)이 강제되어 있어 일반 평문 연결을 거부하는 경우입니다.
+* **해결 방법**:
+  1. **로컬 MySQL 8.0**:
+     ```bash
+     sudo mysql -u root
+     ```
+     ```sql
+     SET GLOBAL require_secure_transport = OFF;
+     EXIT;
+     ```
+     영구 설정을 위해 `/etc/mysql/mysql.conf.d/mysqld.cnf` 파일의 `[mysqld]` 섹션에 `require_secure_transport = OFF`를 추가하고 `sudo systemctl restart mysql`을 실행합니다.
+  2. **AWS RDS / Aurora**: AWS 콘솔의 RDS 파라미터 그룹(Parameter Group)에서 `require_secure_transport` 값을 `0` (OFF)으로 변경 및 저장합니다.
+
+### Q2. ClamAV 설치 후 3310 포트가 활성화되지 않거나 메모리가 부족합니다.
+* **증상**: `sudo ss -tulpn | grep 3310` 에 아무것도 출력되지 않거나 `clamav-daemon`이 중지됨.
+* **원인 1 (바이러스 DB 미다운로드)**:
+  최초 설치 시 바이러스 DB가 비어있으면 데몬이 기동되지 않습니다.
+  ```bash
+  sudo systemctl stop clamav-freshclam
+  sudo freshclam
+  sudo systemctl enable --now clamav-freshclam
+  sudo systemctl restart clamav-daemon
+  ```
+* **원인 2 (메모리 부족 OOM)**:
+  ClamAV는 구동 시 약 1.2GB~1.5GB의 RAM을 사용합니다. RAM이 부족한 저사양 서버의 경우:
+  * 스왑(Swap) 메모리 2GB~4GB 추가:
+    ```bash
+    sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+    ```
+  * 또는 ClamAV를 삭제하고 LEMail 설정에서 비활성화:
+    ```bash
+    # ClamAV 서비스 및 패키지 삭제
+    sudo systemctl stop clamav-daemon clamav-freshclam 2>/dev/null || true
+    sudo apt-get purge -y "clamav*"
+    sudo apt-get autoremove -y --purge
+
+    # /opt/lemail/.env 파일에서 ClamAV 비활성화
+    # CLAMAV_ENABLED=false
+    ```
+
+### Q3. `yarn install` 시 `Your lockfile needs to be updated` 에러가 발생합니다.
+* **원인**: `--frozen-lockfile` 옵션 사용 시 배포 패키지 내 lockfile 체크섬 불일치로 발생합니다.
+* **해결 방법**:
+  ```bash
+  yarn install --production
+  # 또는
+  yarn install --production --no-lockfile
+  ```

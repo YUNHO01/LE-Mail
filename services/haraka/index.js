@@ -5,6 +5,36 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 
+// LEMail 환경 설정 (.env) 로딩
+function loadEnv() {
+  const candidateDirs = [
+    process.cwd(),
+    path.resolve(process.cwd(), '..'),
+    path.resolve(process.cwd(), '../..'),
+    path.resolve(__dirname, '..'),
+    path.resolve(__dirname, '../..'),
+  ];
+  for (const dir of candidateDirs) {
+    const envFile = path.join(dir, '.env');
+    if (fs.existsSync(envFile)) {
+      try {
+        require('dotenv').config({ path: envFile });
+        return;
+      } catch {
+        const content = fs.readFileSync(envFile, 'utf8');
+        for (const line of content.split('\n')) {
+          const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+          if (match && !process.env[match[1]]) {
+            process.env[match[1]] = (match[2] || '').trim().replace(/^['"]|['"]$/g, '');
+          }
+        }
+        return;
+      }
+    }
+  }
+}
+loadEnv();
+
 // Windows c-ares DNS 리졸버 호환성: 공용 DNS 서버(Google/Cloudflare) 지정
 try {
   dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);

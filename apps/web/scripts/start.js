@@ -3,29 +3,34 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const webDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(webDir, '..');
 
-// 1. apps/web 디렉토리의 .env 파일들을 우선순위에 따라 로드
+// 1. 루트 및 apps/web 디렉토리의 .env 파일들을 우선순위에 따라 로드
 try {
   const { loadEnvConfig } = require('@next/env');
+  loadEnvConfig(rootDir, false);
   loadEnvConfig(webDir, false);
 } catch {
-  const envFiles = [
-    `.env.${process.env.NODE_ENV || 'production'}.local`,
-    '.env.local',
-    `.env.${process.env.NODE_ENV || 'production'}`,
-    '.env',
-  ];
-  for (const file of envFiles) {
-    const filePath = path.join(webDir, file);
-    if (fs.existsSync(filePath)) {
-      try {
-        require('dotenv').config({ path: filePath });
-      } catch {
-        const content = fs.readFileSync(filePath, 'utf8');
-        for (const line of content.split('\n')) {
-          const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
-          if (match && !process.env[match[1]]) {
-            process.env[match[1]] = (match[2] || '').trim().replace(/^['"]|['"]$/g, '');
+  const candidateDirs = [rootDir, webDir];
+  for (const dir of candidateDirs) {
+    const envFiles = [
+      `.env.${process.env.NODE_ENV || 'production'}.local`,
+      '.env.local',
+      `.env.${process.env.NODE_ENV || 'production'}`,
+      '.env',
+    ];
+    for (const file of envFiles) {
+      const filePath = path.join(dir, file);
+      if (fs.existsSync(filePath)) {
+        try {
+          require('dotenv').config({ path: filePath });
+        } catch {
+          const content = fs.readFileSync(filePath, 'utf8');
+          for (const line of content.split('\n')) {
+            const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+            if (match && !process.env[match[1]]) {
+              process.env[match[1]] = (match[2] || '').trim().replace(/^['"]|['"]$/g, '');
+            }
           }
         }
       }

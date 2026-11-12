@@ -197,9 +197,6 @@ async function runPackaging() {
   if (fs.existsSync(path.join(rootDir, 'apps', 'api', 'swagger.json'))) {
     fs.copyFileSync(path.join(rootDir, 'apps', 'api', 'swagger.json'), path.join(apiDest, 'swagger.json'));
   }
-  if (fs.existsSync(path.join(rootDir, 'apps', 'api', '.env.example'))) {
-    fs.copyFileSync(path.join(rootDir, 'apps', 'api', '.env.example'), path.join(apiDest, '.env.example'));
-  }
 
   // (4) apps/web (.next, public, scripts, next.config.mjs, 운영 전용 package.json)
   console.log('  -> apps/web 프론트엔드 산출물 및 운영 전용 package.json 복사');
@@ -224,9 +221,6 @@ async function runPackaging() {
   if (fs.existsSync(path.join(rootDir, 'apps', 'web', 'next.config.mjs'))) {
     fs.copyFileSync(path.join(rootDir, 'apps', 'web', 'next.config.mjs'), path.join(webDest, 'next.config.mjs'));
   }
-  if (fs.existsSync(path.join(rootDir, 'apps', 'web', '.env.example'))) {
-    fs.copyFileSync(path.join(rootDir, 'apps', 'web', '.env.example'), path.join(webDest, '.env.example'));
-  }
 
   // (5) services/imap 복사
   console.log(`  -> services/imap ${isObfuscate ? '난독화' : '표준'} 산출물 및 운영 전용 package.json 복사`);
@@ -250,9 +244,6 @@ async function runPackaging() {
     dependencies: originalImapPkg.dependencies
   };
   fs.writeFileSync(path.join(imapDest, 'package.json'), JSON.stringify(prodImapPkg, null, 2), 'utf8');
-  if (fs.existsSync(path.join(rootDir, 'services', 'imap', '.env.example'))) {
-    fs.copyFileSync(path.join(rootDir, 'services', 'imap', '.env.example'), path.join(imapDest, '.env.example'));
-  }
 
   // (6) services/haraka 복사 및 난독화 처리
   console.log(`  -> services/haraka ${isObfuscate ? '난독화 복사' : '표준 복사'}`);
@@ -262,7 +253,7 @@ async function runPackaging() {
   copyDirSync(
     path.join(rootDir, 'services', 'haraka'),
     harakaDest,
-    ['node_modules', '.turbo', 'docs', 'README']
+    ['node_modules', '.turbo', 'docs', 'README', '.env.example', '.env']
   );
 
   if (isObfuscate) {

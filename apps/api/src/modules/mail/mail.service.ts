@@ -762,7 +762,7 @@ export class MailService {
     const day = String(now.getDate()).padStart(2, '0');
     const archiveBaseDir = resolve(
       process.cwd(),
-      process.env.MAIL_ARCHIVE_DIR || 'mail-archive',
+      process.env.MAIL_ARCHIVE_DIR || process.env.ARCHIVE_DIR || 'mail-archive',
     );
     const archiveDir = join(archiveBaseDir, year, month, day);
     if (!existsSync(archiveDir)) {
@@ -804,7 +804,7 @@ export class MailService {
 
     const attBaseDir = resolve(
       process.cwd(),
-      process.env.MAIL_ATTACHMENT_DIR || 'mail-attachments',
+      process.env.MAIL_ATTACHMENT_DIR || process.env.ATTACHMENTS_DIR || 'mail-attachments',
     );
     const attDir = join(attBaseDir, year, month, day, mailId);
     if (!existsSync(attDir)) {
@@ -1470,7 +1470,7 @@ export class MailService {
     const day = String(now.getDate()).padStart(2, '0');
     const archiveBaseDir = resolve(
       process.cwd(),
-      process.env.MAIL_ARCHIVE_DIR || 'mail-archive',
+      process.env.MAIL_ARCHIVE_DIR || process.env.ARCHIVE_DIR || 'mail-archive',
     );
     const archiveDir = join(archiveBaseDir, year, month, day);
     if (!existsSync(archiveDir)) {

@@ -43,7 +43,7 @@ export class AppendHandler {
 
     const archiveBaseDir = path.resolve(
       process.cwd(),
-      process.env.MAIL_ARCHIVE_DIR || './mail-archive',
+      process.env.MAIL_ARCHIVE_DIR || process.env.ARCHIVE_DIR || './mail-archive',
     );
     const targetDir = path.join(archiveBaseDir, year, month, day);
     if (!fs.existsSync(targetDir)) {

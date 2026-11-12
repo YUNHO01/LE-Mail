@@ -294,10 +294,10 @@ DEFAULT_ADMIN_EMAIL=admin@yourdomain.com
 DEFAULT_ADMIN_PASSWORD=AdminStrongPass123!
 DEFAULT_ADMIN_NAME=시스템관리자
 
-# Storage Paths inside Containers
-SPOOL_DIR=/app/mail-spool
-ARCHIVE_DIR=/app/mail-archive
-ATTACHMENTS_DIR=/app/mail-attachments
+# Storage Paths inside Containers (중앙 저장소 절대경로)
+MAIL_SPOOL_DIR=/app/mail-spool
+MAIL_ARCHIVE_DIR=/app/mail-archive
+MAIL_ATTACHMENT_DIR=/app/mail-attachments
 LICENSE_FILE_PATH=/app/license/lemail-license.lic
 ```
 

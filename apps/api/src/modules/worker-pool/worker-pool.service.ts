@@ -16,7 +16,7 @@ export class WorkerPoolService implements OnModuleInit, OnModuleDestroy {
   private pool: Piscina;
   private readonly attachmentDir = resolve(
     process.cwd(),
-    process.env.MAIL_ATTACHMENT_DIR || 'mail-attachments',
+    process.env.MAIL_ATTACHMENT_DIR || process.env.ATTACHMENTS_DIR || 'mail-attachments',
   );
 
   onModuleInit() {
