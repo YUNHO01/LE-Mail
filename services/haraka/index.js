@@ -57,8 +57,49 @@ if (!fs.existsSync(queueDir)) {
 // TLS 인증서(tls_key.pem, tls_cert.pem) 보장
 function ensureTlsCertificates() {
   const configDir = path.resolve(__dirname, 'config');
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+  }
+
   const keyPath = path.join(configDir, 'tls_key.pem');
   const certPath = path.join(configDir, 'tls_cert.pem');
+
+  // 1. 공인 인증서(Let's Encrypt / LEMail certs / .env) 자동 탐색 및 동기화
+  const certCandidates = [
+    {
+      cert: process.env.IMAP_TLS_CERT,
+      key: process.env.IMAP_TLS_KEY,
+    },
+    {
+      cert: '/opt/lemail/certs/fullchain.pem',
+      key: '/opt/lemail/certs/privkey.pem',
+    },
+    {
+      cert: path.resolve(__dirname, '../../certs/fullchain.pem'),
+      key: path.resolve(__dirname, '../../certs/privkey.pem'),
+    },
+    {
+      cert: path.resolve(process.cwd(), '../certs/fullchain.pem'),
+      key: path.resolve(process.cwd(), '../certs/privkey.pem'),
+    },
+    {
+      cert: path.resolve(process.cwd(), 'certs/fullchain.pem'),
+      key: path.resolve(process.cwd(), 'certs/privkey.pem'),
+    },
+  ];
+
+  for (const cand of certCandidates) {
+    if (cand.cert && cand.key && fs.existsSync(cand.cert) && fs.existsSync(cand.key)) {
+      try {
+        fs.copyFileSync(cand.cert, certPath);
+        fs.copyFileSync(cand.key, keyPath);
+        console.log(`[LEMail Haraka] ✅ Synchronized official TLS certificates from: ${cand.cert}`);
+        return;
+      } catch (e) {
+        console.warn(`[LEMail Haraka] Failed to copy TLS certificates from ${cand.cert}:`, e.message);
+      }
+    }
+  }
 
   if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
     return;

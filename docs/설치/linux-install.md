@@ -373,11 +373,13 @@ chmod 600 /opt/lemail/certs/privkey.pem
 2. **Haraka SMTP 아웃바운드 릴레이 (`services/haraka`)**:
    * 발신 메일의 TLS 암호화를 위해 Haraka 설정 디렉터리에 인증서를 복사합니다:
      ```bash
-     mkdir -p /opt/lemail/services/haraka/config
-     cp /opt/lemail/certs/fullchain.pem /opt/lemail/services/haraka/config/tls_cert.pem
-     cp /opt/lemail/certs/privkey.pem /opt/lemail/services/haraka/config/tls_key.pem
+     # 배포 패키지 디렉터리(/opt/lemail/lemail_v*)에서 실행:
+     mkdir -p services/haraka/config
+     cp /opt/lemail/certs/fullchain.pem services/haraka/config/tls_cert.pem
+     cp /opt/lemail/certs/privkey.pem services/haraka/config/tls_key.pem
      ```
-   * *(참고)* 인증서 파일이 없으면 Haraka 실행 시 자체 서명(Self-signed) 인증서가 자동 생성되지만, 외부 수신처(Gmail, Naver 등)의 신뢰를 위해 공인 인증서 연결을 권장합니다.
+   * > [!TIP]
+     > Haraka는 기동 시 `/opt/lemail/certs/` 및 `.env`의 인증서 설정을 자동으로 감지하여 `services/haraka/config/`로 자동 동기화하므로, `/opt/lemail/certs`에 인증서가 있다면 별도 수동 복사 없이도 자동으로 공인 인증서가 적용됩니다.
 
 ### 6.4 Certbot 자동 갱신 및 LEMail 인증서 동기화 훅(Deploy Hook) 등록
 Let's Encrypt 인증서는 90일마다 갱신됩니다. 갱신될 때마다 자동으로 LEMail 전용 디렉터리로 복사되고 서비스가 리로드되도록 갱신 후크 스크립트를 등록합니다:
@@ -397,9 +399,9 @@ if [ -d "$LEMAIL_CERTS" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" 
     chmod 644 "$LEMAIL_CERTS/fullchain.pem"
     chmod 600 "$LEMAIL_CERTS/privkey.pem"
     
-    # Haraka 인증서 동기화
-    cp "$LEMAIL_CERTS/fullchain.pem" /opt/lemail/services/haraka/config/tls_cert.pem 2>/dev/null || true
-    cp "$LEMAIL_CERTS/privkey.pem" /opt/lemail/services/haraka/config/tls_key.pem 2>/dev/null || true
+    # Haraka 인증서 동기화 (배포 버전 경로)
+    cp "$LEMAIL_CERTS/fullchain.pem" /opt/lemail/lemail_v*/services/haraka/config/tls_cert.pem 2>/dev/null || true
+    cp "$LEMAIL_CERTS/privkey.pem" /opt/lemail/lemail_v*/services/haraka/config/tls_key.pem 2>/dev/null || true
     
     # 웹 서버 및 메일 서비스 리로드
     systemctl reload nginx 2>/dev/null || true
