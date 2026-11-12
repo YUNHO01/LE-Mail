@@ -29,7 +29,7 @@ sudo apt-get install -y curl wget git unzip certbot python3-certbot-nginx nginx
 # 2. Node.js 20.x LTS 설치 (NodeSource)
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
-sudo npm install -g yarn
+sudo npm install -g yarn pm2
 
 # 3. MySQL 8.0 & Redis 7.x 설치
 sudo apt-get install -y mysql-server redis-server
@@ -48,7 +48,7 @@ sudo dnf install -y curl wget unzip git nginx certbot python3-certbot-nginx
 # 2. Node.js 20 설치
 sudo dnf module enable -y nodejs:20
 sudo dnf install -y nodejs
-sudo npm install -g yarn
+sudo npm install -g yarn pm2
 
 # 3. MySQL 8.0 & Redis 7 설치
 sudo dnf install -y mysql-server redis
@@ -370,11 +370,182 @@ sudo netfilter-persistent save 2>/dev/null || sudo iptables-save | sudo tee /etc
 
 ---
 
-## 8. `systemd` 서비스 등록 및 데몬 상시화
+## 8. 서비스 데몬화 및 프로세스 상시화 (PM2 / systemd)
 
-LEMail의 4대 핵심 서비스를 각각 독립적인 systemd 서비스로 등록합니다.
+LEMail의 4대 핵심 서비스(Core API, Webmail UI, IMAP Microservice, Haraka MTA)를 24x365 무중단 운영하기 위한 프로세스 관리 방법입니다.  
+**Node.js 표준 프로세스 매니저인 [방법 1] PM2 사용을 적극 권장**하며, OS 표준 서비스 규격을 준수해야 하는 환경에서는 **[방법 2] `systemd` 등록 방식**을 사용할 수 있습니다.
 
-### 8.1 Core API & Inbound ESMTP (`/etc/systemd/system/lemail-api.service`)
+---
+
+### 8.1 [방법 1] PM2 프로세스 매니저를 통한 등록 및 실행 (권장)
+
+PM2는 Node.js 애플리케이션의 프로세스 상시화, 비정상 종료 시 자동 재기동, 메모리 초과 감지 및 자동 재시작, 무중단 리로드(Reload), 통합 로그 스트리밍 및 모니터링을 지원하는 엔터프라이즈급 프로세스 매니저입니다.
+
+#### (1) PM2 글로벌 설치 확인
+```bash
+sudo npm install -g pm2
+pm2 -v
+```
+
+#### (2) `ecosystem.config.js` 설정 확인
+LEMail 배포 패키지 루트 디렉터리에 `ecosystem.config.js` 파일이 기본 포함되어 있습니다:
+
+```javascript
+module.exports = {
+  apps: [
+    {
+      name: 'lemail-api',
+      cwd: './apps/api',
+      script: 'dist/index.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=4096',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '4G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+      },
+    },
+    {
+      name: 'lemail-web',
+      cwd: './apps/web',
+      script: 'scripts/start.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+        PORT: 9000,
+      },
+    },
+    {
+      name: 'lemail-imap',
+      cwd: './services/imap',
+      script: 'dist/index.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+      },
+    },
+    {
+      name: 'lemail-haraka',
+      cwd: './services/haraka',
+      script: 'index.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+      },
+    },
+  ],
+};
+```
+
+#### (3) 서비스 일괄 시작 및 등록
+루트 디렉터리(`/opt/lemail`)에서 실행합니다:
+
+```bash
+cd /opt/lemail
+
+# 1. PM2 설정 파일로 전체 서비스 시작
+pm2 start ecosystem.config.js
+# 또는 yarn 스크립트로 시작
+yarn pm2:start
+
+# 2. 실행 상태 확인
+pm2 status
+```
+
+출력 예시:
+```text
+┌────┬────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name           │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │
+├────┼────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ lemail-api     │ default     │ 1.1.0   │ fork    │ 12345    │ 10s    │ 0    │ online    │ 0.5%     │ 120.4 MB │
+│ 1  │ lemail-web     │ default     │ 1.1.0   │ fork    │ 12346    │ 10s    │ 0    │ online    │ 0.2%     │ 85.1 MB  │
+│ 2  │ lemail-imap    │ default     │ 1.1.0   │ fork    │ 12347    │ 10s    │ 0    │ online    │ 0.1%     │ 65.8 MB  │
+│ 3  │ lemail-haraka  │ default     │ 1.1.0   │ fork    │ 12348    │ 10s    │ 0    │ online    │ 0.1%     │ 72.3 MB  │
+└────┴────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┘
+```
+
+#### (4) OS 부팅 시 자동 시작 등록 (Startup Service)
+서버가 재부팅되어도 LEMail 서비스가 자동으로 복구되도록 등록합니다:
+
+```bash
+# 1. 부팅 시작 스크립트 생성 명령 생성
+pm2 startup
+
+# 안내되는 sudo 명령어를 복사하여 실행 (예: sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u lemail --hp /opt/lemail)
+
+# 2. 현재 실행 중인 프로세스 목록을 시작 리스트에 저장
+pm2 save
+```
+
+#### (5) PM2 운영 관리 명령어 가이드
+
+| 작업 구분 | CLI 명령어 | 설명 |
+| :--- | :--- | :--- |
+| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 4대 서비스 일괄 등록 및 기동 |
+| **실행 상태 확인** | `pm2 status` 또는 `pm2 list` | CPU, 메모리, 업타임, 재시작 횟수 확인 |
+| **실시간 로그 모니터링** | `pm2 logs` | 전체 서비스의 통합 실시간 로그 스트리밍 |
+| **특정 서비스 로그** | `pm2 logs lemail-api` | 지정 서비스(`lemail-api`, `lemail-web`, `lemail-imap`, `lemail-haraka`) 전용 로그 |
+| **CPU/메모리 실시간 대시보드** | `pm2 monit` | 터미널 기반 실시간 자원 모니터링 대시보드 |
+| **무중단 리로드** | `pm2 reload ecosystem.config.js` | 신규 배포 시 세션 끊김 없는 순차적 재기동 |
+| **서비스 재시작** | `pm2 restart ecosystem.config.js` | 전체 프로세스 재시작 |
+| **특정 서비스만 재시작** | `pm2 restart lemail-api` | 특정 서비스만 단독 재시작 |
+| **서비스 일시 중지** | `pm2 stop ecosystem.config.js` | 전체 서비스 정지 (설정 유지) |
+| **프로세스 등록 해제** | `pm2 delete ecosystem.config.js` | PM2 프로세스 목록에서 제거 |
+| **현재 상태 동기화 저장** | `pm2 save` | 부팅 시 복원될 프로세스 목록 갱신 |
+
+#### (6) PM2 로그 로테이션(Logrotate) 설정 (권장)
+로그 파일이 디스크 용량을 지속해서 잠식하지 않도록 `pm2-logrotate` 모듈을 설치합니다:
+
+```bash
+# 1. pm2-logrotate 모듈 설치
+pm2 install pm2-logrotate
+
+# 2. 최대 파일 크기 50MB 설정
+pm2 set pm2-logrotate:max_size 50M
+
+# 3. 보관 파일 개수 10개 유지
+pm2 set pm2-logrotate:retain 10
+
+# 4. 압축 보관 활성화 (.gz)
+pm2 set pm2-logrotate:compress true
+```
+
+---
+
+### 8.2 [방법 2] `systemd` 서비스 등록 및 데몬 상시화 (대안)
+
+OS 레벨의 표준 서비스 데몬으로 직접 등록하여 `systemctl`로 제어하고자 하는 경우 아래 절차를 진행합니다.
+
+#### (1) Core API & Inbound ESMTP (`/etc/systemd/system/lemail-api.service`)
 ```ini
 [Unit]
 Description=LEMail Core API and ESMTP Ingestion Service
@@ -395,7 +566,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-### 8.2 Webmail UI (`/etc/systemd/system/lemail-web.service`)
+#### (2) Webmail UI (`/etc/systemd/system/lemail-web.service`)
 ```ini
 [Unit]
 Description=LEMail Webmail Next.js Client
@@ -414,7 +585,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-### 8.3 IMAP Microservice (`/etc/systemd/system/lemail-imap.service`)
+#### (3) IMAP Microservice (`/etc/systemd/system/lemail-imap.service`)
 ```ini
 [Unit]
 Description=LEMail IMAP4rev1 Microservice
@@ -434,7 +605,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-### 8.4 Haraka Outbound MTA (`/etc/systemd/system/lemail-haraka.service`)
+#### (4) Haraka Outbound MTA (`/etc/systemd/system/lemail-haraka.service`)
 ```ini
 [Unit]
 Description=LEMail Haraka Outbound Relay MTA
@@ -453,7 +624,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-### 8.5 서비스 일괄 등록 및 시작
+#### (5) 서비스 일괄 등록 및 시작
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now lemail-api lemail-web lemail-imap lemail-haraka

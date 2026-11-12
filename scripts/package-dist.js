@@ -146,7 +146,14 @@ async function runPackaging() {
       "start:api": "yarn --cwd apps/api start:prod",
       "start:web": "yarn --cwd apps/web start",
       "start:imap": "yarn --cwd services/imap start",
-      "start:haraka": "yarn --cwd services/haraka start"
+      "start:haraka": "yarn --cwd services/haraka start",
+      "pm2:start": "pm2 start ecosystem.config.js",
+      "pm2:stop": "pm2 stop ecosystem.config.js",
+      "pm2:restart": "pm2 restart ecosystem.config.js",
+      "pm2:reload": "pm2 reload ecosystem.config.js",
+      "pm2:delete": "pm2 delete ecosystem.config.js",
+      "pm2:status": "pm2 status",
+      "pm2:logs": "pm2 logs"
     },
     devDependencies: {
       "concurrently": "^10.0.5"
@@ -282,6 +289,9 @@ async function runPackaging() {
   }
   if (fs.existsSync(path.join(rootDir, 'swagger.json'))) {
     fs.copyFileSync(path.join(rootDir, 'swagger.json'), path.join(stagingDir, 'swagger.json'));
+  }
+  if (fs.existsSync(path.join(rootDir, 'ecosystem.config.js'))) {
+    fs.copyFileSync(path.join(rootDir, 'ecosystem.config.js'), path.join(stagingDir, 'ecosystem.config.js'));
   }
 
   // (8) docs 가이드 복사 (존재하는 경우)

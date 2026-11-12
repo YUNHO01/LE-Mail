@@ -9,8 +9,8 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 
 | 설치 방식 | 대상 환경 | 가이드 문서 바로가기 | 주요 특징 |
 | :--- | :--- | :--- | :--- |
-| 🐧 **Linux (Baremetal / VM)** | Ubuntu 22.04+, RHEL/Rocky Linux 8/9 | [Linux 설치 가이드](linux-install.md) | `systemd` 데몬 서비스 등록, ClamAV 데몬 연동, Nginx 리버스 프록시 및 SSL/TLS 적용 |
-| 🪟 **Windows Server** | Windows Server 2019/2022, Windows 10/11 | [Windows 설치 가이드](windows-install.md) | Windows 백그라운드 서비스(NSSM), Memurai(Redis 호환), ClamAV for Windows, Nginx for Windows |
+| 🐧 **Linux (Baremetal / VM)** | Ubuntu 22.04+, RHEL/Rocky Linux 8/9 | [Linux 설치 가이드](linux-install.md) | **PM2 프로세스 매니저(권장)** 및 `systemd` 데몬 서비스 등록, ClamAV 데몬 연동, Nginx 리버스 프록시 및 SSL/TLS 적용 |
+| 🪟 **Windows Server** | Windows Server 2019/2022, Windows 10/11 | [Windows 설치 가이드](windows-install.md) | **PM2(권장)** 및 Windows 백그라운드 서비스(NSSM), Memurai(Redis 호환), ClamAV for Windows, Nginx for Windows |
 | 🐳 **Docker (Containerized)** | Docker Engine 24+, Docker Compose v2 | [Docker 설치 가이드](docker-install.md) | `docker-compose.yml` 원클릭 배포, ClamAV 및 Redis(`requirepass`) 일체형 컨테이너 격리 배포 |
 
 ---
@@ -63,7 +63,13 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
    ```bash
    node apps/api/dist/modules/database/scripts/init-schema.js
    ```
-5. **Core Services 기동**: API, Webmail, IMAP, Haraka 프로세스/컨테이너 기동.
+5. **Core Services 기동**:
+   * **PM2 프로세스 매니저 사용 시 (권장)**:
+     ```bash
+     pm2 start ecosystem.config.js
+     pm2 save
+     ```
+   * **systemd / NSSM 사용 시**: 가이드에 따라 개별 서비스 등록 및 활성화 (`systemctl` / `nssm`).
 6. **관리자 웹 콘솔 접속 & 검증**:
    * `https://mail.yourdomain.com` 접속 후 관리자 계정 로그인.
    * **스팸 & 보안 관리 (`/admin/spam-rules`)**에서 ClamAV 연결 테스트 실행 (정상 확인).
