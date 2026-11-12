@@ -1,6 +1,6 @@
 {
   "name": "@lemail/web",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "scripts": {
     "predev": "node -e \"try { require('fs').rmSync('.next-dev', { recursive: true, force: true }); } catch (e) {}\"",
@@ -10,7 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@lemail/shared-types": "1.2.1",
+    "@lemail/shared-types": "1.2.2",
     "clsx": "^2.1.1",
     "dompurify": "^3.4.17",
     "exceljs": "^4.4.0",

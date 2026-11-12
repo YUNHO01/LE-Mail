@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.2.2](https://github.com/YUNHO01/LE-Mail/compare/v1.2.1...v1.2.2) (2026-11-12)
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 환경설정 관련 가이드 및 관련 수정 ([7c4d70f](https://github.com/YUNHO01/LE-Mail/commit/7c4d70f5f39cb4994d45e3e09ee3c60dd171bf8d))
+
 ### [1.2.1](https://github.com/YUNHO01/LE-Mail/compare/v1.2.0...v1.2.1) (2026-11-12)
 
 

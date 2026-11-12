@@ -1,6 +1,6 @@
 {
   "name": "@lemail/imap",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "description": "LEMail IMAP4rev1 Microservice",
   "main": "dist/index.js",
@@ -11,7 +11,7 @@
     "dev": "ts-node src/index.ts"
   },
   "dependencies": {
-    "@lemail/shared-types": "1.2.1",
+    "@lemail/shared-types": "1.2.2",
     "bcrypt": "^6.0.0",
     "dotenv": "^16.4.7",
     "emailjs-imap-handler": "^3.0.6",
