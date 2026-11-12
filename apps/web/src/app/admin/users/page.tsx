@@ -33,7 +33,7 @@ import { UserDto, UserRole, DomainDto } from '@lemail/shared-types';
 import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9200';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 const LANGUAGE_OPTIONS = [
   { value: 'ko', label: 'Korean (한국어)' },
