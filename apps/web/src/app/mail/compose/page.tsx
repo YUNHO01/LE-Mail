@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigation } from '@/contexts/NavigationContext';
 import { fetchApi } from '@/lib/api';
 import { RecipientInput, extractPureEmail } from '@/components/mail/RecipientInput';
 import { AttachmentUploader, LocalAttachment } from '@/components/mail/AttachmentUploader';
@@ -34,6 +35,7 @@ function ComposeMailContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, isAuthenticated, isLoading: authLoading, refreshStorageUsage } = useAuth();
+    const { startNavigation } = useNavigation();
 
     const [to, setTo] = useState<string[]>([]);
     const [cc, setCc] = useState<string[]>([]);
@@ -64,6 +66,9 @@ function ComposeMailContent() {
     const [showPassword, setShowPassword] = useState(false);
 
     const [sending, setSending] = useState(false);
+    const [sendingStep, setSendingStep] = useState<'sending' | 'success'>('sending');
+    const [sendingStatusMessage, setSendingStatusMessage] = useState('메일을 발송하고 있습니다');
+    const [sendingDetailMessage, setSendingDetailMessage] = useState('수신 서버로 메일을 안전하게 전송하고 있습니다. 잠시만 기다려 주세요.');
     const [savingDraft, setSavingDraft] = useState(false);
     const [loadingInitial, setLoadingInitial] = useState(false);
     const [statusMessage, setStatusMessage] = useState<{
@@ -226,6 +231,17 @@ function ComposeMailContent() {
 
         try {
             setSending(true);
+            setSendingStep('sending');
+            setSendingStatusMessage(
+                attachments.length > 0
+                    ? '첨부파일 업로드 및 메일 발송 중'
+                    : '메일을 발송하고 있습니다'
+            );
+            setSendingDetailMessage(
+                attachments.length > 0
+                    ? `첨부파일 ${attachments.length}개(${formatFileSize(totalAttachmentBytes)}) 및 메일 본문을 서버로 전송하고 있습니다.`
+                    : '수신 서버로 메일을 안전하게 전송하고 있습니다. 잠시만 기다려 주세요.'
+            );
             setStatusMessage(null);
 
             const mode = searchParams.get('mode');
@@ -259,22 +275,30 @@ function ComposeMailContent() {
 
             refreshStorageUsage?.();
 
+            // 근태관리(ams) 결재 신청 로직과 동일하게 성공 시에는 setSending(false)를 호출하지 않고
+            // 화면 전환이 완료되어 컴포넌트가 unmount될 때까지 로딩 상태를 유지합니다.
+            setSendingStep('success');
+            setSendingStatusMessage('메일 발송이 완료되었습니다!');
+            setSendingDetailMessage('보낸편지함으로 이동하고 있습니다. 잠시만 기다려 주세요...');
+
             setStatusMessage({
                 type: 'success',
                 text: '메일이 성공적으로 발송되었습니다. 보낸편지함으로 이동합니다...',
             });
 
             setTimeout(() => {
+                startNavigation('/mail/sent');
                 router.push('/mail/sent');
-            }, 1000);
+            }, 800);
         } catch (err: any) {
             console.error('메일 발송 오류:', err);
+            // 실패했을 때만 로딩 상태를 해제하여 사용자가 내용 수정 및 재시도할 수 있도록 합니다.
+            setSending(false);
+            setSendingStep('sending');
             setStatusMessage({
                 type: 'error',
                 text: err.message || '메일 발송 중 오류가 발생했습니다.',
             });
-        } finally {
-            setSending(false);
         }
     };
 
@@ -355,26 +379,32 @@ function ComposeMailContent() {
                     <div className="relative w-full max-w-md rounded-2xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-5">
                         {/* 상단 애니메이션 아이콘 */}
                         <div className="relative flex items-center justify-center">
-                            <div className="h-20 w-20 rounded-full bg-sky-50 flex items-center justify-center">
-                                {attachments.length > 0 ? (
-                                    <Upload className="h-9 w-9 text-sky-600 animate-bounce" />
-                                ) : (
-                                    <Send className="h-9 w-9 text-sky-600 animate-pulse" />
-                                )}
-                            </div>
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <Loader2 className="h-24 w-24 text-sky-500 animate-spin opacity-30" />
-                            </div>
+                            {sendingStep === 'success' ? (
+                                <div className="h-20 w-20 rounded-full bg-emerald-50 flex items-center justify-center animate-in zoom-in-75 duration-300">
+                                    <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="h-20 w-20 rounded-full bg-sky-50 flex items-center justify-center">
+                                        {attachments.length > 0 ? (
+                                            <Upload className="h-9 w-9 text-sky-600 animate-bounce" />
+                                        ) : (
+                                            <Send className="h-9 w-9 text-sky-600 animate-pulse" />
+                                        )}
+                                    </div>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <Loader2 className="h-24 w-24 text-sky-500 animate-spin opacity-30" />
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         {/* 메시지 영역 */}
                         <div className="space-y-2">
                             <h3 className="text-lg font-bold text-slate-900">
-                                {attachments.length > 0
-                                    ? '첨부파일 업로드 및 메일 발송 중'
-                                    : '메일을 발송하고 있습니다'}
+                                {sendingStatusMessage}
                             </h3>
-                            {attachments.length > 0 ? (
+                            {sendingStep === 'sending' && attachments.length > 0 ? (
                                 <div className="space-y-1.5">
                                     <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 border border-sky-100">
                                         <span>첨부파일 {attachments.length}개</span>
@@ -382,7 +412,7 @@ function ComposeMailContent() {
                                         <span>{formatFileSize(totalAttachmentBytes)}</span>
                                     </div>
                                     <p className="text-xs text-slate-500">
-                                        대용량 파일 인코딩 및 서버 전송이 진행 중입니다.
+                                        {sendingDetailMessage}
                                     </p>
                                     <p className="text-[11px] text-slate-400">
                                         네트워크 및 파일 용량에 따라 시간이 걸릴 수 있습니다.
@@ -390,7 +420,7 @@ function ComposeMailContent() {
                                 </div>
                             ) : (
                                 <p className="text-xs text-slate-500">
-                                    수신 서버로 메일을 안전하게 전송하고 있습니다. 잠시만 기다려 주세요.
+                                    {sendingDetailMessage}
                                 </p>
                             )}
                         </div>
@@ -398,10 +428,24 @@ function ComposeMailContent() {
                         {/* 진행 프로그레스 바 */}
                         <div className="w-full space-y-2.5 pt-1">
                             <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 rounded-full w-full animate-pulse" />
+                                <div
+                                    className={`h-full rounded-full w-full transition-all duration-500 ${
+                                        sendingStep === 'success'
+                                            ? 'bg-emerald-500'
+                                            : 'bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 animate-pulse'
+                                    }`}
+                                />
                             </div>
-                            <p className="text-[11px] font-medium text-amber-600 bg-amber-50 rounded-lg py-1.5 px-3 border border-amber-200/60">
-                                메일 전송이 완료될 때까지 브라우저 창을 닫거나 새로고침하지 마세요.
+                            <p
+                                className={`text-[11px] font-medium rounded-lg py-1.5 px-3 border transition-colors ${
+                                    sendingStep === 'success'
+                                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                        : 'text-amber-600 bg-amber-50 border-amber-200/60'
+                                }`}
+                            >
+                                {sendingStep === 'success'
+                                    ? '화면을 안전하게 이동하고 있습니다. 잠시만 기다려 주세요.'
+                                    : '메일 전송이 완료될 때까지 브라우저 창을 닫거나 새로고침하지 마세요.'}
                             </p>
                         </div>
                     </div>
