@@ -157,7 +157,20 @@ function CalendarPageContent() {
     }
   };
 
+  const selectedCalendar = filterCalendarId
+    ? calendars.find((c) => c.id === filterCalendarId)
+    : undefined;
+  const isSharedByOther = Boolean(
+    selectedCalendar &&
+      selectedCalendar.type === 'SHARED' &&
+      user?.id &&
+      selectedCalendar.userId !== user.id,
+  );
+  const isReadOnlyCalendar =
+    isSharedByOther || selectedCalendar?.type === 'HOLIDAY';
+
   const handleOpenCreateEvent = (date?: Date, isAllDay = false) => {
+    if (isReadOnlyCalendar) return;
     setEditingEvent(null);
     setDefaultModalDate(date || new Date());
     setDefaultModalAllDay(isAllDay);
@@ -241,7 +254,14 @@ function CalendarPageContent() {
     if (!file) return;
     try {
       const text = await file.text();
-      const res = await calendarApi.importIcs(text, filterCalendarId || undefined);
+      const filteredCal = calendars.find((c) => c.id === filterCalendarId);
+      const targetCalId =
+        filteredCal &&
+        filteredCal.type !== 'HOLIDAY' &&
+        (!user?.id || filteredCal.userId === user.id)
+          ? filteredCal.id
+          : undefined;
+      const res = await calendarApi.importIcs(text, targetCalId);
       alert(`${res.imported}개의 일정을 가져왔습니다.`);
       await loadEvents();
     } catch (err: any) {
@@ -295,41 +315,35 @@ function CalendarPageContent() {
               <Plus className="h-3.5 w-3.5 text-slate-500" />
               <span>캘린더 추가</span>
             </button>
-            <button
-              type="button"
-              onClick={() => handleOpenCreateEvent()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 shadow-sm transition"
-            >
-              <Plus className="h-4 w-4" />
-              <span>새 일정</span>
-            </button>
+            {!isReadOnlyCalendar && (
+              <button
+                type="button"
+                onClick={() => handleOpenCreateEvent()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 shadow-sm transition"
+              >
+                <Plus className="h-4 w-4" />
+                <span>새 일정</span>
+              </button>
+            )}
           </div>
         }
       />
 
       {/* 내 캘린더 필터 바 */}
-      {calendars.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 mr-1">내 캘린더:</span>
-          {calendars.map((cal) => {
-            const isFiltered = filterCalendarId
-              ? filterCalendarId === cal.id
-              : cal.isVisible;
-            return (
-              <div
-                key={cal.id}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
-                  isFiltered
-                    ? 'border-slate-200 bg-slate-50 text-slate-800'
-                    : 'border-slate-100 bg-white text-slate-400 opacity-60'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => handleToggleCalendarVisibility(cal)}
-                  className="inline-flex items-center gap-1.5"
-                  title={cal.isVisible ? '캘린더 숨기기' : '캘린더 표시하기'}
-                >
+      {(() => {
+        const displayedCalendars = filterCalendarId
+          ? calendars.filter((cal) => cal.id === filterCalendarId)
+          : calendars;
+
+        if (displayedCalendars.length === 0) return null;
+
+        return (
+          <div className="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500 mr-1">내 캘린더:</span>
+            {displayedCalendars.map((cal) => {
+              const isActive = filterCalendarId ? true : cal.isVisible;
+              const labelContent = (
+                <>
                   <span
                     className="h-2.5 w-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: cal.color }}
@@ -345,30 +359,57 @@ function CalendarPageContent() {
                       공휴일
                     </span>
                   )}
-                  {cal.isVisible ? (
-                    <Eye className="h-3 w-3 text-slate-400" />
+                </>
+              );
+
+              return (
+                <div
+                  key={cal.id}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+                    isActive
+                      ? 'border-slate-200 bg-slate-50 text-slate-800'
+                      : 'border-slate-100 bg-white text-slate-400 opacity-60'
+                  }`}
+                >
+                  {filterCalendarId ? (
+                    <div className="inline-flex items-center gap-1.5">{labelContent}</div>
                   ) : (
-                    <EyeOff className="h-3 w-3 text-slate-300" />
+                    <button
+                      type="button"
+                      onClick={() => handleToggleCalendarVisibility(cal)}
+                      className="inline-flex items-center gap-1.5"
+                      title={cal.isVisible ? '캘린더 숨기기' : '캘린더 표시하기'}
+                    >
+                      {labelContent}
+                      {cal.isVisible ? (
+                        <Eye className="h-3 w-3 text-slate-400" />
+                      ) : (
+                        <>
+                          <EyeOff className="h-3 w-3 text-slate-300" />
+                          <span className="text-[10px] text-slate-400">숨김</span>
+                        </>
+                      )}
+                    </button>
                   )}
-                </button>
-                {(!user || cal.userId === user.id) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingCalendar(cal);
-                      setCalModalOpen(true);
-                    }}
-                    className="ml-0.5 text-slate-400 hover:text-slate-700"
-                    title="캘린더 설정"
-                  >
-                    <Settings2 className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  {(!user || cal.userId === user.id) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingCalendar(cal);
+                        setCalModalOpen(true);
+                      }}
+                      className="ml-0.5 text-slate-400 hover:text-slate-700"
+                      title="캘린더 설정"
+                    >
+                      <Settings2 className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* 툴바: 날짜 이동, 검색, 뷰 전환 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-xs">

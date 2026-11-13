@@ -18,10 +18,11 @@ import {
   Calendar,
   Printer,
   Plus,
+  Search,
 } from 'lucide-react';
 import { contactsApi } from '@/lib/api';
 import { ContactDto, ContactGroupDto, CreateContactDto } from '@lemail/shared-types';
-import { SelectDropdown } from '@/components/common';
+import { SelectDropdown, DaumPostcodeModal, DaumPostcodeResult } from '@/components/common';
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -58,10 +59,14 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   const [birthday, setBirthday] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [address, setAddress] = useState('');
+  const [addressDetail, setAddressDetail] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
 
   // 추가 항목 아코디언 펼침 여부
   const [showAdditionalFields, setShowAdditionalFields] = useState(false);
+
+  // Daum 우편번호 검색 모달
+  const [isPostcodeModalOpen, setIsPostcodeModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +89,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       setBirthday(contact.birthday || '');
       setPostalCode(contact.postalCode || '');
       setAddress(contact.address || '');
+      setAddressDetail(contact.addressDetail || '');
       setWebsiteUrl(contact.websiteUrl || '');
 
       // 추가 항목 데이터가 있으면 자동으로 펼침
@@ -93,6 +99,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
         contact.birthday ||
         contact.postalCode ||
         contact.address ||
+        contact.addressDetail ||
         contact.websiteUrl ||
         (contact.mobileCountryCode && contact.mobileCountryCode !== '+82')
       ) {
@@ -117,13 +124,20 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       setBirthday('');
       setPostalCode('');
       setAddress('');
+      setAddressDetail('');
       setWebsiteUrl('');
       setShowAdditionalFields(false);
     }
+    setIsPostcodeModalOpen(false);
     setError(null);
   }, [contact, isOpen]);
 
   if (!isOpen) return null;
+
+  const handleAddressSelect = (result: DaumPostcodeResult) => {
+    setPostalCode(result.zonecode);
+    setAddress(result.address);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,6 +170,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
         birthday: birthday.trim() || null,
         postalCode: postalCode.trim() || null,
         address: address.trim() || null,
+        addressDetail: addressDetail.trim() || null,
         websiteUrl: websiteUrl.trim() || null,
       };
 
@@ -175,8 +190,9 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div className="relative w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
           <div className="flex items-center gap-2.5">
@@ -403,31 +419,54 @@ export const ContactModal: React.FC<ContactModalProps> = ({
                   </div>
                 </div>
 
-                {/* 우편번호 & 주소 */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
-                  <div className="sm:col-span-1">
+                {/* 우편번호 & 기본 주소 & 상세 주소 */}
+                <div className="space-y-3">
+                  <div>
                     <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1">
                       <span>우편번호</span>
                     </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="12345"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        className="w-36 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsPostcodeModalOpen(true)}
+                        className="shrink-0 flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-100 transition-colors"
+                      >
+                        <Search className="h-3.5 w-3.5" />
+                        <span>주소 검색</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1">
+                      <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                      <span>기본 주소</span>
+                    </label>
                     <input
                       type="text"
-                      placeholder="12345"
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
+                      placeholder="주소 검색으로 입력하거나 도로명 주소를 직접 입력하세요"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none"
                     />
                   </div>
 
-                  <div className="sm:col-span-3">
+                  <div>
                     <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1">
-                      <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                      <span>주소</span>
+                      <span>상세 주소</span>
                     </label>
                     <input
                       type="text"
-                      placeholder="도로명 주소 또는 상세 주소"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="상세 주소 입력 (동, 호수, 층수 등)"
+                      value={addressDetail}
+                      onChange={(e) => setAddressDetail(e.target.value)}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none"
                     />
                   </div>
@@ -489,5 +528,13 @@ export const ContactModal: React.FC<ContactModalProps> = ({
         </form>
       </div>
     </div>
+
+      {/* Daum 우편번호 서비스 팝업 모달 */}
+      <DaumPostcodeModal
+        isOpen={isPostcodeModalOpen}
+        onClose={() => setIsPostcodeModalOpen(false)}
+        onComplete={handleAddressSelect}
+      />
+    </>
   );
 };

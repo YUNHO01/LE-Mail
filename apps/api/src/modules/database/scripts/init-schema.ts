@@ -216,6 +216,7 @@ const schemaStatements = [
     \`birthday\` VARCHAR(20) NULL,
     \`postal_code\` VARCHAR(20) NULL,
     \`address\` VARCHAR(255) NULL,
+    \`address_detail\` VARCHAR(255) NULL,
     \`website_url\` VARCHAR(255) NULL,
     \`memo\` TEXT NULL,
     \`is_starred\` BOOLEAN DEFAULT FALSE,
@@ -456,7 +457,8 @@ async function run() {
     { name: 'birthday', ddl: 'ALTER TABLE `contact` ADD COLUMN `birthday` VARCHAR(20) NULL AFTER `phone`;' },
     { name: 'postal_code', ddl: 'ALTER TABLE `contact` ADD COLUMN `postal_code` VARCHAR(20) NULL AFTER `birthday`;' },
     { name: 'address', ddl: 'ALTER TABLE `contact` ADD COLUMN `address` VARCHAR(255) NULL AFTER `postal_code`;' },
-    { name: 'website_url', ddl: 'ALTER TABLE `contact` ADD COLUMN `website_url` VARCHAR(255) NULL AFTER `address`;' },
+    { name: 'address_detail', ddl: 'ALTER TABLE `contact` ADD COLUMN `address_detail` VARCHAR(255) NULL AFTER `address`;' },
+    { name: 'website_url', ddl: 'ALTER TABLE `contact` ADD COLUMN `website_url` VARCHAR(255) NULL AFTER `address_detail`;' },
   ];
 
   for (const col of contactNewColumns) {

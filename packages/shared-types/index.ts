@@ -637,6 +637,7 @@ export interface ContactDto {
   birthday?: string | null;
   postalCode?: string | null;
   address?: string | null;
+  addressDetail?: string | null;
   websiteUrl?: string | null;
   memo?: string | null;
   isStarred: boolean;
@@ -658,6 +659,7 @@ export interface CreateContactDto {
   birthday?: string | null;
   postalCode?: string | null;
   address?: string | null;
+  addressDetail?: string | null;
   websiteUrl?: string | null;
   memo?: string | null;
   isStarred?: boolean;
@@ -677,6 +679,7 @@ export interface UpdateContactDto {
   birthday?: string | null;
   postalCode?: string | null;
   address?: string | null;
+  addressDetail?: string | null;
   websiteUrl?: string | null;
   memo?: string | null;
   isStarred?: boolean;
@@ -710,6 +713,7 @@ export type CalendarType = 'PERSONAL' | 'SHARED' | 'HOLIDAY';
 export interface CalendarDto {
   id: string;
   userId: string;
+  ownerName?: string | null;
   name: string;
   color: string;
   type: CalendarType;

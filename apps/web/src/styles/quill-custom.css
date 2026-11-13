@@ -80,7 +80,7 @@
 }
 
 .lemail-quill-wrapper .ql-editor {
-  min-height: 350px;
+  min-height: var(--editor-min-height, 350px);
   padding: 16px 20px !important;
   line-height: 1.7 !important;
   color: #0f172a !important;

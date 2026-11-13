@@ -67,6 +67,11 @@ export class CreateContactDto {
   @IsString()
   address?: string | null;
 
+  @ApiPropertyOptional({ description: '상세 주소', example: '101동 202호' })
+  @IsOptional()
+  @IsString()
+  addressDetail?: string | null;
+
   @ApiPropertyOptional({ description: '웹사이트 URL', example: 'https://example.com' })
   @IsOptional()
   @IsString()

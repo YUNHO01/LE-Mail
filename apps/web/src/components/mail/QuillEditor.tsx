@@ -89,7 +89,10 @@ export const QuillEditor: React.FC<QuillEditorProps> = ({
   }, [value]);
 
   return (
-    <div className="lemail-quill-wrapper" style={{ minHeight }}>
+    <div
+      className="lemail-quill-wrapper"
+      style={{ '--editor-min-height': minHeight } as React.CSSProperties}
+    >
       <div ref={containerRef} className="w-full" />
     </div>
   );

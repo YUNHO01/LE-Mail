@@ -132,3 +132,94 @@ export function doesEventOverlapDay(
   const dEnd = endOfDay(day);
   return evStart <= dEnd && evEnd >= dStart;
 }
+
+export interface WeekSpanEventItem {
+  event: import('@lemail/shared-types').CalendarEventDto;
+  startCol: number; // 0-based
+  endCol: number; // 0-based
+  span: number;
+  continuesFromPrev: boolean;
+  continuesToNext: boolean;
+  isMultiDay: boolean;
+}
+
+/**
+ * 1주(또는 1일) 범위 내 일정을 겹치지 않는 수평 레인(Lane)으로 배치합니다.
+ */
+export function layoutWeekSpanEvents(
+  weekDays: Date[],
+  events: import('@lemail/shared-types').CalendarEventDto[],
+): WeekSpanEventItem[][] {
+  if (weekDays.length === 0) return [];
+
+  const weekStartDay = startOfDay(weekDays[0]);
+  const weekEndDay = startOfDay(weekDays[weekDays.length - 1]);
+  const weekEndLimit = endOfDay(weekDays[weekDays.length - 1]);
+
+  const items: WeekSpanEventItem[] = [];
+
+  for (const ev of events) {
+    const rawStart = new Date(ev.startAt);
+    const rawEnd = new Date(ev.endAt);
+    if (rawStart > weekEndLimit || rawEnd < weekStartDay) continue;
+
+    const evStartDay = startOfDay(rawStart);
+    const evEndDay = startOfDay(rawEnd);
+
+    let startCol = 0;
+    if (evStartDay > weekStartDay) {
+      const idx = weekDays.findIndex((d) => isSameDay(d, evStartDay));
+      startCol = idx >= 0 ? idx : 0;
+    }
+
+    let endCol = weekDays.length - 1;
+    if (evEndDay < weekEndDay) {
+      const idx = weekDays.findIndex((d) => isSameDay(d, evEndDay));
+      endCol = idx >= 0 ? idx : weekDays.length - 1;
+    }
+
+    if (endCol < startCol) endCol = startCol;
+
+    items.push({
+      event: ev,
+      startCol,
+      endCol,
+      span: endCol - startCol + 1,
+      continuesFromPrev: evStartDay < weekStartDay,
+      continuesToNext: evEndDay > weekEndDay,
+      isMultiDay: evEndDay.getTime() > evStartDay.getTime(),
+    });
+  }
+
+  items.sort((a, b) => {
+    if (a.startCol !== b.startCol) return a.startCol - b.startCol;
+    if (b.span !== a.span) return b.span - a.span;
+    const aAll = a.event.isAllDay || a.isMultiDay ? 1 : 0;
+    const bAll = b.event.isAllDay || b.isMultiDay ? 1 : 0;
+    if (bAll !== aAll) return bAll - aAll;
+    return (
+      new Date(a.event.startAt).getTime() - new Date(b.event.startAt).getTime()
+    );
+  });
+
+  const lanes: WeekSpanEventItem[][] = [];
+  const laneLastEnd: number[] = [];
+
+  for (const item of items) {
+    let placed = false;
+    for (let i = 0; i < lanes.length; i++) {
+      if (laneLastEnd[i] < item.startCol) {
+        lanes[i].push(item);
+        laneLastEnd[i] = item.endCol;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      lanes.push([item]);
+      laneLastEnd.push(item.endCol);
+    }
+  }
+
+  return lanes;
+}

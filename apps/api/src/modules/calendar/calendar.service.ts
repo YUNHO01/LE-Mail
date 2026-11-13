@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Not } from 'typeorm';
@@ -11,6 +12,7 @@ import {
   CalendarEvent,
   CalendarEventAttendee,
   AttendeeRsvpStatus,
+  User,
 } from '../database/entities';
 import { CreateCalendarDto } from './dto/create-calendar.dto';
 import { UpdateCalendarDto } from './dto/update-calendar.dto';
@@ -33,14 +35,17 @@ export class CalendarService {
     private readonly eventRepo: Repository<CalendarEvent>,
     @InjectRepository(CalendarEventAttendee)
     private readonly attendeeRepo: Repository<CalendarEventAttendee>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly icsService: CalendarIcsService,
     private readonly holidayService: HolidayService,
   ) {}
 
-  private toCalendarDto(cal: Calendar): CalendarDto {
+  private toCalendarDto(cal: Calendar, ownerName?: string | null): CalendarDto {
     return {
       id: cal.id,
       userId: cal.userId,
+      ownerName: ownerName ?? null,
       name: cal.name,
       color: cal.color,
       type: cal.type,
@@ -237,7 +242,20 @@ export class CalendarService {
       order: { createdAt: 'ASC' },
     });
 
-    return [...ownCalendars, ...sharedCalendars].map((c) => this.toCalendarDto(c));
+    let ownerNameMap = new Map<string, string>();
+    if (sharedCalendars.length > 0) {
+      const ownerIds = Array.from(new Set(sharedCalendars.map((c) => c.userId)));
+      const owners = await this.userRepo.find({
+        where: { id: In(ownerIds) },
+        select: { id: true, name: true },
+      });
+      ownerNameMap = new Map(owners.map((u) => [u.id, u.name]));
+    }
+
+    return [
+      ...ownCalendars.map((c) => this.toCalendarDto(c)),
+      ...sharedCalendars.map((c) => this.toCalendarDto(c, ownerNameMap.get(c.userId) ?? null)),
+    ];
   }
 
   async createCalendar(
@@ -475,11 +493,12 @@ export class CalendarService {
 
     let targetCal: Calendar | null = null;
     if (calendarId) {
-      targetCal = await this.calendarRepo.findOne({
-        where: { id: calendarId, userId },
-      });
+      targetCal = await this.calendarRepo.findOne({ where: { id: calendarId } });
       if (!targetCal) {
         throw new NotFoundException('대상 캘린더를 찾을 수 없습니다.');
+      }
+      if (targetCal.userId !== userId) {
+        throw new ForbiddenException('공유 캘린더는 생성한 사용자만 일정을 등록할 수 있습니다.');
       }
       if (targetCal.type === CalendarTypeEnum.HOLIDAY) {
         throw new BadRequestException('공휴일 캘린더에는 일정을 가져올 수 없습니다.');
@@ -555,11 +574,12 @@ export class CalendarService {
 
     let calendar: Calendar | null = null;
     if (dto.calendarId) {
-      calendar = await this.calendarRepo.findOne({
-        where: { id: dto.calendarId, userId },
-      });
+      calendar = await this.calendarRepo.findOne({ where: { id: dto.calendarId } });
       if (!calendar) {
         throw new NotFoundException('선택한 캘린더를 찾을 수 없습니다.');
+      }
+      if (calendar.userId !== userId) {
+        throw new ForbiddenException('공유 캘린더는 생성한 사용자만 일정을 등록할 수 있습니다.');
       }
       if (calendar.type === CalendarTypeEnum.HOLIDAY) {
         throw new BadRequestException('공휴일 캘린더에는 일정을 등록할 수 없습니다.');
@@ -604,10 +624,13 @@ export class CalendarService {
 
     if (dto.calendarId !== undefined && dto.calendarId !== ev.calendarId) {
       const targetCal = await this.calendarRepo.findOne({
-        where: { id: dto.calendarId, userId },
+        where: { id: dto.calendarId },
       });
       if (!targetCal) {
         throw new NotFoundException('이동할 캘린더를 찾을 수 없습니다.');
+      }
+      if (targetCal.userId !== userId) {
+        throw new ForbiddenException('공유 캘린더는 생성한 사용자만 일정을 등록할 수 있습니다.');
       }
       if (targetCal.type === CalendarTypeEnum.HOLIDAY) {
         throw new BadRequestException('공휴일 캘린더로 이동할 수 없습니다.');

@@ -2788,6 +2788,523 @@
           "Contacts & Address Book"
         ]
       }
+    },
+    "/api/calendar/calendars": {
+      "get": {
+        "operationId": "CalendarController_getCalendars",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "내 캘린더 및 사내 공유 캘린더 목록 조회",
+        "tags": [
+          "Calendar"
+        ]
+      },
+      "post": {
+        "operationId": "CalendarController_createCalendar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCalendarDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "새 캘린더 생성",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/calendar/calendars/{id}": {
+      "patch": {
+        "operationId": "CalendarController_updateCalendar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCalendarDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "캘린더 정보/표시 여부 수정",
+        "tags": [
+          "Calendar"
+        ]
+      },
+      "delete": {
+        "operationId": "CalendarController_deleteCalendar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "캘린더 삭제",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/calendar/events": {
+      "get": {
+        "operationId": "CalendarController_getEvents",
+        "parameters": [
+          {
+            "name": "start",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "calendarIds",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "기간별 일정 목록 조회",
+        "tags": [
+          "Calendar"
+        ]
+      },
+      "post": {
+        "operationId": "CalendarController_createEvent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCalendarEventDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "새 일정 등록",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/calendar/export-ics": {
+      "get": {
+        "operationId": "CalendarController_exportIcs",
+        "parameters": [
+          {
+            "name": "start",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "calendarIds",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "일정을 iCalendar(.ics) 파일로 내보내기",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/calendar/import-ics": {
+      "post": {
+        "operationId": "CalendarController_importIcs",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportIcsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "iCalendar(.ics) 파일에서 일정 가져오기",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/calendar/events/{id}": {
+      "patch": {
+        "operationId": "CalendarController_updateEvent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCalendarEventDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "일정 수정",
+        "tags": [
+          "Calendar"
+        ]
+      },
+      "delete": {
+        "operationId": "CalendarController_deleteEvent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "일정 삭제",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/admin/holidays": {
+      "get": {
+        "operationId": "AdminHolidayController_listByYear",
+        "parameters": [
+          {
+            "name": "year",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "연도별 공휴일 목록 조회 (관리자)",
+        "tags": [
+          "Admin Holidays"
+        ]
+      },
+      "post": {
+        "operationId": "AdminHolidayController_createHoliday",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공휴일/임시공휴일 수동 등록",
+        "tags": [
+          "Admin Holidays"
+        ]
+      }
+    },
+    "/api/admin/holidays/settings": {
+      "get": {
+        "operationId": "AdminHolidayController_getSyncSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공휴일 동기화 설정 및 상태 조회",
+        "tags": [
+          "Admin Holidays"
+        ]
+      },
+      "patch": {
+        "operationId": "AdminHolidayController_saveSyncSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공휴일 동기화 설정 저장",
+        "tags": [
+          "Admin Holidays"
+        ]
+      }
+    },
+    "/api/admin/holidays/sync": {
+      "post": {
+        "operationId": "AdminHolidayController_syncHolidays",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "한국천문연구원 특일정보 API 즉시 동기화",
+        "tags": [
+          "Admin Holidays"
+        ]
+      }
+    },
+    "/api/admin/holidays/import-ics": {
+      "post": {
+        "operationId": "AdminHolidayController_importIcs",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ICS 파일로 공휴일 일괄 가져오기 (폐쇄망용)",
+        "tags": [
+          "Admin Holidays"
+        ]
+      }
+    },
+    "/api/admin/holidays/{id}": {
+      "patch": {
+        "operationId": "AdminHolidayController_updateHoliday",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공휴일 수정 및 활성 여부 토글",
+        "tags": [
+          "Admin Holidays"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminHolidayController_deleteHoliday",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "공휴일 삭제",
+        "tags": [
+          "Admin Holidays"
+        ]
+      }
     }
   },
   "info": {
@@ -3394,6 +3911,11 @@
             "description": "주소",
             "example": "경기도 성남시 분당구"
           },
+          "addressDetail": {
+            "type": "object",
+            "description": "상세 주소",
+            "example": "101동 202호"
+          },
           "websiteUrl": {
             "type": "object",
             "description": "웹사이트 URL",
@@ -3569,6 +4091,11 @@
             "description": "주소",
             "example": "경기도 성남시 분당구"
           },
+          "addressDetail": {
+            "type": "object",
+            "description": "상세 주소",
+            "example": "101동 202호"
+          },
           "websiteUrl": {
             "type": "object",
             "description": "웹사이트 URL",
@@ -3583,6 +4110,228 @@
             "type": "boolean",
             "description": "중요 연락처 여부",
             "example": false
+          }
+        }
+      },
+      "CreateCalendarDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "캘린더 이름",
+            "example": "업무 일정"
+          },
+          "color": {
+            "type": "string",
+            "description": "캘린더 색상 (HEX)",
+            "example": "#0284c7"
+          },
+          "type": {
+            "type": "string",
+            "description": "캘린더 유형",
+            "enum": [
+              "PERSONAL",
+              "SHARED"
+            ]
+          },
+          "isVisible": {
+            "type": "boolean",
+            "description": "표시 여부",
+            "default": true
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서",
+            "default": 0
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateCalendarDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "캘린더 이름"
+          },
+          "color": {
+            "type": "string",
+            "description": "캘린더 색상 (HEX)"
+          },
+          "type": {
+            "type": "string",
+            "description": "캘린더 유형",
+            "enum": [
+              "PERSONAL",
+              "SHARED"
+            ]
+          },
+          "isVisible": {
+            "type": "boolean",
+            "description": "표시 여부"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "정렬 순서"
+          }
+        }
+      },
+      "ImportIcsDto": {
+        "type": "object",
+        "properties": {
+          "icsContent": {
+            "type": "string",
+            "description": "ICS 파일 원문 문자열"
+          },
+          "calendarId": {
+            "type": "string",
+            "description": "가져올 대상 캘린더 ID"
+          }
+        },
+        "required": [
+          "icsContent"
+        ]
+      },
+      "CalendarAttendeeInputDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "참석자 이메일"
+          },
+          "name": {
+            "type": "object",
+            "description": "참석자 이름"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "CreateCalendarEventDto": {
+        "type": "object",
+        "properties": {
+          "calendarId": {
+            "type": "string",
+            "description": "소속 캘린더 ID (미지정 시 기본 캘린더)"
+          },
+          "title": {
+            "type": "string",
+            "description": "일정 제목",
+            "example": "주간 팀 미팅"
+          },
+          "description": {
+            "type": "object",
+            "description": "상세 메모"
+          },
+          "location": {
+            "type": "object",
+            "description": "장소",
+            "example": "3층 대회의실"
+          },
+          "startAt": {
+            "type": "string",
+            "description": "시작 일시 (ISO 8601)"
+          },
+          "endAt": {
+            "type": "string",
+            "description": "종료 일시 (ISO 8601)"
+          },
+          "isAllDay": {
+            "type": "boolean",
+            "description": "종일 일정 여부",
+            "default": false
+          },
+          "timezone": {
+            "type": "string",
+            "description": "타임존",
+            "default": "Asia/Seoul"
+          },
+          "rrule": {
+            "type": "object",
+            "description": "반복 규칙 (예: FREQ=WEEKLY;INTERVAL=1)"
+          },
+          "recurrenceEndAt": {
+            "type": "object",
+            "description": "반복 종료 일시 (ISO 8601)"
+          },
+          "reminderMinutesBefore": {
+            "type": "object",
+            "description": "이메일 알림 시간 (분 전, 예: 10, 30, 60, 1440)"
+          },
+          "sourceMailId": {
+            "type": "object",
+            "description": "원본 메일 ID (메일에서 일정 생성 시)"
+          },
+          "attendees": {
+            "description": "참석자 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarAttendeeInputDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "startAt",
+          "endAt"
+        ]
+      },
+      "UpdateCalendarEventDto": {
+        "type": "object",
+        "properties": {
+          "calendarId": {
+            "type": "string",
+            "description": "소속 캘린더 ID"
+          },
+          "title": {
+            "type": "string",
+            "description": "일정 제목"
+          },
+          "description": {
+            "type": "object",
+            "description": "상세 메모"
+          },
+          "location": {
+            "type": "object",
+            "description": "장소"
+          },
+          "startAt": {
+            "type": "string",
+            "description": "시작 일시 (ISO 8601)"
+          },
+          "endAt": {
+            "type": "string",
+            "description": "종료 일시 (ISO 8601)"
+          },
+          "isAllDay": {
+            "type": "boolean",
+            "description": "종일 일정 여부"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "타임존"
+          },
+          "rrule": {
+            "type": "object",
+            "description": "반복 규칙"
+          },
+          "recurrenceEndAt": {
+            "type": "object",
+            "description": "반복 종료 일시"
+          },
+          "reminderMinutesBefore": {
+            "type": "object",
+            "description": "이메일 알림 시간 (분 전)"
+          },
+          "attendees": {
+            "description": "참석자 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarAttendeeInputDto"
+            }
           }
         }
       }

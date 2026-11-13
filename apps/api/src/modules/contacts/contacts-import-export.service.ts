@@ -135,6 +135,7 @@ export class ContactsImportExportService {
     const birthdayIdx = findExact(['생일', '생년월일', 'birthday']);
     const postalCodeIdx = findExact(['우편번호', 'postal code', 'zip code', 'zip']);
     const addressIdx = findExact(['주소', 'address', 'address 1 - formatted', 'address 1 - street']);
+    const addressDetailIdx = findExact(['상세주소', '상세 주소', 'address detail', 'address 2', 'address2']);
     const urlIdx = findExact(['url', 'website', '홈페이지', '웹사이트', 'website 1 - value']);
     const memoIdx = findWithPattern(['메모', 'notes', 'note', '설명', '비고'], []);
 
@@ -185,6 +186,7 @@ export class ContactsImportExportService {
       const birthday = birthdayIdx !== -1 && row[birthdayIdx] ? row[birthdayIdx].trim() || null : null;
       const postalCode = postalCodeIdx !== -1 && row[postalCodeIdx] ? row[postalCodeIdx].trim() || null : null;
       const address = addressIdx !== -1 && row[addressIdx] ? row[addressIdx].trim() || null : null;
+      const addressDetail = addressDetailIdx !== -1 && row[addressDetailIdx] ? row[addressDetailIdx].trim() || null : null;
       const websiteUrl = urlIdx !== -1 && row[urlIdx] ? row[urlIdx].trim() || null : null;
 
       // 7. 메모
@@ -211,6 +213,7 @@ export class ContactsImportExportService {
         birthday,
         postalCode,
         address,
+        addressDetail,
         websiteUrl,
         memo,
       });
@@ -302,6 +305,7 @@ export class ContactsImportExportService {
       '생일',
       '우편번호',
       '주소',
+      '상세주소',
       'URL',
       '메모',
     ];
@@ -319,6 +323,7 @@ export class ContactsImportExportService {
       c.birthday || '',
       c.postalCode || '',
       c.address || '',
+      c.addressDetail || '',
       c.websiteUrl || '',
       c.memo || '',
     ]);
@@ -348,6 +353,7 @@ export class ContactsImportExportService {
       { width: 12 }, // 생일
       { width: 10 }, // 우편번호
       { width: 35 }, // 주소
+      { width: 25 }, // 상세주소
       { width: 22 }, // URL
       { width: 30 }, // 메모
     ];
@@ -377,6 +383,7 @@ export class ContactsImportExportService {
       '생일',
       '우편번호',
       '주소',
+      '상세주소',
       'URL',
       '메모',
     ];
@@ -403,6 +410,7 @@ export class ContactsImportExportService {
         c.birthday || '',
         c.postalCode || '',
         c.address || '',
+        c.addressDetail || '',
         c.websiteUrl || '',
         c.memo || '',
       ];
@@ -494,8 +502,9 @@ export class ContactsImportExportService {
       if (c.position) {
         card.push(`TITLE:${c.position}`);
       }
-      if (c.address) {
-        card.push(`ADR;TYPE=WORK:;;${c.address};;;;`);
+      if (c.address || c.addressDetail) {
+        const fullAddr = [c.address, c.addressDetail].filter(Boolean).join(' ');
+        card.push(`ADR;TYPE=WORK:;;${fullAddr};;;;`);
       }
       if (c.websiteUrl) {
         card.push(`URL:${c.websiteUrl}`);

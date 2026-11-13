@@ -878,7 +878,7 @@ function ComposeMailContent() {
                             setBodyText(text);
                         }}
                         placeholder="메일 본문을 자유롭게 작성하세요..."
-                        minHeight="250px"
+                        minHeight="500px"
                     />
                 </div>
 

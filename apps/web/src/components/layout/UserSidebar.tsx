@@ -415,28 +415,43 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                     <div className="px-3 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                       내 캘린더
                     </div>
-                    {calendars.map((cal) => (
-                      <Link
-                        key={cal.id}
-                        href={`/mail/calendar?calendarId=${cal.id}`}
-                        onClick={() => {
-                          setSidebarOpen(false);
-                          startNavigation(`/mail/calendar?calendarId=${cal.id}`);
-                        }}
-                        className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/50"
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: cal.color || '#0284c7' }}
-                          />
-                          <span className="truncate">{cal.name}</span>
-                        </div>
-                        {!cal.isVisible && (
-                          <span className="text-[10px] text-slate-500">숨김</span>
-                        )}
-                      </Link>
-                    ))}
+                    {calendars.map((cal) => {
+                      const isOtherShared =
+                        cal.type === 'SHARED' &&
+                        Boolean(user?.id) &&
+                        cal.userId !== user?.id &&
+                        Boolean(cal.ownerName);
+
+                      return (
+                        <Link
+                          key={cal.id}
+                          href={`/mail/calendar?calendarId=${cal.id}`}
+                          onClick={() => {
+                            setSidebarOpen(false);
+                            startNavigation(`/mail/calendar?calendarId=${cal.id}`);
+                          }}
+                          title={
+                            isOtherShared
+                              ? `${cal.name} (${cal.ownerName})`
+                              : cal.name
+                          }
+                          className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/50"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: cal.color || '#0284c7' }}
+                            />
+                            <span className="truncate">{cal.name}</span>
+                          </div>
+                          {isOtherShared && (
+                            <span className="shrink-0 max-w-[64px] truncate text-[10px] text-slate-500">
+                              {cal.ownerName}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>

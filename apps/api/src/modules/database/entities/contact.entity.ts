@@ -58,6 +58,9 @@ export class Contact {
   @Column({ type: 'varchar', length: 255, nullable: true })
   address: string | null;
 
+  @Column({ name: 'address_detail', type: 'varchar', length: 255, nullable: true })
+  addressDetail: string | null;
+
   @Column({ name: 'website_url', type: 'varchar', length: 255, nullable: true })
   websiteUrl: string | null;
 

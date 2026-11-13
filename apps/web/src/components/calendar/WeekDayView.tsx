@@ -8,6 +8,7 @@ import {
   isSameDay,
   doesEventOverlapDay,
   formatTimeShort,
+  layoutWeekSpanEvents,
 } from './dateUtils';
 
 interface WeekDayViewProps {
@@ -34,6 +35,15 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
   );
   const today = new Date();
 
+  const allDayEvents = React.useMemo(
+    () => events.filter((ev) => ev.isAllDay),
+    [events],
+  );
+  const allDayLanes = React.useMemo(
+    () => layoutWeekSpanEvents(days, allDayEvents),
+    [days, allDayEvents],
+  );
+
   // 기본 스크롤을 오전 8시 근처로 이동
   useEffect(() => {
     if (scrollRef.current) {
@@ -44,7 +54,10 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
       {/* 날짜 헤더 */}
-      <div className="grid border-b border-slate-200 bg-slate-50/80" style={{ gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` }}>
+      <div
+        className="grid border-b border-slate-200 bg-slate-50/80"
+        style={{ gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` }}
+      >
         <div className="py-3 text-center text-[11px] font-semibold text-slate-400 border-r border-slate-200">
           시간
         </div>
@@ -81,41 +94,74 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
         })}
       </div>
 
-      {/* 종일 일정 행 */}
+      {/* 종일 일정 행 (다일 연결 바 지원) */}
       <div
         className="grid border-b border-slate-200 bg-slate-50/40"
-        style={{ gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `64px minmax(0, 1fr)` }}
       >
         <div className="py-2 px-1 text-center text-[10px] font-semibold text-slate-400 border-r border-slate-200 flex items-center justify-center">
           종일
         </div>
-        {days.map((day) => {
-          const allDayEvents = events.filter(
-            (ev) => ev.isAllDay && doesEventOverlapDay(ev.startAt, ev.endAt, day),
-          );
-          return (
-            <div
-              key={`allday-${day.toISOString()}`}
-              onClick={() => onSelectSlot(day, true)}
-              className="min-h-[36px] p-1 space-y-1 border-r last:border-r-0 border-slate-100 cursor-pointer hover:bg-sky-50/40"
-            >
-              {allDayEvents.map((ev) => (
-                <button
-                  key={ev.id}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectEvent(ev);
+        <div className="relative min-h-[38px]">
+          {/* 배경 클릭 셀 */}
+          <div
+            className="grid divide-x divide-slate-100 h-full min-h-[38px]"
+            style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+          >
+            {days.map((day) => (
+              <div
+                key={`allday-bg-${day.toISOString()}`}
+                onClick={() => onSelectSlot(day, true)}
+                className="cursor-pointer hover:bg-sky-50/40"
+              />
+            ))}
+          </div>
+
+          {/* 연결된 종일 일정 바 */}
+          {allDayLanes.length > 0 && (
+            <div className="relative z-10 -mt-[38px] p-1 space-y-1 pointer-events-none">
+              {allDayLanes.map((lane, laneIdx) => (
+                <div
+                  key={`allday-lane-${laneIdx}`}
+                  className="grid gap-x-0.5"
+                  style={{
+                    gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
                   }}
-                  className="w-full text-left rounded px-1.5 py-0.5 text-[11px] font-semibold text-white truncate"
-                  style={{ backgroundColor: ev.calendarColor || '#0284c7' }}
                 >
-                  {ev.title}
-                </button>
+                  {lane.map((item) => {
+                    const ev = item.event;
+                    const radiusClass =
+                      item.continuesFromPrev && item.continuesToNext
+                        ? 'rounded-none'
+                        : item.continuesFromPrev
+                        ? 'rounded-l-none rounded-r-md'
+                        : item.continuesToNext
+                        ? 'rounded-l-md rounded-r-none'
+                        : 'rounded-md';
+
+                    return (
+                      <button
+                        key={`allday-${ev.id}-${item.startCol}`}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectEvent(ev);
+                        }}
+                        style={{
+                          gridColumn: `${item.startCol + 1} / span ${item.span}`,
+                          backgroundColor: ev.calendarColor || '#0284c7',
+                        }}
+                        className={`pointer-events-auto w-full text-left px-2 py-0.5 text-[11px] font-semibold text-white truncate hover:opacity-90 ${radiusClass}`}
+                      >
+                        {ev.title}
+                      </button>
+                    );
+                  })}
+                </div>
               ))}
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
       {/* 시간대 그리드 */}
