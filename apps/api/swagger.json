@@ -4932,7 +4932,17 @@
           "apiUrl": {
             "type": "string",
             "example": "https://ams.company.com/api/org/export",
-            "description": "AMS 조직도 조회 API URL"
+            "description": "AMS 조직도 공통 Base URL"
+          },
+          "departmentsApiUrl": {
+            "type": "string",
+            "example": "/departments",
+            "description": "부서 조회 엔드포인트 URL 또는 상대 경로 (선택)"
+          },
+          "usersApiUrl": {
+            "type": "string",
+            "example": "/users",
+            "description": "사용자 조회 엔드포인트 URL 또는 상대 경로 (선택)"
           },
           "apiToken": {
             "type": "string",

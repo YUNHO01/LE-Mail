@@ -36,6 +36,8 @@ import {
 export interface AmsSyncSettingsDto {
   enabled: boolean;
   apiUrl: string;
+  departmentsApiUrl: string;
+  usersApiUrl: string;
   hasApiToken: boolean;
   intervalMinutes: number;
   autoProvisionMailbox: boolean;
@@ -44,6 +46,8 @@ export interface AmsSyncSettingsDto {
 const AMS_SETTING_KEYS = {
   ENABLED: 'ams.integration.enabled',
   API_URL: 'ams.api.url',
+  DEPARTMENTS_API_URL: 'ams.api.departments_url',
+  USERS_API_URL: 'ams.api.users_url',
   API_TOKEN: 'ams.api.token',
   INTERVAL_MINUTES: 'ams.sync.interval_minutes',
   AUTO_PROVISION: 'ams.sync.auto_provision_mailbox',
@@ -98,6 +102,8 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     return {
       enabled: map.get(AMS_SETTING_KEYS.ENABLED) === 'true',
       apiUrl: map.get(AMS_SETTING_KEYS.API_URL) || '',
+      departmentsApiUrl: map.get(AMS_SETTING_KEYS.DEPARTMENTS_API_URL) || '',
+      usersApiUrl: map.get(AMS_SETTING_KEYS.USERS_API_URL) || '',
       hasApiToken: Boolean(map.get(AMS_SETTING_KEYS.API_TOKEN)),
       intervalMinutes: Number.isFinite(intervalRaw) && intervalRaw >= 5 ? intervalRaw : 60,
       autoProvisionMailbox: map.get(AMS_SETTING_KEYS.AUTO_PROVISION) !== 'false',
@@ -120,7 +126,25 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
         dto.apiUrl.trim(),
         'string',
         false,
-        'AMS 조직도 조회 API 엔드포인트 URL',
+        'AMS 조직도 공통 Base URL',
+      );
+    }
+    if (dto.departmentsApiUrl !== undefined) {
+      await this.upsertSetting(
+        AMS_SETTING_KEYS.DEPARTMENTS_API_URL,
+        dto.departmentsApiUrl.trim(),
+        'string',
+        false,
+        'AMS 부서 조회 엔드포인트 URL 또는 경로',
+      );
+    }
+    if (dto.usersApiUrl !== undefined) {
+      await this.upsertSetting(
+        AMS_SETTING_KEYS.USERS_API_URL,
+        dto.usersApiUrl.trim(),
+        'string',
+        false,
+        'AMS 사용자 조회 엔드포인트 URL 또는 경로',
       );
     }
     if (dto.apiToken !== undefined && dto.apiToken.trim().length > 0) {
@@ -184,6 +208,44 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     await this.settingRepo.save(row);
   }
 
+  private isFullHttpUrl(url: string): boolean {
+    return /^https?:\/\//i.test(url.trim());
+  }
+
+  private hasValidSyncEndpoints(settings: AmsSyncSettingsDto): boolean {
+    if (settings.apiUrl?.trim()) return true;
+    return (
+      this.isFullHttpUrl(settings.departmentsApiUrl || '') &&
+      this.isFullHttpUrl(settings.usersApiUrl || '')
+    );
+  }
+
+  private resolveEndpointUrl(
+    baseUrl: string,
+    overrideUrl: string,
+    defaultPath: string,
+  ): string {
+    const trimmedOverride = (overrideUrl || '').trim();
+    if (trimmedOverride) {
+      if (this.isFullHttpUrl(trimmedOverride)) {
+        return trimmedOverride;
+      }
+      if (!baseUrl) {
+        throw new BadRequestException(
+          `상대 경로(${trimmedOverride})를 사용하려면 공통 Base URL이 필요합니다.`,
+        );
+      }
+      const normalizedPath = trimmedOverride.startsWith('/')
+        ? trimmedOverride
+        : `/${trimmedOverride}`;
+      return `${baseUrl}${normalizedPath}`;
+    }
+    if (!baseUrl) {
+      throw new BadRequestException('AMS 조직도 API URL이 설정되어 있지 않습니다.');
+    }
+    return `${baseUrl}${defaultPath}`;
+  }
+
   private async refreshScheduler(): Promise<void> {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
@@ -192,7 +254,7 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const settings = await this.getSyncSettings();
-      if (!settings.enabled || !settings.apiUrl) {
+      if (!settings.enabled || !this.hasValidSyncEndpoints(settings)) {
         return;
       }
 
@@ -204,7 +266,7 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
       }, intervalMs);
 
       this.logger.log(
-        `AMS organization sync scheduler enabled (every ${settings.intervalMinutes} min -> ${settings.apiUrl})`,
+        `AMS organization sync scheduler enabled (every ${settings.intervalMinutes} min -> ${settings.apiUrl || settings.departmentsApiUrl})`,
       );
     } catch (err: any) {
       this.logger.warn(`Failed to initialize AMS org sync scheduler: ${err?.message}`);
@@ -217,8 +279,10 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     }
 
     const settings = await this.getSyncSettings();
-    if (!settings.apiUrl) {
-      throw new BadRequestException('AMS 조직도 API URL이 설정되어 있지 않습니다.');
+    if (!this.hasValidSyncEndpoints(settings)) {
+      throw new BadRequestException(
+        'AMS 조직도 API URL 또는 부서/사용자 개별 URL을 설정해 주세요.',
+      );
     }
 
     const tokenRow = await this.settingRepo.findOne({
@@ -226,25 +290,130 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     });
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (tokenRow?.value) {
+      // AMS 외부 연동 API는 x-api-key 헤더 사용 (호환용 Bearer 병행)
+      headers['x-api-key'] = tokenRow.value;
       headers['Authorization'] = `Bearer ${tokenRow.value}`;
     }
 
+    const baseUrl = settings.apiUrl.trim().replace(/\/+$/, '');
+    const deptUrl = this.resolveEndpointUrl(baseUrl, settings.departmentsApiUrl, '/departments');
+    const userUrl = this.resolveEndpointUrl(baseUrl, settings.usersApiUrl, '/users');
+
     this.isSyncRunning = true;
     try {
-      const res = await fetch(settings.apiUrl, { headers });
-      if (!res.ok) {
-        throw new Error(`AMS API 응답 오류 (HTTP ${res.status})`);
-      }
-      const payload = (await res.json()) as SyncAmsOrgDto;
-      return await this.syncFromAmsPayload({
-        ...payload,
-        syncType: payload.syncType || 'FULL',
-        autoProvisionMailbox:
-          payload.autoProvisionMailbox ?? settings.autoProvisionMailbox,
-      });
+      const payload = await this.fetchAmsOrgPayload(
+        baseUrl,
+        deptUrl,
+        userUrl,
+        headers,
+        settings.autoProvisionMailbox,
+      );
+      return await this.syncFromAmsPayload(payload);
     } finally {
       this.isSyncRunning = false;
     }
+  }
+
+  private async fetchAmsOrgPayload(
+    baseUrl: string,
+    deptUrl: string,
+    userUrl: string,
+    headers: Record<string, string>,
+    autoProvisionMailbox: boolean,
+  ): Promise<SyncAmsOrgDto> {
+    const [deptRes, userRes] = await Promise.all([
+      fetch(deptUrl, { headers }),
+      fetch(userUrl, { headers }),
+    ]);
+
+    if (deptRes.ok && userRes.ok) {
+      const rawDepts = (await deptRes.json()) as any[];
+      const rawUsers = (await userRes.json()) as any[];
+      return this.mapAmsEntitiesToSyncPayload(rawDepts, rawUsers, autoProvisionMailbox);
+    }
+
+    // 커스텀 단일 Export URL로 직접 응답하는 경우 폴백 (baseUrl이 설정된 경우)
+    let singleRes: Response | null = null;
+    if (baseUrl) {
+      singleRes = await fetch(baseUrl, { headers });
+      if (singleRes.ok) {
+        const payload = (await singleRes.json()) as SyncAmsOrgDto;
+        return {
+          ...payload,
+          syncType: payload.syncType || 'FULL',
+          autoProvisionMailbox: payload.autoProvisionMailbox ?? autoProvisionMailbox,
+        };
+      }
+    }
+
+    // 오류 메시지 상세화 (401/403/404 등)
+    const primaryErrRes = !deptRes.ok ? deptRes : !userRes.ok ? userRes : singleRes!;
+    let detail = '';
+    try {
+      const errBody = await primaryErrRes.text();
+      if (errBody) detail = ` - ${errBody.slice(0, 200)}`;
+    } catch {}
+    throw new Error(`AMS API 응답 오류 (HTTP ${primaryErrRes.status})${detail}`);
+  }
+
+  private mapAmsEntitiesToSyncPayload(
+    rawDepts: any[],
+    rawUsers: any[],
+    autoProvisionMailbox: boolean,
+  ): SyncAmsOrgDto {
+    const userEmpNoById = new Map<string, string>();
+    for (const u of Array.isArray(rawUsers) ? rawUsers : []) {
+      if (u?.id && u?.employeeNumber) {
+        userEmpNoById.set(u.id, String(u.employeeNumber));
+      }
+    }
+
+    const departments: AmsDepartmentPayloadDto[] = (Array.isArray(rawDepts) ? rawDepts : [])
+      .filter((d) => d && d.id && d.name)
+      .map((d) => ({
+        amsDeptId: String(d.id),
+        code: d.code ? String(d.code) : null,
+        parentAmsDeptId: d.parentId ? String(d.parentId) : d.parent?.id ? String(d.parent.id) : null,
+        name: String(d.name),
+        sortOrder: typeof d.order === 'number' ? d.order : 0,
+        managerEmployeeId: d.leaderId ? userEmpNoById.get(d.leaderId) || null : null,
+        isActive: d.isActive !== undefined ? Boolean(d.isActive) : true,
+      }));
+
+    const normalizeStatus = (raw?: string): 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED' => {
+      const s = (raw || 'ACTIVE').toUpperCase();
+      if (s === 'RESIGNED' || s === 'RETIRED' || s === 'TERMINATED') return 'RESIGNED';
+      if (s === 'ON_LEAVE' || s === 'LEAVE' || s === 'SUSPENDED') return 'ON_LEAVE';
+      return 'ACTIVE';
+    };
+
+    const employees: AmsEmployeePayloadDto[] = (Array.isArray(rawUsers) ? rawUsers : [])
+      .filter((u) => u && u.employeeNumber && u.name)
+      .map((u) => ({
+        employeeNumber: String(u.employeeNumber),
+        amsUserId: u.id ? String(u.id) : null,
+        name: String(u.name),
+        email: u.email ? String(u.email) : null,
+        amsDeptId: u.departmentId
+          ? String(u.departmentId)
+          : u.departmentEntity?.id
+          ? String(u.departmentEntity.id)
+          : null,
+        departmentCode: u.departmentEntity?.code ? String(u.departmentEntity.code) : null,
+        position: u.jobRank?.name ? String(u.jobRank.name) : u.position ? String(u.position) : null,
+        jobTitle: u.jobTitle?.name ? String(u.jobTitle.name) : null,
+        phone: null,
+        mobile: u.phoneNumber ? String(u.phoneNumber) : null,
+        employmentStatus: normalizeStatus(u.employmentStatus),
+        mailEnabled: true,
+      }));
+
+    return {
+      syncType: 'FULL',
+      autoProvisionMailbox,
+      departments,
+      employees,
+    };
   }
 
   async getSyncLogs(limit = 20): Promise<OrgSyncLog[]> {

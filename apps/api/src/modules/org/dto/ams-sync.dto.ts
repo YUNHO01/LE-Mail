@@ -123,10 +123,20 @@ export class UpdateAmsSyncSettingsDto {
   @IsOptional()
   enabled?: boolean;
 
-  @ApiProperty({ example: 'https://ams.company.com/api/org/export', required: false, description: 'AMS 조직도 조회 API URL' })
+  @ApiProperty({ example: 'https://ams.company.com/api/org/export', required: false, description: 'AMS 조직도 공통 Base URL' })
   @IsString()
   @IsOptional()
   apiUrl?: string;
+
+  @ApiProperty({ example: '/departments', required: false, description: '부서 조회 엔드포인트 URL 또는 상대 경로 (선택)' })
+  @IsString()
+  @IsOptional()
+  departmentsApiUrl?: string;
+
+  @ApiProperty({ example: '/users', required: false, description: '사용자 조회 엔드포인트 URL 또는 상대 경로 (선택)' })
+  @IsString()
+  @IsOptional()
+  usersApiUrl?: string;
 
   @ApiProperty({ example: 'secret-token', required: false, description: 'AMS API Bearer 토큰 (변경 시에만 입력)' })
   @IsString()

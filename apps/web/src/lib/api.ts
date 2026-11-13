@@ -399,6 +399,8 @@ export const orgApi = {
     fetchApi<{
       enabled: boolean;
       apiUrl: string;
+      departmentsApiUrl: string;
+      usersApiUrl: string;
       hasApiToken: boolean;
       intervalMinutes: number;
       autoProvisionMailbox: boolean;
@@ -407,6 +409,8 @@ export const orgApi = {
   updateSyncSettings: (dto: {
     enabled?: boolean;
     apiUrl?: string;
+    departmentsApiUrl?: string;
+    usersApiUrl?: string;
     apiToken?: string;
     intervalMinutes?: number;
     autoProvisionMailbox?: boolean;
@@ -414,6 +418,8 @@ export const orgApi = {
     fetchApi<{
       enabled: boolean;
       apiUrl: string;
+      departmentsApiUrl: string;
+      usersApiUrl: string;
       hasApiToken: boolean;
       intervalMinutes: number;
       autoProvisionMailbox: boolean;

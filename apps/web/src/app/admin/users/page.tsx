@@ -147,6 +147,7 @@ export default function UsersManagementPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.append('limit', '1000');
       if (search) params.append('search', search);
       if (roleFilter) params.append('role', roleFilter);
 

@@ -17,6 +17,7 @@ import {
   Settings,
   DownloadCloud,
   Save,
+  Loader2,
 } from 'lucide-react';
 import { DepartmentDto } from '@lemail/shared-types';
 import { PageHeader, ToggleSwitch } from '@/components/common';
@@ -79,6 +80,8 @@ export default function AdminOrgPage() {
   const [syncSettings, setSyncSettings] = useState({
     enabled: false,
     apiUrl: '',
+    departmentsApiUrl: '',
+    usersApiUrl: '',
     apiToken: '',
     hasApiToken: false,
     intervalMinutes: 60,
@@ -103,6 +106,8 @@ export default function AdminOrgPage() {
         ...prev,
         enabled: settingsRes.enabled,
         apiUrl: settingsRes.apiUrl,
+        departmentsApiUrl: settingsRes.departmentsApiUrl || '',
+        usersApiUrl: settingsRes.usersApiUrl || '',
         hasApiToken: settingsRes.hasApiToken,
         intervalMinutes: settingsRes.intervalMinutes,
         autoProvisionMailbox: settingsRes.autoProvisionMailbox,
@@ -227,6 +232,8 @@ export default function AdminOrgPage() {
       const updated = await orgApi.updateSyncSettings({
         enabled: syncSettings.enabled,
         apiUrl: syncSettings.apiUrl.trim(),
+        departmentsApiUrl: syncSettings.departmentsApiUrl.trim(),
+        usersApiUrl: syncSettings.usersApiUrl.trim(),
         apiToken: syncSettings.apiToken.trim() || undefined,
         intervalMinutes: Number(syncSettings.intervalMinutes) || 60,
         autoProvisionMailbox: syncSettings.autoProvisionMailbox,
@@ -235,6 +242,8 @@ export default function AdminOrgPage() {
         ...prev,
         enabled: updated.enabled,
         apiUrl: updated.apiUrl,
+        departmentsApiUrl: updated.departmentsApiUrl || '',
+        usersApiUrl: updated.usersApiUrl || '',
         hasApiToken: updated.hasApiToken,
         intervalMinutes: updated.intervalMinutes,
         autoProvisionMailbox: updated.autoProvisionMailbox,
@@ -429,7 +438,11 @@ export default function AdminOrgPage() {
             <button
               type="button"
               onClick={handlePullFromAms}
-              disabled={pulling || !syncSettings.apiUrl}
+              disabled={
+                pulling ||
+                (!syncSettings.apiUrl.trim() &&
+                  (!syncSettings.departmentsApiUrl.trim() || !syncSettings.usersApiUrl.trim()))
+              }
               className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
             >
               <DownloadCloud className="h-3.5 w-3.5" />
@@ -449,21 +462,21 @@ export default function AdminOrgPage() {
         <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              AMS 조직도 API URL
+              AMS 조직도 공통 Base URL
             </label>
             <input
               type="url"
               autoComplete="off"
               value={syncSettings.apiUrl}
               onChange={(e) => setSyncSettings((p) => ({ ...p, apiUrl: e.target.value }))}
-              placeholder="https://ams.company.com/api/org/export"
+              placeholder="http://localhost:4000/api/v1/integrations/organization"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono"
             />
           </div>
 
           <div>
             <label className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
-              <span>API 인증 토큰 (Bearer)</span>
+              <span>API 인증 토큰 (x-api-key)</span>
               {syncSettings.hasApiToken && (
                 <span className="text-[10px] font-medium text-emerald-600">등록됨</span>
               )}
@@ -473,7 +486,7 @@ export default function AdminOrgPage() {
               autoComplete="new-password"
               value={syncSettings.apiToken}
               onChange={(e) => setSyncSettings((p) => ({ ...p, apiToken: e.target.value }))}
-              placeholder={syncSettings.hasApiToken ? '변경 시에만 새 토큰 입력' : 'Bearer 토큰 입력'}
+              placeholder={syncSettings.hasApiToken ? '변경 시에만 새 토큰 입력' : 'API Key 입력'}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono"
             />
           </div>
@@ -491,6 +504,36 @@ export default function AdminOrgPage() {
                 setSyncSettings((p) => ({ ...p, intervalMinutes: Number(e.target.value) || 60 }))
               }
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+            />
+          </div>
+
+          <div className="lg:col-span-2">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              부서 조회 엔드포인트 URL 또는 경로 (선택)
+            </label>
+            <input
+              type="text"
+              autoComplete="off"
+              value={syncSettings.departmentsApiUrl}
+              onChange={(e) =>
+                setSyncSettings((p) => ({ ...p, departmentsApiUrl: e.target.value }))
+              }
+              placeholder="비워두면 Base URL + /departments 사용 (또는 전체 URL 입력)"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono"
+            />
+          </div>
+
+          <div className="lg:col-span-2">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              사용자 조회 엔드포인트 URL 또는 경로 (선택)
+            </label>
+            <input
+              type="text"
+              autoComplete="off"
+              value={syncSettings.usersApiUrl}
+              onChange={(e) => setSyncSettings((p) => ({ ...p, usersApiUrl: e.target.value }))}
+              placeholder="비워두면 Base URL + /users 사용 (또는 전체 URL 입력)"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono"
             />
           </div>
 
@@ -745,6 +788,50 @@ export default function AdminOrgPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* AMS 조직도 가져오기 / 동기화 로딩 오버레이 */}
+      {(pulling || syncing) && (
+        <div
+          role="alertdialog"
+          aria-busy="true"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+        >
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-5">
+            <div className="relative flex items-center justify-center">
+              <div className="h-20 w-20 rounded-full bg-sky-50 flex items-center justify-center">
+                {pulling ? (
+                  <DownloadCloud className="h-9 w-9 text-sky-600 animate-pulse" />
+                ) : (
+                  <UploadCloud className="h-9 w-9 text-sky-600 animate-pulse" />
+                )}
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <Loader2 className="h-24 w-24 text-sky-500 animate-spin opacity-30" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-slate-900">
+                {pulling ? 'AMS 조직도를 가져오고 있습니다' : 'AMS 조직도 동기화를 실행하고 있습니다'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {pulling
+                  ? 'AMS에서 부서 및 사용자 정보를 불러와 계정을 동기화하는 중입니다.'
+                  : '전달된 조직도 데이터를 분석하여 부서 및 계정을 반영하는 중입니다.'}
+              </p>
+            </div>
+
+            <div className="w-full space-y-2.5 pt-1">
+              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full w-full bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 animate-pulse" />
+              </div>
+              <p className="text-[11px] font-medium rounded-lg py-1.5 px-3 border text-amber-600 bg-amber-50 border-amber-200/60">
+                조직도 동기화가 완료될 때까지 브라우저 창을 닫거나 새로고침하지 마세요.
+              </p>
+            </div>
           </div>
         </div>
       )}
