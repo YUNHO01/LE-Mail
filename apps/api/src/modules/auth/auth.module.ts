@@ -8,10 +8,12 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
+import { LicenseModule } from '../license/license.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
+    LicenseModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

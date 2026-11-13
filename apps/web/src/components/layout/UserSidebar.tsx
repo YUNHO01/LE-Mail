@@ -39,16 +39,40 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const isContacts = pathname?.startsWith('/mail/contacts');
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-  // 상위 메뉴 펼침/접힘 상태 (초기값: 현재 경로에 따라 자동 활성화)
-  const [mailExpanded, setMailExpanded] = React.useState<boolean>(true);
-  const [contactsExpanded, setContactsExpanded] = React.useState<boolean>(isContacts || true);
+  // 상위 메뉴 펼침/접힘 상태 (초기값: 현재 경로에 따라 한쪽만 활성화)
+  const [mailExpanded, setMailExpanded] = React.useState<boolean>(!isContacts);
+  const [contactsExpanded, setContactsExpanded] = React.useState<boolean>(Boolean(isContacts));
   const [groups, setGroups] = React.useState<ContactGroupDto[]>([]);
 
   React.useEffect(() => {
     if (isContacts) {
       setContactsExpanded(true);
+      setMailExpanded(false);
+    } else if (pathname?.startsWith('/mail') && pathname !== '/mail/settings') {
+      setMailExpanded(true);
+      setContactsExpanded(false);
     }
-  }, [isContacts]);
+  }, [isContacts, pathname]);
+
+  const handleToggleMail = () => {
+    setMailExpanded((prev) => {
+      const next = !prev;
+      if (next) {
+        setContactsExpanded(false);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleContacts = () => {
+    setContactsExpanded((prev) => {
+      const next = !prev;
+      if (next) {
+        setMailExpanded(false);
+      }
+      return next;
+    });
+  };
 
   // 주소록 그룹 목록 로드
   const loadSidebarGroups = async () => {
@@ -80,7 +104,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const usedMb = user?.usedMb ?? 0;
   const usagePercent =
     user?.usagePercent ??
-    (quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 100)) : 0);
+    (quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 100)) : 100);
   const messageCount = user?.messageCount ?? 0;
   const freeMb = Math.max(0, Math.round((quotaMb - usedMb) * 10) / 10);
 
@@ -152,7 +176,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           <div className="space-y-1">
             <button
               type="button"
-              onClick={() => setMailExpanded((prev) => !prev)}
+              onClick={handleToggleMail}
               className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white hover:bg-slate-800/60 transition group"
             >
               <div className="flex items-center gap-2">
@@ -177,7 +201,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           <div className="space-y-1 pt-2 border-t border-slate-700/80">
             <button
               type="button"
-              onClick={() => setContactsExpanded((prev) => !prev)}
+              onClick={handleToggleContacts}
               className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white hover:bg-slate-800/60 transition group"
             >
               <div className="flex items-center gap-2">

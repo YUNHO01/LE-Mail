@@ -27,7 +27,7 @@ import {
   Server,
   Zap,
 } from 'lucide-react';
-import { PageHeader } from '@/components/common';
+import { PageHeader, SelectDropdown } from '@/components/common';
 
 export default function AdminSpamRulesPage() {
   const [rules, setRules] = useState<SpamRuleDto[]>([]);
@@ -347,31 +347,33 @@ export default function AdminSpamRulesPage() {
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">
               규칙 구분
             </label>
-            <select
+            <SelectDropdown
+              options={[
+                { value: SpamRuleType.BLACKLIST, label: '수신 차단 (블랙리스트)' },
+                { value: SpamRuleType.WHITELIST, label: '수신 허용 (화이트리스트)' },
+              ]}
               value={newType}
-              onChange={(e) => setNewType(e.target.value as SpamRuleType)}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none"
-            >
-              <option value={SpamRuleType.BLACKLIST}>수신 차단 (블랙리스트)</option>
-              <option value={SpamRuleType.WHITELIST}>수신 허용 (화이트리스트)</option>
-            </select>
+              onChange={(val) => setNewType(val as SpamRuleType)}
+              size="md"
+              fullWidth
+            />
           </div>
 
           <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">
               대상 유형
             </label>
-            <select
+            <SelectDropdown
+              options={[
+                { value: SpamRuleTargetType.EMAIL, label: '이메일 주소 (e.g. bad@spammer.com)' },
+                { value: SpamRuleTargetType.DOMAIN, label: '도메인 (e.g. spammer.com)' },
+                { value: SpamRuleTargetType.IP, label: 'IP 주소 (e.g. 192.168.1.1)' },
+              ]}
               value={newTargetType}
-              onChange={(e) =>
-                setNewTargetType(e.target.value as SpamRuleTargetType)
-              }
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none"
-            >
-              <option value={SpamRuleTargetType.EMAIL}>이메일 주소 (e.g. bad@spammer.com)</option>
-              <option value={SpamRuleTargetType.DOMAIN}>도메인 (e.g. spammer.com)</option>
-              <option value={SpamRuleTargetType.IP}>IP 주소 (e.g. 192.168.1.1)</option>
-            </select>
+              onChange={(val) => setNewTargetType(val as SpamRuleTargetType)}
+              size="md"
+              fullWidth
+            />
           </div>
 
           <div>

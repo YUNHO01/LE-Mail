@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { fetchApi } from '@/lib/api';
 import { MailMessageDto, BulkRetryResponseDto, RetryMailResponseDto } from '@lemail/shared-types';
-import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
+import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 import {
   Layers,
@@ -329,27 +329,33 @@ export default function AdminLogsPage() {
         <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 bg-white print-toolbar print:hidden">
           <div className="flex flex-wrap items-center gap-2.5">
             {/* 1. 송수신 구분 필터 */}
-            <select
+            <SelectDropdown
+              options={[
+                { value: 'all', label: '전체 구분 (송/수신)' },
+                { value: 'OUTBOUND', label: '발송 메일 (OUTBOUND)' },
+                { value: 'INBOUND', label: '수신 메일 (INBOUND)' },
+              ]}
               value={directionFilter}
-              onChange={(e) => setDirectionFilter(e.target.value as any)}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition focus:border-sky-500 shadow-xs"
-            >
-              <option value="all">전체 구분 (송/수신)</option>
-              <option value="OUTBOUND">발송 메일 (OUTBOUND)</option>
-              <option value="INBOUND">수신 메일 (INBOUND)</option>
-            </select>
+              onChange={(val) => setDirectionFilter(val as any)}
+              headerLabel="송수신 구분 필터"
+              size="sm"
+              menuWidthClass="w-48"
+            />
 
             {/* 2. 상태 필터 */}
-            <select
+            <SelectDropdown
+              options={[
+                { value: 'all', label: '모든 상태' },
+                { value: 'FAILED', label: 'FAILED (발송/수신 실패)' },
+                { value: 'PROCESSED', label: 'PROCESSED (정상 완료)' },
+                { value: 'QUEUED', label: 'QUEUED (대기 중)' },
+              ]}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition focus:border-sky-500 shadow-xs"
-            >
-              <option value="all">모든 상태</option>
-              <option value="FAILED">FAILED (발송/수신 실패)</option>
-              <option value="PROCESSED">PROCESSED (정상 완료)</option>
-              <option value="QUEUED">QUEUED (대기 중)</option>
-            </select>
+              onChange={(val) => setStatusFilter(val as any)}
+              headerLabel="처리 상태 필터"
+              size="sm"
+              menuWidthClass="w-52"
+            />
 
             {/* 3. 검색창 */}
             <div className="w-64">

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { fetchApi } from '@/lib/api';
-import { SearchInput, TableUtilityButtons } from '@/components/common';
+import { SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 import {
   Search,
@@ -102,8 +102,6 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const [folders, setFolders] = useState<MailFolderDto[]>([]);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const moveMenuRef = useRef<HTMLDivElement>(null);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
   const [starredOverrides, setStarredOverrides] = useState<Record<string, boolean>>({});
   const [readOverrides, setReadOverrides] = useState<Record<string, boolean>>({});
 
@@ -128,20 +126,17 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!isMoveOpen && !isFilterOpen) return;
+    if (!isMoveOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (moveMenuRef.current && !moveMenuRef.current.contains(e.target as Node)) {
         setIsMoveOpen(false);
-      }
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
-        setIsFilterOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isMoveOpen, isFilterOpen]);
+  }, [isMoveOpen]);
 
   interface FlatFolderItem extends MailFolderDto {
     depth: number;
@@ -706,62 +701,17 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
         {/* 필터 + 검색창 */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* 상태 필터 드롭다운 (커스텀 팝오버) */}
-          <div className="relative shrink-0" ref={filterMenuRef}>
-            <button
-              type="button"
-              onClick={() => setIsFilterOpen((prev) => !prev)}
-              className="flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:border-slate-300 hover:bg-slate-50 transition cursor-pointer select-none"
+          {/* 상태 필터 드롭다운 */}
+          <div className="shrink-0">
+            <SelectDropdown
+              options={statusFilterOptions}
+              value={activeStatusFilter}
+              onChange={handleStatusFilterChange}
+              headerLabel="메일 상태 필터"
+              size="sm"
+              menuWidthClass="w-44"
               title="메일 상태 필터 선택"
-            >
-              <span className="flex items-center justify-center w-3.5 h-3.5 shrink-0">
-                {currentFilterOption.icon}
-              </span>
-              <span className="font-semibold text-slate-800">{currentFilterOption.label}</span>
-              <ChevronDown
-                className={`w-3 h-3 text-slate-400 transition-transform duration-150 ${
-                  isFilterOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-
-            {isFilterOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-44 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                  메일 상태 필터
-                </div>
-                <div className="py-1 max-h-72 overflow-y-auto">
-                  {statusFilterOptions.map((opt) => {
-                    const isSelected = opt.value === activeStatusFilter;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          handleStatusFilterChange(opt.value);
-                          setIsFilterOpen(false);
-                        }}
-                        className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between transition ${
-                          isSelected
-                            ? 'bg-sky-50 text-sky-800 font-semibold'
-                            : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="flex items-center justify-center w-4 h-4 shrink-0">
-                            {opt.icon}
-                          </span>
-                          <span>{opt.label}</span>
-                        </span>
-                        {isSelected && (
-                          <Check className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            />
           </div>
 
           {/* 검색창 */}

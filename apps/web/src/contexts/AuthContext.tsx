@@ -1,14 +1,25 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserDto } from '@lemail/shared-types';
+import { SystemLicenseInfo, UserDto } from '@lemail/shared-types';
 
 interface AuthContextType {
   user: UserDto | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<{ success: boolean; message?: string; user?: UserDto }>;
+  licenseStatus: SystemLicenseInfo | null;
+  isLicenseLoading: boolean;
+  refreshLicenseStatus: () => Promise<SystemLicenseInfo | null>;
+  login: (
+    email: string,
+    pass: string,
+  ) => Promise<{
+    success: boolean;
+    message?: string;
+    user?: UserDto;
+    licenseStatus?: SystemLicenseInfo | null;
+  }>;
   logout: () => void;
   refreshStorageUsage: () => Promise<void>;
   isAuthenticated: boolean;
@@ -24,22 +35,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserDto | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [licenseStatus, setLicenseStatus] = useState<SystemLicenseInfo | null>(null);
+  const [isLicenseLoading, setIsLicenseLoading] = useState(true);
+
+  const refreshLicenseStatus = useCallback(async (): Promise<SystemLicenseInfo | null> => {
+    setIsLicenseLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/license/status`);
+      if (res.ok) {
+        const data: SystemLicenseInfo = await res.json();
+        setLicenseStatus(data);
+        return data;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      setIsLicenseLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     // Load persisted token
     const storedToken = localStorage.getItem('lemail_token');
     const storedUser = localStorage.getItem('lemail_user');
+    let parsedUser: UserDto | null = null;
 
     if (storedToken && storedUser) {
       try {
+        parsedUser = JSON.parse(storedUser);
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        setUser(parsedUser);
       } catch (e) {
         localStorage.removeItem('lemail_token');
         localStorage.removeItem('lemail_user');
       }
     }
     setIsLoading(false);
+
+    // Check license status and enforce non-admin session restriction if license is invalid
+    refreshLicenseStatus().then((licStatus) => {
+      if (
+        storedToken &&
+        parsedUser &&
+        parsedUser.role !== 'SYSTEM_ADMIN' &&
+        licStatus &&
+        !licStatus.isValid
+      ) {
+        localStorage.removeItem('lemail_token');
+        localStorage.removeItem('lemail_user');
+        setUser(null);
+        setToken(null);
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          router.replace('/login?reason=license_required');
+        }
+      }
+    });
 
     if (storedToken) {
       // Background fresh token verification & profile fetch
@@ -130,7 +181,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   };
 
-  const login = async (email: string, pass: string): Promise<{ success: boolean; message?: string; user?: UserDto }> => {
+  const login = async (
+    email: string,
+    pass: string,
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    user?: UserDto;
+    licenseStatus?: SystemLicenseInfo | null;
+  }> => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -147,6 +206,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       localStorage.setItem('lemail_token', data.accessToken);
       localStorage.setItem('lemail_user', JSON.stringify(data.user));
+
+      const licStatus = await refreshLicenseStatus();
 
       // Fetch storage stats right after login
       fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
@@ -172,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
         .catch(() => {});
 
-      return { success: true, user: data.user };
+      return { success: true, user: data.user, licenseStatus: licStatus };
     } catch (err: any) {
       return { success: false, message: err.message || '서버 통신 오류가 발생했습니다.' };
     }
@@ -192,6 +253,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         token,
         isLoading,
+        licenseStatus,
+        isLicenseLoading,
+        refreshLicenseStatus,
         login,
         logout,
         refreshStorageUsage,

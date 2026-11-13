@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { contactsApi, fetchApi } from '@/lib/api';
 import { ContactDto, ContactGroupDto, UserDto } from '@lemail/shared-types';
-import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
+import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 import { ContactModal } from '@/components/contacts/ContactModal';
 import { ContactImportModal } from '@/components/contacts/ContactImportModal';
@@ -49,8 +49,6 @@ export default function ContactsPage() {
 
   // 필터 상태
   const [statusFilter, setStatusFilter] = useState<'all' | 'starred' | 'has_email' | 'has_phone'>('all');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
 
   // 선택된 체크박스 목록
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -66,9 +64,6 @@ export default function ContactsPage() {
   // 드롭다운 외부 클릭 감지
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
-        setIsFilterOpen(false);
-      }
       if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
         setExportMenuOpen(false);
       }
@@ -126,10 +121,10 @@ export default function ContactsPage() {
 
   // 필터 옵션 정의
   const filterOptions = [
-    { value: 'all', label: '전체' },
-    { value: 'starred', label: '중요 연락처' },
-    { value: 'has_email', label: '이메일 보유' },
-    { value: 'has_phone', label: '전화번호 보유' },
+    { value: 'all', label: '전체', icon: <Filter className="w-3.5 h-3.5 text-slate-500" /> },
+    { value: 'starred', label: '중요 연락처', icon: <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> },
+    { value: 'has_email', label: '이메일 보유', icon: <Mail className="w-3.5 h-3.5 text-sky-500" /> },
+    { value: 'has_phone', label: '전화번호 보유', icon: <Phone className="w-3.5 h-3.5 text-emerald-500" /> },
   ];
 
   // 필터링 적용된 목록
@@ -487,51 +482,18 @@ export default function ContactsPage() {
           {/* 좌측: 필터 + 검색창 */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {currentGroupId !== 'company' && (
-              <div className="relative shrink-0" ref={filterMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsFilterOpen(!isFilterOpen)}
-                  className="flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:border-slate-300 hover:bg-slate-50 transition cursor-pointer select-none"
-                >
-                  <Filter className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="font-semibold text-slate-800">
-                    {filterOptions.find((o) => o.value === statusFilter)?.label || '전체'}
-                  </span>
-                  <ChevronDown
-                    className={`w-3 h-3 text-slate-400 transition-transform duration-150 ${
-                      isFilterOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-
-                {isFilterOpen && (
-                  <div className="absolute left-0 top-full mt-1.5 w-40 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                      연락처 필터
-                    </div>
-                    {filterOptions.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          setStatusFilter(opt.value as any);
-                          setIsFilterOpen(false);
-                          setPage(1);
-                        }}
-                        className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between transition ${
-                          statusFilter === opt.value
-                            ? 'bg-sky-50 text-sky-800 font-semibold'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span>{opt.label}</span>
-                        {statusFilter === opt.value && (
-                          <Check className="w-3.5 h-3.5 text-sky-600" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div className="shrink-0">
+                <SelectDropdown
+                  options={filterOptions}
+                  value={statusFilter}
+                  onChange={(val) => {
+                    setStatusFilter(val as any);
+                    setPage(1);
+                  }}
+                  headerLabel="연락처 필터"
+                  size="sm"
+                  menuWidthClass="w-40"
+                />
               </div>
             )}
 

@@ -27,7 +27,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     // 미인증 상태이거나 세션 확인 중일 때는 대시보드 화면 노출 방지
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading || !isAuthenticated) {
         return null;
     }
 

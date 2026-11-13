@@ -42,7 +42,7 @@ export class UsersService {
     const usedMb = usage?.usedMb ?? 0;
     const messageCount = usage?.messageCount ?? 0;
     const usagePercent =
-      quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 1000) / 10) : 0;
+      quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 1000) / 10) : 100;
 
     return {
       id: user.id,
@@ -80,7 +80,7 @@ export class UsersService {
     const usedMb = usage?.usedMb ?? 0;
     const messageCount = usage?.messageCount ?? 0;
     const usagePercent =
-      quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 1000) / 10) : 0;
+      quotaMb > 0 ? Math.min(100, Math.round((usedMb / quotaMb) * 1000) / 10) : 100;
     const freeMb = Math.max(0, Math.round((quotaMb - usedMb) * 100) / 100);
 
     return {
@@ -247,7 +247,10 @@ export class UsersService {
         passwordHash,
         role: createUserDto.role || UserRole.USER,
         isActive: true,
-        mailboxQuotaMb: createUserDto.mailboxQuotaMb ? Number(createUserDto.mailboxQuotaMb) : 512,
+        mailboxQuotaMb:
+          createUserDto.mailboxQuotaMb !== undefined && createUserDto.mailboxQuotaMb !== null
+            ? Number(createUserDto.mailboxQuotaMb)
+            : 512,
         preferredLanguage: createUserDto.preferredLanguage || 'ko',
         timezone: createUserDto.timezone || 'Asia/Seoul',
         employeeId: createUserDto.employeeId?.trim() || null,

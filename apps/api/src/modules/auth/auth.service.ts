@@ -1,11 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../database/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
-import { LoginResponseDto, UserDto } from '@lemail/shared-types';
+import { LoginResponseDto, UserDto, UserRole } from '@lemail/shared-types';
+import { LicenseService } from '../license/license.service';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +14,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly licenseService: LicenseService,
   ) {}
 
   async validateUser(email: string, pass: string): Promise<User | null> {
@@ -37,6 +39,20 @@ export class AuthService {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
       throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    if (user.role !== UserRole.SYSTEM_ADMIN) {
+      const licenseStatus = await this.licenseService.getLicenseStatus();
+      if (!licenseStatus.isValid) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          error: 'License Required',
+          message:
+            licenseStatus.message ||
+            '유효한 시스템 라이선스가 등록되어 있지 않습니다. 시스템 관리자에게 문의해 주세요.',
+          licenseStatus,
+        });
+      }
     }
 
     // Update lastLoginAt

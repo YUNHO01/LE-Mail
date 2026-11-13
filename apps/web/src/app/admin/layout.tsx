@@ -1,14 +1,37 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { ShieldAlert, ArrowLeft, LogIn } from 'lucide-react';
+import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, isAuthenticated, isAdmin, isLoading } = useAuth();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isAdmin, isLoading, licenseStatus, isLicenseLoading } = useAuth();
+
+  // 1. 미인증 사용자 감지 시 로그인 페이지로 즉시 이동
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  // 2. 라이선스가 유효하지 않은 경우 관리자 화면은 라이선스 관리 화면으로 이동
+  useEffect(() => {
+    if (
+      !isLoading &&
+      isAuthenticated &&
+      isAdmin &&
+      !isLicenseLoading &&
+      licenseStatus &&
+      !licenseStatus.isValid &&
+      pathname !== '/admin/license'
+    ) {
+      router.replace('/admin/license');
+    }
+  }, [isLoading, isAuthenticated, isAdmin, isLicenseLoading, licenseStatus, pathname, router]);
 
   if (isLoading) {
     return (
@@ -18,14 +41,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // 1. 미인증 사용자 감지 시 로그인 페이지로 즉시 이동
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isLoading, isAuthenticated, router]);
-
   if (!isAuthenticated) {
+    return null;
+  }
+
+  if (
+    isAdmin &&
+    !isLicenseLoading &&
+    licenseStatus &&
+    !licenseStatus.isValid &&
+    pathname !== '/admin/license'
+  ) {
     return null;
   }
 

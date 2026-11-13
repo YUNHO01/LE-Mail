@@ -7,6 +7,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { fetchApi } from '@/lib/api';
 import { RecipientInput, extractPureEmail } from '@/components/mail/RecipientInput';
+import {
+    ComposeAddressBookPanel,
+    RecipientEntry,
+    RecipientTarget,
+} from '@/components/mail/ComposeAddressBookPanel';
 import { AttachmentUploader, LocalAttachment } from '@/components/mail/AttachmentUploader';
 import { MailEditor } from '@/components/mail/MailEditor';
 import { MailMessageDto } from '@lemail/shared-types';
@@ -29,6 +34,7 @@ import {
     KeyRound,
     Star,
     Upload,
+    BookUser,
 } from 'lucide-react';
 
 function ComposeMailContent() {
@@ -48,8 +54,6 @@ function ComposeMailContent() {
     const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
     const [draftId, setDraftId] = useState<string | null>(null);
 
-    const totalAttachmentBytes = attachments.reduce((acc, a) => acc + a.sizeBytes, 0);
-
     const formatFileSize = (bytes: number): string => {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -58,12 +62,89 @@ function ComposeMailContent() {
         return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
     };
 
+    const totalAttachmentBytes = attachments.reduce((acc, a) => acc + a.sizeBytes, 0);
+    const quotaMb = user?.mailboxQuotaMb ?? 512;
+    const quotaBytes = Math.max(0, quotaMb) * 1024 * 1024;
+    const usedBytes = user?.usedBytes ?? (user?.usedMb ?? 0) * 1024 * 1024;
+    const remainingBytes = Math.max(0, quotaBytes - usedBytes);
+    const estimatedBodyBytes = new Blob([subject, bodyHtml, bodyText]).size;
+    const estimatedMailBytes = totalAttachmentBytes + estimatedBodyBytes;
+    const isQuotaExhausted = Boolean(user) && (quotaMb <= 0 || usedBytes >= quotaBytes);
+    const isQuotaInsufficient = Boolean(user) && !isQuotaExhausted && estimatedMailBytes > remainingBytes;
+    const isSendBlockedByQuota = isQuotaExhausted || isQuotaInsufficient;
+    const quotaBlockMessage = isQuotaExhausted
+        ? '사서함 용량이 없어 메일을 발송할 수 없습니다. 불필요한 메일을 삭제하거나 관리자에게 용량 증설을 요청해 주세요.'
+        : isQuotaInsufficient
+            ? `사서함 잔여 용량(${formatFileSize(remainingBytes)})이 부족하여 현재 메일(${formatFileSize(estimatedMailBytes)})을 발송할 수 없습니다.`
+            : null;
+
     // 보안 메일(비밀번호 설정) 및 중요 메일 상태
     const [isImportant, setIsImportant] = useState(false);
     const [isSecure, setIsSecure] = useState(false);
     const [securityPassword, setSecurityPassword] = useState('');
     const [securityPasswordConfirm, setSecurityPasswordConfirm] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    // 우측 주소록 레이어 상태
+    const [desktopAddressBookOpen, setDesktopAddressBookOpen] = useState(true);
+    const [mobileAddressBookOpen, setMobileAddressBookOpen] = useState(false);
+
+    const formatRecipientEntry = (entry: RecipientEntry): string => {
+        const cleanEmail = entry.email.trim();
+        const cleanName = entry.name?.trim();
+        return cleanName ? `${cleanName} <${cleanEmail}>` : cleanEmail;
+    };
+
+    const getRecipientSetter = (target: RecipientTarget) => {
+        if (target === 'to') return setTo;
+        if (target === 'cc') return setCc;
+        return setBcc;
+    };
+
+    const toggleRecipientFromBook = (target: RecipientTarget, entry: RecipientEntry) => {
+        const pureTarget = entry.email.trim().toLowerCase();
+        if (!pureTarget) return;
+
+        const currentList = target === 'to' ? to : target === 'cc' ? cc : bcc;
+        const exists = currentList.some((item) => extractPureEmail(item).toLowerCase() === pureTarget);
+        const setter = getRecipientSetter(target);
+
+        if (exists) {
+            setter((prev) => prev.filter((item) => extractPureEmail(item).toLowerCase() !== pureTarget));
+        } else {
+            setter((prev) => {
+                if (prev.some((item) => extractPureEmail(item).toLowerCase() === pureTarget)) {
+                    return prev;
+                }
+                return [...prev, formatRecipientEntry(entry)];
+            });
+            if (target === 'cc') setShowCc(true);
+            if (target === 'bcc') setShowBcc(true);
+        }
+    };
+
+    const addRecipientsBulkFromBook = (target: RecipientTarget, entries: RecipientEntry[]) => {
+        if (entries.length === 0) return;
+
+        const setter = getRecipientSetter(target);
+        setter((prev) => {
+            const existingSet = new Set(prev.map((item) => extractPureEmail(item).toLowerCase()));
+            const additions: string[] = [];
+
+            for (const entry of entries) {
+                const pure = entry.email.trim().toLowerCase();
+                if (pure && !existingSet.has(pure)) {
+                    existingSet.add(pure);
+                    additions.push(formatRecipientEntry(entry));
+                }
+            }
+
+            return additions.length > 0 ? [...prev, ...additions] : prev;
+        });
+
+        if (target === 'cc') setShowCc(true);
+        if (target === 'bcc') setShowBcc(true);
+    };
 
     const [sending, setSending] = useState(false);
     const [sendingStep, setSendingStep] = useState<'sending' | 'success'>('sending');
@@ -204,6 +285,14 @@ function ComposeMailContent() {
     };
 
     const handleSend = async () => {
+        if (quotaBlockMessage) {
+            setStatusMessage({
+                type: 'error',
+                text: quotaBlockMessage,
+            });
+            return;
+        }
+
         if (to.length === 0) {
             setStatusMessage({
                 type: 'error',
@@ -367,7 +456,11 @@ function ComposeMailContent() {
     }
 
     return (
-        <div className="w-full max-w-5xl space-y-5 pb-12">
+        <div
+            className={`w-full space-y-4 pb-12 lg:pb-0 lg:h-[calc(100vh-8.25rem)] lg:flex lg:flex-col lg:space-y-4 transition-[max-width] duration-200 ${
+                desktopAddressBookOpen ? 'max-w-[1440px]' : 'max-w-5xl'
+            }`}
+        >
             {/* 편지 발송 및 첨부파일 업로드 로딩 오버레이 */}
             {sending && (
                 <div
@@ -453,7 +546,7 @@ function ComposeMailContent() {
             )}
 
             {/* Header bar */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 shrink-0">
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
@@ -474,6 +567,29 @@ function ComposeMailContent() {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
+                        onClick={() => setDesktopAddressBookOpen((prev) => !prev)}
+                        className={`hidden lg:inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold shadow-xs transition ${
+                            desktopAddressBookOpen
+                                ? 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                        title={desktopAddressBookOpen ? '주소록 패널 숨기기' : '주소록 패널 열기'}
+                    >
+                        <BookUser className="h-3.5 w-3.5" />
+                        <span>주소록</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setMobileAddressBookOpen(true)}
+                        className="inline-flex lg:hidden items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+                    >
+                        <BookUser className="h-3.5 w-3.5 text-sky-600" />
+                        <span>주소록</span>
+                    </button>
+
+                    <button
+                        type="button"
                         onClick={handleSaveDraft}
                         disabled={savingDraft || sending}
                         className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 disabled:opacity-50 transition"
@@ -485,7 +601,8 @@ function ComposeMailContent() {
                     <button
                         type="button"
                         onClick={handleSend}
-                        disabled={sending || savingDraft}
+                        disabled={sending || savingDraft || isSendBlockedByQuota}
+                        title={quotaBlockMessage || undefined}
                         className="flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2 text-xs font-semibold text-white shadow-md shadow-sky-600/20 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-50 transition"
                     >
                         {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -493,6 +610,14 @@ function ComposeMailContent() {
                     </button>
                 </div>
             </div>
+
+            {/* 사서함 용량 부족 경고 배너 */}
+            {quotaBlockMessage && (
+                <div className="flex items-center gap-2 rounded-xl p-3.5 text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200">
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>{quotaBlockMessage}</span>
+                </div>
+            )}
 
             {/* 상태 알림 배너 */}
             {statusMessage && (
@@ -527,8 +652,10 @@ function ComposeMailContent() {
                 </div>
             )}
 
-            {/* Main Mail Form Card */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+            {/* Main Content: 2-column layout (Compose Form + Address Book Layer) */}
+            <div className="flex flex-col lg:flex-row lg:flex-1 lg:min-h-0 items-stretch gap-5">
+                {/* Main Mail Form Card */}
+                <div className="flex-1 min-w-0 w-full lg:h-full lg:overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-3.5">
                 {/* Recipients Area */}
                 <div className="space-y-1">
                     {/* TO */}
@@ -751,6 +878,7 @@ function ComposeMailContent() {
                             setBodyText(text);
                         }}
                         placeholder="메일 본문을 자유롭게 작성하세요..."
+                        minHeight="250px"
                     />
                 </div>
 
@@ -787,7 +915,8 @@ function ComposeMailContent() {
                         <button
                             type="button"
                             onClick={handleSend}
-                            disabled={sending || savingDraft}
+                            disabled={sending || savingDraft || isSendBlockedByQuota}
+                            title={quotaBlockMessage || undefined}
                             className="flex items-center gap-2 rounded-xl bg-sky-600 px-6 py-2.5 text-xs font-semibold text-white shadow-md shadow-sky-600/20 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-50 transition"
                         >
                             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -796,6 +925,45 @@ function ComposeMailContent() {
                     </div>
                 </div>
             </div>
+
+                {/* Desktop Right Address Book Layer */}
+                {desktopAddressBookOpen && (
+                    <aside className="hidden lg:flex lg:flex-col w-80 xl:w-96 shrink-0 lg:h-full lg:min-h-0">
+                        <ComposeAddressBookPanel
+                            to={to}
+                            cc={cc}
+                            bcc={bcc}
+                            onToggleRecipient={toggleRecipientFromBook}
+                            onAddRecipientsBulk={addRecipientsBulkFromBook}
+                            onClose={() => setDesktopAddressBookOpen(false)}
+                            className="h-full"
+                        />
+                    </aside>
+                )}
+            </div>
+
+            {/* Mobile/Tablet Address Book Drawer */}
+            {mobileAddressBookOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs lg:hidden"
+                    onClick={() => setMobileAddressBookOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-sm h-full bg-white shadow-2xl p-4 flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <ComposeAddressBookPanel
+                            to={to}
+                            cc={cc}
+                            bcc={bcc}
+                            onToggleRecipient={toggleRecipientFromBook}
+                            onAddRecipientsBulk={addRecipientsBulkFromBook}
+                            onClose={() => setMobileAddressBookOpen(false)}
+                            className="h-full border-none shadow-none"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

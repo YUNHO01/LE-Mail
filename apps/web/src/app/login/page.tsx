@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck, Info } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, Info } from 'lucide-react';
 
 function LoginForm() {
   const router = useRouter();
@@ -20,6 +21,8 @@ function LoginForm() {
     const reason = searchParams.get('reason');
     if (reason === 'session_expired') {
       setInfoMessage('세션이 만료되었거나 인증이 해제되었습니다. 다시 로그인해 주세요.');
+    } else if (reason === 'license_required') {
+      setError('유효한 시스템 라이선스가 등록되어 있지 않거나 만료되었습니다. 시스템 관리자에게 문의해 주세요.');
     } else if (reason === 'error') {
       setInfoMessage('일시적인 시스템 오류로 인해 로그아웃되었습니다. 다시 로그인해 주세요.');
     }
@@ -34,7 +37,11 @@ function LoginForm() {
       const res = await login(email, password);
       if (res.success) {
         if (res.user?.role === 'SYSTEM_ADMIN') {
-          router.push('/admin/users');
+          if (res.licenseStatus && !res.licenseStatus.isValid) {
+            router.push('/admin/license');
+          } else {
+            router.push('/admin/users');
+          }
         } else {
           router.push('/mail/inbox');
         }
@@ -48,26 +55,36 @@ function LoginForm() {
     }
   };
 
-  const handleFillAdmin = () => {
-    setEmail('admin@lineedge.com');
-    setPassword('admin1234!');
-    setError(null);
-  };
-
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 py-12 sm:px-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-12 sm:px-6">
+      {/* 배경 오피스 이미지 및 딤드 오버레이 */}
+      <div className="absolute inset-0 -z-10">
+        <Image
+          src="/images/login-bg.jpg"
+          alt="웹메일 로그인 배경"
+          fill
+          priority
+          className="object-cover object-center"
+          sizes="100vw"
+        />
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]" />
+      </div>
+
       {/* Top Brand Header */}
       <div className="mb-8 flex flex-col items-center text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/25">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-500/30 ring-4 ring-white/20">
           <Mail className="h-8 w-8" />
         </div>
-        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white drop-shadow-md">
           가장자리 메일 시스템
         </h1>
+        <p className="mt-1.5 text-xs font-medium text-slate-200 drop-shadow-sm sm:text-sm">
+          안전하고 효율적인 기업용 웹메일 서비스
+        </p>
       </div>
 
       {/* Main Login Card */}
-      <div className="w-full max-w-[420px] rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl sm:p-10">
+      <div className="w-full max-w-[420px] rounded-3xl border border-white/40 bg-white/95 p-8 shadow-2xl backdrop-blur-md sm:p-10">
         <div className="flex items-center gap-2 text-xl font-bold text-slate-900">
           <Lock className="h-5 w-5 text-blue-600" />
           <span>로그인</span>
@@ -137,27 +154,6 @@ function LoginForm() {
             )}
           </button>
         </form>
-
-        {/* Default Admin Quick Access Info */}
-        <div className="mt-8 rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 text-xs">
-          <div className="flex items-center justify-between text-slate-700">
-            <div className="flex items-center gap-1.5 font-semibold">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              <span>기본 관리자 계정</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleFillAdmin}
-              className="font-medium text-blue-600 hover:underline"
-            >
-              자동 입력
-            </button>
-          </div>
-          <div className="mt-1.5 space-y-0.5 text-slate-500">
-            <div>계정: <span className="font-mono text-slate-700">admin@lineedge.com</span></div>
-            <div>비밀번호: <span className="font-mono text-slate-700">admin1234!</span></div>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -166,7 +162,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-white text-slate-400 text-sm">
+      <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-300 text-sm">
         로그인 페이지 로딩 중...
       </div>
     }>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchApi } from '@/lib/api';
 import {
@@ -30,7 +31,7 @@ import {
   IdCard,
 } from 'lucide-react';
 import { UserDto, UserRole, DomainDto } from '@lemail/shared-types';
-import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
+import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -53,6 +54,7 @@ const TIMEZONE_OPTIONS = [
 ];
 
 export default function UsersManagementPage() {
+  const router = useRouter();
   const { token, user: currentUser } = useAuth();
 
   const [users, setUsers] = useState<UserDto[]>([]);
@@ -136,11 +138,28 @@ export default function UsersManagementPage() {
       });
 
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
+        const errorData = await res.json().catch(() => ({}));
+        if (res.status === 401) {
           setMessage({
             type: 'error',
-            text: '시스템 관리자 권한이 필요합니다. 먼저 관리자 계정으로 로그인해 주세요.',
+            text: '인증 세션이 만료되었습니다. 다시 로그인해 주세요.',
           });
+          setUsers([]);
+          return;
+        }
+        if (res.status === 403) {
+          if (errorData?.error === 'License Required') {
+            setMessage({
+              type: 'error',
+              text: errorData?.message || '유효한 시스템 라이선스가 필요합니다. 라이선스 관리 화면으로 이동합니다.',
+            });
+            router.replace('/admin/license');
+          } else {
+            setMessage({
+              type: 'error',
+              text: errorData?.message || '시스템 관리자 권한이 필요합니다. 먼저 관리자 계정으로 로그인해 주세요.',
+            });
+          }
         }
         setUsers([]);
         return;
@@ -337,7 +356,12 @@ export default function UsersManagementPage() {
           name: createForm.name.trim(),
           password: createForm.password,
           role: createForm.role,
-          mailboxQuotaMb: Number(createForm.mailboxQuotaMb) || 512,
+          mailboxQuotaMb:
+            createForm.mailboxQuotaMb !== undefined &&
+            createForm.mailboxQuotaMb !== null &&
+            Number.isFinite(Number(createForm.mailboxQuotaMb))
+              ? Number(createForm.mailboxQuotaMb)
+              : 512,
           preferredLanguage: createForm.preferredLanguage,
           timezone: createForm.timezone,
           employeeId: createForm.employeeId.trim() || undefined,
@@ -394,7 +418,12 @@ export default function UsersManagementPage() {
         name: editForm.name.trim(),
         role: editForm.role,
         isActive: editForm.isActive,
-        mailboxQuotaMb: Number(editForm.mailboxQuotaMb) || 512,
+        mailboxQuotaMb:
+          editForm.mailboxQuotaMb !== undefined &&
+          editForm.mailboxQuotaMb !== null &&
+          Number.isFinite(Number(editForm.mailboxQuotaMb))
+            ? Number(editForm.mailboxQuotaMb)
+            : 512,
         preferredLanguage: editForm.preferredLanguage,
         timezone: editForm.timezone,
         employeeId: editForm.employeeId.trim() || null,
@@ -570,15 +599,18 @@ export default function UsersManagementPage() {
         <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
           {/* 좌측 필터 그룹: [상태/권한] -> [검색창] (ams 표준 순서 준수) */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <select
+            <SelectDropdown
+              options={[
+                { value: '', label: '모든 권한' },
+                { value: UserRole.USER, label: '일반 사용자' },
+                { value: UserRole.SYSTEM_ADMIN, label: '시스템 관리자' },
+              ]}
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition focus:border-sky-500 shadow-xs"
-            >
-              <option value="">모든 권한</option>
-              <option value={UserRole.USER}>일반 사용자</option>
-              <option value={UserRole.SYSTEM_ADMIN}>시스템 관리자</option>
-            </select>
+              onChange={setRoleFilter}
+              headerLabel="권한 필터"
+              size="sm"
+              menuWidthClass="w-40"
+            />
 
             <div className="w-60">
               <SearchInput
@@ -984,19 +1016,18 @@ export default function UsersManagementPage() {
                       className="h-10 flex-1 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
                     />
                     <span className="text-slate-400 font-bold select-none">@</span>
-                    <select
+                    <SelectDropdown
+                      options={availableDomains.map((dom) => ({
+                        value: dom.name,
+                        label: `${dom.name}${dom.isDefault ? ' (기본)' : ''}`,
+                      }))}
                       value={createForm.selectedDomain}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, selectedDomain: e.target.value })
+                      onChange={(val) =>
+                        setCreateForm({ ...createForm, selectedDomain: val })
                       }
-                      className="h-10 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white font-mono min-w-[140px]"
-                    >
-                      {availableDomains.map((dom) => (
-                        <option key={dom.id} value={dom.name}>
-                          {dom.name} {dom.isDefault ? '(기본)' : ''}
-                        </option>
-                      ))}
-                    </select>
+                      size="md"
+                      className="min-w-[150px]"
+                    />
                   </div>
                   {createForm.localPart && createForm.selectedDomain && (
                     <div className="mt-1 text-[11px] text-slate-500 font-mono">
@@ -1053,41 +1084,33 @@ export default function UsersManagementPage() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Preferred language (사용 언어)
                     </label>
-                    <select
+                    <SelectDropdown
+                      options={LANGUAGE_OPTIONS}
                       value={createForm.preferredLanguage}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setCreateForm({
                           ...createForm,
-                          preferredLanguage: e.target.value,
+                          preferredLanguage: val,
                         })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 bg-white"
-                    >
-                      {LANGUAGE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                      size="md"
+                      fullWidth
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Time zone (타임존)
                     </label>
-                    <select
+                    <SelectDropdown
+                      options={TIMEZONE_OPTIONS}
                       value={createForm.timezone}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, timezone: e.target.value })
+                      onChange={(val) =>
+                        setCreateForm({ ...createForm, timezone: val })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 bg-white font-mono text-[11px]"
-                    >
-                      {TIMEZONE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                      size="md"
+                      fullWidth
+                    />
                   </div>
                 </div>
 
@@ -1130,19 +1153,21 @@ export default function UsersManagementPage() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       계정 권한
                     </label>
-                    <select
+                    <SelectDropdown
+                      options={[
+                        { value: UserRole.USER, label: '일반 사용자 (USER)' },
+                        { value: UserRole.SYSTEM_ADMIN, label: '시스템 관리자 (SYSTEM_ADMIN)' },
+                      ]}
                       value={createForm.role}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setCreateForm({
                           ...createForm,
-                          role: e.target.value as UserRole,
+                          role: val as UserRole,
                         })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 bg-white"
-                    >
-                      <option value={UserRole.USER}>일반 사용자 (USER)</option>
-                      <option value={UserRole.SYSTEM_ADMIN}>시스템 관리자 (SYSTEM_ADMIN)</option>
-                    </select>
+                      size="md"
+                      fullWidth
+                    />
                   </div>
                 </div>
 
@@ -1241,41 +1266,33 @@ export default function UsersManagementPage() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Preferred language (사용 언어)
                   </label>
-                  <select
+                  <SelectDropdown
+                    options={LANGUAGE_OPTIONS}
                     value={editForm.preferredLanguage}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setEditForm({
                         ...editForm,
-                        preferredLanguage: e.target.value,
+                        preferredLanguage: val,
                       })
                     }
-                    className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 bg-white"
-                  >
-                    {LANGUAGE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    size="md"
+                    fullWidth
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Time zone (타임존)
                   </label>
-                  <select
+                  <SelectDropdown
+                    options={TIMEZONE_OPTIONS}
                     value={editForm.timezone}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, timezone: e.target.value })
+                    onChange={(val) =>
+                      setEditForm({ ...editForm, timezone: val })
                     }
-                    className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 bg-white font-mono text-[11px]"
-                  >
-                    {TIMEZONE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    size="md"
+                    fullWidth
+                  />
                 </div>
               </div>
 
@@ -1321,20 +1338,22 @@ export default function UsersManagementPage() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     계정 권한
                   </label>
-                  <select
+                  <SelectDropdown
+                    options={[
+                      { value: UserRole.USER, label: '일반 사용자 (USER)' },
+                      { value: UserRole.SYSTEM_ADMIN, label: '시스템 관리자 (SYSTEM_ADMIN)' },
+                    ]}
                     value={editForm.role}
                     disabled={currentUser?.id === targetUser.id}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setEditForm({
                         ...editForm,
-                        role: e.target.value as UserRole,
+                        role: val as UserRole,
                       })
                     }
-                    className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                  >
-                    <option value={UserRole.USER}>일반 사용자 (USER)</option>
-                    <option value={UserRole.SYSTEM_ADMIN}>시스템 관리자 (SYSTEM_ADMIN)</option>
-                  </select>
+                    size="md"
+                    fullWidth
+                  />
                   {currentUser?.id === targetUser.id && (
                     <span className="text-[10px] text-amber-600 mt-0.5 block">
                       본인 계정의 권한은 변경할 수 없습니다.
@@ -1346,20 +1365,22 @@ export default function UsersManagementPage() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     계정 활성 상태
                   </label>
-                  <select
+                  <SelectDropdown
+                    options={[
+                      { value: 'true', label: '정상 활성 (Active)' },
+                      { value: 'false', label: '계정 비활성 (Inactive)' },
+                    ]}
                     value={editForm.isActive ? 'true' : 'false'}
                     disabled={currentUser?.id === targetUser.id}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setEditForm({
                         ...editForm,
-                        isActive: e.target.value === 'true',
+                        isActive: val === 'true',
                       })
                     }
-                    className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
-                  >
-                    <option value="true">정상 활성 (Active)</option>
-                    <option value="false">계정 비활성 (Inactive)</option>
-                  </select>
+                    size="md"
+                    fullWidth
+                  />
                   {currentUser?.id === targetUser.id && (
                     <span className="text-[10px] text-amber-600 mt-0.5 block">
                       본인 계정은 비활성화할 수 없습니다.

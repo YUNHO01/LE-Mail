@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { contactsApi } from '@/lib/api';
 import { ContactDto, ContactGroupDto, CreateContactDto } from '@lemail/shared-types';
+import { SelectDropdown } from '@/components/common';
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -268,18 +269,16 @@ export const ContactModal: React.FC<ContactModalProps> = ({
               {/* 그룹 선택 */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">그룹 분류</label>
-                <select
+                <SelectDropdown
+                  options={[
+                    { value: '', label: '(그룹 없음 - 미분류)' },
+                    ...groups.map((g) => ({ value: g.id, label: g.name })),
+                  ]}
                   value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none bg-white"
-                >
-                  <option value="">(그룹 없음 - 미분류)</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setGroupId}
+                  size="md"
+                  fullWidth
+                />
               </div>
             </div>
 

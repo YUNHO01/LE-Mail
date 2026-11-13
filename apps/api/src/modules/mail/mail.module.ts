@@ -10,6 +10,7 @@ import { SecureMailService } from './services/secure-mail.service';
 import { WorkerPoolModule } from '../worker-pool/worker-pool.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SpamModule } from '../spam/spam.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { SpamModule } from '../spam/spam.module';
     ]),
     WorkerPoolModule,
     SettingsModule,
+    UsersModule,
     forwardRef(() => SpamModule),
   ],
   controllers: [MailController],

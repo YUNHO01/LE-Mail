@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { fetchApi } from '@/lib/api';
 import { MailboxDto, DomainDto } from '@lemail/shared-types';
-import { PageHeader, SearchInput, TableUtilityButtons } from '@/components/common';
+import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 import {
   Mail,
@@ -280,15 +280,18 @@ export default function MailboxesPage() {
         <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
           {/* 좌측: [상태 필터] -> [검색창] (ams 표준 순서 준수) */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <select
+            <SelectDropdown
+              options={[
+                { value: 'all', label: '모든 상태' },
+                { value: 'active', label: 'Active (수신 허용)' },
+                { value: 'disabled', label: 'Disabled (차단)' },
+              ]}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition focus:border-sky-500 shadow-xs"
-            >
-              <option value="all">모든 상태</option>
-              <option value="active">Active (수신 허용)</option>
-              <option value="disabled">Disabled (차단)</option>
-            </select>
+              onChange={(val) => setStatusFilter(val as any)}
+              headerLabel="사서함 상태 필터"
+              size="sm"
+              menuWidthClass="w-48"
+            />
 
             <div className="w-60">
               <SearchInput
@@ -585,17 +588,16 @@ export default function MailboxesPage() {
                       className="h-10 flex-1 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
                     />
                     <span className="text-slate-400 font-bold text-sm select-none">@</span>
-                    <select
+                    <SelectDropdown
+                      options={availableDomains.map((dom) => ({
+                        value: dom.name,
+                        label: `${dom.name}${dom.isDefault ? ' (기본)' : ''}`,
+                      }))}
                       value={selectedDomain}
-                      onChange={(e) => setSelectedDomain(e.target.value)}
-                      className="h-10 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white font-mono min-w-[130px]"
-                    >
-                      {availableDomains.map((dom) => (
-                        <option key={dom.id} value={dom.name}>
-                          {dom.name} {dom.isDefault ? '(기본)' : ''}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSelectedDomain}
+                      size="md"
+                      className="min-w-[150px]"
+                    />
                   </div>
                   {newLocalPart && selectedDomain && (
                     <div className="mt-2 text-[11px] text-slate-500 font-mono">

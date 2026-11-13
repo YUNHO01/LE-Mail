@@ -28,6 +28,7 @@ import { OutboundRateLimitService } from '../spam/outbound-rate-limit.service';
 import { DkimSignService, DkimNodemailerConfig } from '../spam/dkim-sign.service';
 import { AccountDefenseService } from '../spam/account-defense.service';
 import { SecureMailService } from './services/secure-mail.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class MailService {
@@ -55,6 +56,7 @@ export class MailService {
     @Inject(forwardRef(() => AccountDefenseService))
     private readonly accountDefenseService: AccountDefenseService,
     private readonly secureMailService: SecureMailService,
+    private readonly usersService: UsersService,
   ) {}
 
   decodeMimeWords(str: string | null | undefined): string {
@@ -739,6 +741,30 @@ export class MailService {
     if (lockStatus.locked) {
       throw new ForbiddenException(
         `비정상 대량 발송 또는 어뷰징 징후가 감지되어 계정이 임시 보호 잠금되었습니다. 사유: ${lockStatus.reason || '보안 위반'} (시스템 관리자에게 문의하세요)`,
+      );
+    }
+
+    // 0-1.5. 발신자 사서함 용량 확인 (용량이 없거나 부족한 경우 발송 차단, 수신은 별도 허용)
+    const storageUsage = await this.usersService.getUserStorageUsage(user.id);
+    const quotaBytes = Math.max(0, storageUsage.quotaMb) * 1024 * 1024;
+    const attachmentBytes = (dto.attachments || []).reduce(
+      (sum, att) => sum + (Number(att.sizeBytes) || 0),
+      0,
+    );
+    const bodyBytes = Buffer.byteLength(
+      `${dto.subject || ''}${dto.bodyHtml || ''}${dto.bodyText || ''}`,
+      'utf8',
+    );
+    const estimatedMailBytes = attachmentBytes + bodyBytes;
+
+    if (storageUsage.quotaMb <= 0 || storageUsage.usedBytes >= quotaBytes) {
+      throw new ForbiddenException(
+        '사서함 용량이 없어 메일을 발송할 수 없습니다. 불필요한 메일을 삭제하거나 관리자에게 용량 증설을 요청해 주세요.',
+      );
+    }
+    if (storageUsage.usedBytes + estimatedMailBytes > quotaBytes) {
+      throw new ForbiddenException(
+        `사서함 잔여 용량(${storageUsage.freeMb} MB)이 부족하여 메일을 발송할 수 없습니다.`,
       );
     }
 

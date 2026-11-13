@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PageHeader } from '@/components/common';
 import { licenseApi } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { SystemLicenseInfo } from '@lemail/shared-types';
 import {
   ShieldCheck,
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 
 export default function LicenseAdminPage() {
+  const { refreshLicenseStatus } = useAuth();
   const [licenseInfo, setLicenseInfo] = useState<SystemLicenseInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -73,6 +75,7 @@ export default function LicenseAdminPage() {
         type: 'success',
         message: 'LEMail 정품 라이선스가 성공적으로 등록 및 동기화되었습니다!',
       });
+      await refreshLicenseStatus();
       fetchLicenseStatus();
     } catch (err: any) {
       setFeedback({
