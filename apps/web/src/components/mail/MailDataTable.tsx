@@ -270,6 +270,25 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     }
   };
 
+  const MAX_MULTI_OPEN_COUNT = 5;
+
+  const handleBulkOpen = () => {
+    if (selectedIds.length === 0 || isDraft) return;
+    if (selectedIds.length > MAX_MULTI_OPEN_COUNT) {
+      alert(`동시 열람은 최대 ${MAX_MULTI_OPEN_COUNT}건까지 선택할 수 있습니다. (현재 ${selectedIds.length}건 선택됨)`);
+      return;
+    }
+    if (selectedIds.length === 1) {
+      router.push(`/mail/${selectedIds[0]}`);
+      return;
+    }
+    const orderedIds = filteredMails
+      .filter((m) => selectedIds.includes(m.id))
+      .map((m) => m.id);
+    const targetIds = orderedIds.length > 0 ? orderedIds : selectedIds;
+    router.push(`/mail/view?ids=${encodeURIComponent(targetIds.join(','))}`);
+  };
+
   const handleBulkReadAction = async () => {
     if (selectedIds.length === 0) return;
     if (onBulkToggleRead) {
@@ -733,6 +752,32 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
               <span className="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
                 {selectedIds.length}개 선택
               </span>
+
+              {/* 동시 열람 버튼 (임시보관함 제외, 최대 5건) */}
+              {!isDraft && (
+                <button
+                  type="button"
+                  onClick={handleBulkOpen}
+                  title={
+                    selectedIds.length > MAX_MULTI_OPEN_COUNT
+                      ? `동시 열람은 최대 ${MAX_MULTI_OPEN_COUNT}건까지 가능합니다.`
+                      : '선택한 메일 열람'
+                  }
+                  className={`btn btn-sm text-xs font-medium inline-flex items-center gap-1 ${
+                    selectedIds.length > MAX_MULTI_OPEN_COUNT
+                      ? 'btn-secondary opacity-60'
+                      : 'btn-secondary text-sky-700 border-sky-200 bg-sky-50/60 hover:bg-sky-100/70'
+                  }`}
+                >
+                  <MailOpen className="w-3.5 h-3.5" />
+                  <span>
+                    열람
+                    {selectedIds.length > MAX_MULTI_OPEN_COUNT
+                      ? ` (최대 ${MAX_MULTI_OPEN_COUNT}건)`
+                      : ''}
+                  </span>
+                </button>
+              )}
 
               {/* 읽음 버튼 */}
               <button

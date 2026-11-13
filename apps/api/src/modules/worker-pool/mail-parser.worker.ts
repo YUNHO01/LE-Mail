@@ -40,6 +40,40 @@ function extractAddresses(field: any): string[] {
   return [];
 }
 
+function resolveInlineCidImages(
+  html: string | null,
+  attachments: Attachment[],
+): string | null {
+  if (!html) return null;
+
+  const cidMap = new Map<string, string>();
+  for (const att of attachments) {
+    const rawCid = att.cid || att.contentId;
+    if (!rawCid || !att.content) continue;
+    const mime = (att.contentType || '').toLowerCase();
+    if (!mime.startsWith('image/')) continue;
+
+    const normalizedCid = rawCid.replace(/^<|>$/g, '').trim();
+    if (!normalizedCid) continue;
+
+    cidMap.set(
+      normalizedCid,
+      `data:${mime};base64,${att.content.toString('base64')}`,
+    );
+  }
+
+  if (cidMap.size === 0) return html;
+
+  return html.replace(
+    /(<img\b[^>]*\bsrc\s*=\s*)(["'])cid:([^"']+)\2/gi,
+    (fullMatch, prefix, quote, cidValue) => {
+      const key = cidValue.replace(/^<|>$/g, '').trim();
+      const dataUri = cidMap.get(key);
+      return dataUri ? `${prefix}${quote}${dataUri}${quote}` : fullMatch;
+    },
+  );
+}
+
 export default async function parseMailWorker({
   filePath,
   clientIp,
@@ -140,7 +174,10 @@ export default async function parseMailWorker({
     cc: extractAddresses(parsed.cc),
     bcc: extractAddresses(parsed.bcc),
     text: parsed.text || null,
-    html: typeof parsed.html === 'string' ? parsed.html : null,
+    html: resolveInlineCidImages(
+      typeof parsed.html === 'string' ? parsed.html : null,
+      parsed.attachments || [],
+    ),
     attachments,
     spfResult,
     dkimResult,

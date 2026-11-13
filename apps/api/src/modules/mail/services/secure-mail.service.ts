@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as zlib from 'zlib';
 import PDFDocument from 'pdfkit';
 const archiver = require('archiver');
 const archiverZipEncrypted = require('archiver-zip-encrypted');
@@ -302,14 +303,8 @@ export class SecureMailService {
 
     const senderDisplay = senderName ? `${senderName} (${sender})` : sender;
 
-    // 모던 보안 엠블럼 SVG 아이콘
-    const badgeSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      <rect x="9" y="10" width="6" height="5" rx="1" fill="#0284c7" stroke="none"/>
-      <path d="M10 10V8a2 2 0 1 1 4 0v2" stroke="#0284c7" stroke-width="1.8"/>
-    </svg>`;
-
-    const badgeSvgBuffer = Buffer.from(badgeSvg, 'utf-8');
+    // 아웃룩/Gmail/웹메일 등 모든 클라이언트 호환을 위한 순백색 보안 엠블럼 PNG 생성
+    const badgePngBuffer = getSecurityBadgePngBuffer();
     const badgeCid = 'lemail-security-badge@lemail.local';
 
     const html = `
@@ -327,7 +322,7 @@ export class SecureMailService {
       <td style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
         <div style="display: inline-block; background-color: rgba(255, 255, 255, 0.15); border-radius: 50%; padding: 12px; margin-bottom: 12px;">
           <!-- Inline CID 보안 엠블럼 이미지 (아웃룩 및 모든 메일 클라이언트 호환) -->
-          <img src="cid:${badgeCid}" alt="보안 메일" width="56" height="56" style="display: block; border: 0; filter: brightness(0) invert(1);" />
+          <img src="cid:${badgeCid}" alt="보안 메일" width="56" height="56" style="display: block; border: 0;" />
         </div>
         <h1 style="margin: 0 0 6px 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">보안 메일이 도착했습니다</h1>
         <p style="margin: 0; font-size: 13px; color: #e0f2fe; line-height: 1.5;">본 메일은 개인정보 및 기밀 보호를 위해 암호화 처리되었습니다.</p>
@@ -431,11 +426,143 @@ ${hasAttachments && zipFilename ? `3. 함께 첨부된 [${zipFilename}] 압축�
       html,
       text,
       inlineAttachment: {
-        filename: 'security_badge.svg',
-        content: badgeSvgBuffer,
-        contentType: 'image/svg+xml',
+        filename: 'security_badge.png',
+        content: badgePngBuffer,
+        contentType: 'image/png',
         cid: badgeCid,
       },
     };
   }
+}
+
+let cachedBadgePngBuffer: Buffer | null = null;
+
+function crc32(buf: Buffer): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    crc ^= buf[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const lenBuf = Buffer.alloc(4);
+  lenBuf.writeUInt32BE(data.length, 0);
+  const typeBuf = Buffer.from(type, 'ascii');
+  const crcBuf = Buffer.alloc(4);
+  crcBuf.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])), 0);
+  return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
+}
+
+function distToSegment(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+function getSecurityBadgePngBuffer(): Buffer {
+  if (cachedBadgePngBuffer) return cachedBadgePngBuffer;
+
+  const size = 112;
+  const stride = 1 + size * 4;
+  const raw = Buffer.alloc(stride * size);
+  const scale = size / 24;
+  const halfStroke = 0.9; // stroke-width 1.8 in 24x24 viewBox
+
+  // 방패 외곽선 폴리곤 (24x24 좌표계)
+  const shieldPts: Array<[number, number]> = [
+    [12, 2.2],
+    [19.8, 5.2],
+    [19.8, 11.8],
+    [19.4, 14.5],
+    [18.2, 17.0],
+    [16.0, 19.3],
+    [12, 21.8],
+    [8.0, 19.3],
+    [5.8, 17.0],
+    [4.6, 14.5],
+    [4.2, 11.8],
+    [4.2, 5.2],
+    [12, 2.2],
+  ];
+
+  for (let py = 0; py < size; py++) {
+    const rowOffset = py * stride;
+    raw[rowOffset] = 0; // filter type 0
+    const y = (py + 0.5) / scale;
+
+    for (let px = 0; px < size; px++) {
+      const x = (px + 0.5) / scale;
+
+      // 1. 방패 외곽선 거리 계산
+      let minDist = Infinity;
+      for (let i = 0; i < shieldPts.length - 1; i++) {
+        const [x1, y1] = shieldPts[i];
+        const [x2, y2] = shieldPts[i + 1];
+        const d = distToSegment(x, y, x1, y1, x2, y2);
+        if (d < minDist) minDist = d;
+      }
+
+      // 2. 자물쇠 고리 (상단 반원 + 기둥: 중심 12, 8.2, 반지름 2.0)
+      const dArc =
+        y <= 8.2
+          ? Math.abs(Math.hypot(x - 12, y - 8.2) - 2.0)
+          : Math.min(
+              distToSegment(x, y, 10, 8.2, 10, 10.2),
+              distToSegment(x, y, 14, 8.2, 14, 10.2),
+            );
+      if (dArc < minDist) minDist = dArc;
+
+      let alpha = Math.max(0, Math.min(1, (halfStroke + 0.28 - minDist) / 0.56));
+
+      // 3. 자물쇠 몸체 (x: 8.8..15.2, y: 10.2..15.5, 둥근 모서리)
+      const rx = Math.max(8.8 + 0.8 - x, 0, x - (15.2 - 0.8));
+      const ry = Math.max(10.2 + 0.8 - y, 0, y - (15.5 - 0.8));
+      const dRect = Math.hypot(rx, ry) - 0.8;
+      const rectAlpha = Math.max(0, Math.min(1, (0.28 - dRect) / 0.56));
+      if (rectAlpha > alpha) alpha = rectAlpha;
+
+      if (alpha > 0) {
+        const off = rowOffset + 1 + px * 4;
+        raw[off] = 255;
+        raw[off + 1] = 255;
+        raw[off + 2] = 255;
+        raw[off + 3] = Math.round(alpha * 255);
+      }
+    }
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // RGBA
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  const idat = zlib.deflateSync(raw);
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+  cachedBadgePngBuffer = Buffer.concat([
+    signature,
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', idat),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+
+  return cachedBadgePngBuffer;
 }
