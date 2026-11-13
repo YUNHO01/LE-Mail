@@ -21,6 +21,7 @@ import {
 } from '@lemail/shared-types';
 import { adminHolidaysApi } from '../../../lib/api';
 import { PageHeader } from '../../../components/common/PageHeader';
+import { ToggleSwitch } from '../../../components/common';
 
 const SOURCE_LABELS: Record<HolidaySource, { label: string; cls: string }> = {
   KASI_API: {
@@ -258,17 +259,12 @@ export default function AdminHolidaysPage() {
             </p>
           </div>
 
-          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={autoSyncEnabled}
-              onChange={(e) => setAutoSyncEnabled(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <span className="text-xs font-semibold text-slate-700">
-              주기적 자동 동기화 사용
-            </span>
-          </label>
+          <ToggleSwitch
+            checked={autoSyncEnabled}
+            onChange={setAutoSyncEnabled}
+            label="주기적 자동 동기화 사용"
+            color="indigo"
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -484,17 +480,12 @@ export default function AdminHolidaysPage() {
                   className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-800"
                 />
               </div>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={newIsSubstitute}
-                  onChange={(e) => setNewIsSubstitute(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-sky-600"
-                />
-                <span className="text-xs font-medium text-slate-700">
-                  대체공휴일 여부
-                </span>
-              </label>
+              <ToggleSwitch
+                checked={newIsSubstitute}
+                onChange={setNewIsSubstitute}
+                label="대체공휴일 여부"
+                color="sky"
+              />
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"

@@ -7,9 +7,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, Mailbox, Domain } from '../database/entities';
+import { User, Mailbox, Domain, Department } from '../database/entities';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
@@ -27,6 +27,8 @@ export class UsersService {
     private readonly mailboxRepository: Repository<Mailbox>,
     @InjectRepository(Domain)
     private readonly domainRepository: Repository<Domain>,
+    @InjectRepository(Department)
+    private readonly departmentRepository: Repository<Department>,
     private readonly mailboxCacheService: MailboxCacheService,
     private readonly mailFolderService: MailFolderService,
     @InjectDataSource()
@@ -36,6 +38,7 @@ export class UsersService {
   private toDto(
     user: User,
     usage?: { usedBytes: number; usedMb: number; messageCount: number },
+    departmentName?: string | null,
   ): UserDto {
     const quotaMb = user.mailboxQuotaMb ?? 512;
     const usedBytes = usage?.usedBytes ?? 0;
@@ -58,12 +61,34 @@ export class UsersService {
       preferredLanguage: user.preferredLanguage || 'ko',
       timezone: user.timezone || 'Asia/Seoul',
       employeeId: user.employeeId || null,
+      amsUserId: user.amsUserId || null,
+      departmentId: user.departmentId || null,
+      departmentName: departmentName ?? null,
+      position: user.position || null,
+      jobTitle: user.jobTitle || null,
+      phone: user.phone || null,
+      mobile: user.mobile || null,
+      syncSource: user.syncSource || 'LOCAL',
+      employmentStatus: user.employmentStatus || 'ACTIVE',
+      resignedAt: user.resignedAt ? user.resignedAt.toISOString() : null,
+      lastSyncedAt: user.lastSyncedAt ? user.lastSyncedAt.toISOString() : null,
       lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
       useSignature: Boolean(user.useSignature),
       signatureHtml: user.signatureHtml || null,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  private async getDepartmentNameMap(departmentIds: Array<string | null | undefined>): Promise<Map<string, string>> {
+    const ids = Array.from(new Set(departmentIds.filter((id): id is string => Boolean(id))));
+    const map = new Map<string, string>();
+    if (ids.length === 0) return map;
+    const depts = await this.departmentRepository.find({ where: { id: In(ids) } });
+    for (const d of depts) {
+      map.set(d.id, d.name);
+    }
+    return map;
   }
 
   async getUserStorageUsage(userId: string): Promise<UserStorageUsageDto> {
@@ -180,10 +205,15 @@ export class UsersService {
 
     const [users, total] = await queryBuilder.getManyAndCount();
     const userIds = users.map((u) => u.id);
-    const usageMap = await this.getBatchUserMailUsage(userIds);
+    const [usageMap, deptNameMap] = await Promise.all([
+      this.getBatchUserMailUsage(userIds),
+      this.getDepartmentNameMap(users.map((u) => u.departmentId)),
+    ]);
 
     return {
-      items: users.map((u) => this.toDto(u, usageMap.get(u.id))),
+      items: users.map((u) =>
+        this.toDto(u, usageMap.get(u.id), u.departmentId ? deptNameMap.get(u.departmentId) || null : null),
+      ),
       total,
       page,
       limit,
@@ -196,8 +226,15 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`사용자를 찾을 수 없습니다: ${id}`);
     }
-    const usageMap = await this.getBatchUserMailUsage([id]);
-    return this.toDto(user, usageMap.get(id));
+    const [usageMap, deptNameMap] = await Promise.all([
+      this.getBatchUserMailUsage([id]),
+      this.getDepartmentNameMap([user.departmentId]),
+    ]);
+    return this.toDto(
+      user,
+      usageMap.get(id),
+      user.departmentId ? deptNameMap.get(user.departmentId) || null : null,
+    );
   }
 
   async create(createUserDto: CreateUserDto): Promise<UserDto> {
@@ -231,6 +268,16 @@ export class UsersService {
       );
     }
 
+    const normalizedEmployeeId = createUserDto.employeeId?.trim() || null;
+    if (normalizedEmployeeId) {
+      const dupEmp = await this.userRepository.findOne({
+        where: { employeeId: normalizedEmployeeId },
+      });
+      if (dupEmp) {
+        throw new ConflictException(`이미 등록된 사번입니다: ${normalizedEmployeeId}`);
+      }
+    }
+
     // Hash password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(createUserDto.password, saltRounds);
@@ -253,7 +300,14 @@ export class UsersService {
             : 512,
         preferredLanguage: createUserDto.preferredLanguage || 'ko',
         timezone: createUserDto.timezone || 'Asia/Seoul',
-        employeeId: createUserDto.employeeId?.trim() || null,
+        employeeId: normalizedEmployeeId,
+        departmentId: createUserDto.departmentId?.trim() || null,
+        position: createUserDto.position?.trim() || null,
+        jobTitle: createUserDto.jobTitle?.trim() || null,
+        phone: createUserDto.phone?.trim() || null,
+        mobile: createUserDto.mobile?.trim() || null,
+        syncSource: 'LOCAL',
+        employmentStatus: createUserDto.employmentStatus || 'ACTIVE',
       });
       savedUser = await queryRunner.manager.save(newUser);
 
@@ -321,7 +375,37 @@ export class UsersService {
     }
 
     if (updateUserDto.employeeId !== undefined) {
-      user.employeeId = updateUserDto.employeeId?.trim() || null;
+      const normalizedEmployeeId = updateUserDto.employeeId?.trim() || null;
+      if (normalizedEmployeeId && normalizedEmployeeId !== user.employeeId) {
+        const dupEmp = await this.userRepository.findOne({
+          where: { employeeId: normalizedEmployeeId },
+        });
+        if (dupEmp) {
+          throw new ConflictException(`이미 등록된 사번입니다: ${normalizedEmployeeId}`);
+        }
+      }
+      user.employeeId = normalizedEmployeeId;
+    }
+
+    if (updateUserDto.departmentId !== undefined) {
+      user.departmentId = updateUserDto.departmentId?.trim() || null;
+    }
+    if (updateUserDto.position !== undefined) {
+      user.position = updateUserDto.position?.trim() || null;
+    }
+    if (updateUserDto.jobTitle !== undefined) {
+      user.jobTitle = updateUserDto.jobTitle?.trim() || null;
+    }
+    if (updateUserDto.phone !== undefined) {
+      user.phone = updateUserDto.phone?.trim() || null;
+    }
+    if (updateUserDto.mobile !== undefined) {
+      user.mobile = updateUserDto.mobile?.trim() || null;
+    }
+    if (updateUserDto.employmentStatus !== undefined) {
+      user.employmentStatus = updateUserDto.employmentStatus;
+      user.resignedAt =
+        updateUserDto.employmentStatus === 'ACTIVE' ? null : user.resignedAt || new Date();
     }
 
     if (updateUserDto.password) {

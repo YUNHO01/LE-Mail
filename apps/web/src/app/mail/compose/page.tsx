@@ -14,6 +14,7 @@ import {
 } from '@/components/mail/ComposeAddressBookPanel';
 import { AttachmentUploader, LocalAttachment } from '@/components/mail/AttachmentUploader';
 import { MailEditor } from '@/components/mail/MailEditor';
+import { ToggleSwitch } from '@/components/common';
 import { MailMessageDto } from '@lemail/shared-types';
 import {
     Send,
@@ -748,29 +749,34 @@ function ComposeMailContent() {
                             placeholder="메일 제목을 입력하세요"
                             className="flex-1 border-none bg-transparent py-1 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         />
-                        <label
-                            className="inline-flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-200 transition shrink-0"
+                        <div
+                            className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 shrink-0"
                             title="중요 메일로 발송"
                         >
-                            <input
-                                type="checkbox"
+                            <ToggleSwitch
                                 checked={isImportant}
-                                onChange={(e) => setIsImportant(e.target.checked)}
-                                className="h-3.5 w-3.5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                                onChange={setIsImportant}
+                                size="sm"
+                                color="amber"
+                                showStatusText={false}
+                                label={
+                                    <span className="inline-flex items-center gap-1">
+                                        <Star
+                                            className={`h-3.5 w-3.5 ${
+                                                isImportant ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
+                                            }`}
+                                        />
+                                        <span
+                                            className={`text-xs font-semibold ${
+                                                isImportant ? 'text-amber-700' : 'text-slate-600'
+                                            }`}
+                                        >
+                                            중요
+                                        </span>
+                                    </span>
+                                }
                             />
-                            <Star
-                                className={`h-3.5 w-3.5 ${
-                                    isImportant ? 'fill-amber-400 text-amber-400' : 'text-slate-400'
-                                }`}
-                            />
-                            <span
-                                className={`text-xs font-semibold ${
-                                    isImportant ? 'text-amber-700' : 'text-slate-600'
-                                }`}
-                            >
-                                중요
-                            </span>
-                        </label>
+                        </div>
                     </div>
                 </div>
 
@@ -782,27 +788,27 @@ function ComposeMailContent() {
                             : 'border-slate-200 bg-slate-50/60 p-3 hover:border-slate-300'
                     }`}
                 >
-                    <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={isSecure}
-                                onChange={(e) => {
-                                    setIsSecure(e.target.checked);
-                                    if (!e.target.checked) {
-                                        setSecurityPassword('');
-                                        setSecurityPasswordConfirm('');
-                                    }
-                                }}
-                                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                            />
-                            <div className="flex items-center gap-1.5">
-                                <ShieldCheck className={`h-4 w-4 ${isSecure ? 'text-sky-600' : 'text-slate-400'}`} />
-                                <span className={`text-xs font-bold ${isSecure ? 'text-sky-950' : 'text-slate-700'}`}>
-                                    보안 메일로 발송 (본문 PDF 암호화 및 첨부파일 암호화 압축)
+                    <div className="flex items-center justify-between gap-2">
+                        <ToggleSwitch
+                            checked={isSecure}
+                            onChange={(checked) => {
+                                setIsSecure(checked);
+                                if (!checked) {
+                                    setSecurityPassword('');
+                                    setSecurityPasswordConfirm('');
+                                }
+                            }}
+                            size="sm"
+                            color="sky"
+                            label={
+                                <span className="inline-flex items-center gap-1.5">
+                                    <ShieldCheck className={`h-4 w-4 ${isSecure ? 'text-sky-600' : 'text-slate-400'}`} />
+                                    <span className={`text-xs font-bold ${isSecure ? 'text-sky-950' : 'text-slate-700'}`}>
+                                        보안 메일로 발송 (본문 PDF 암호화 및 첨부파일 암호화 압축)
+                                    </span>
                                 </span>
-                            </div>
-                        </label>
+                            }
+                        />
                         {isSecure && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
                                 <Lock className="h-3 w-3" />

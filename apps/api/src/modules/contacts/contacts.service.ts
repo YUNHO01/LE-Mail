@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, In, IsNull } from 'typeorm';
-import { Contact, ContactGroup, User } from '../database/entities';
+import { Contact, ContactGroup, Department, User } from '../database/entities';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
@@ -18,6 +18,8 @@ export class ContactsService {
     private readonly groupRepo: Repository<ContactGroup>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Department)
+    private readonly departmentRepo: Repository<Department>,
     private readonly importExportService: ContactsImportExportService,
   ) {}
 
@@ -128,19 +130,37 @@ export class ContactsService {
     };
   }
 
+  private async getDepartmentNameMap(departmentIds: Array<string | null | undefined>): Promise<Map<string, string>> {
+    const ids = Array.from(new Set(departmentIds.filter((id): id is string => Boolean(id))));
+    const map = new Map<string, string>();
+    if (ids.length === 0) return map;
+    const depts = await this.departmentRepo.find({ where: { id: In(ids) } });
+    for (const d of depts) {
+      map.set(d.id, d.name);
+    }
+    return map;
+  }
+
   /**
    * 사내 임직원 주소록 조회 (일반 사용자 USER 권한인 활성 사용자만 조회)
    */
-  async getCompanyUsers(): Promise<UserDto[]> {
+  async getCompanyUsers(departmentId?: string): Promise<UserDto[]> {
+    const where: any = {
+      role: UserRole.USER,
+      isActive: true,
+    };
+    if (departmentId?.trim()) {
+      where.departmentId = departmentId.trim();
+    }
+
     const users = await this.userRepo.find({
-      where: {
-        role: UserRole.USER,
-        isActive: true,
-      },
+      where,
       order: {
         name: 'ASC',
       },
     });
+
+    const deptNameMap = await this.getDepartmentNameMap(users.map((u) => u.departmentId));
 
     return users.map((u) => ({
       id: u.id,
@@ -152,6 +172,13 @@ export class ContactsService {
       preferredLanguage: u.preferredLanguage,
       timezone: u.timezone,
       employeeId: u.employeeId,
+      departmentId: u.departmentId || null,
+      departmentName: u.departmentId ? deptNameMap.get(u.departmentId) || null : null,
+      position: u.position || null,
+      jobTitle: u.jobTitle || null,
+      phone: u.phone || null,
+      mobile: u.mobile || null,
+      employmentStatus: u.employmentStatus || 'ACTIVE',
       lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
       useSignature: u.useSignature,
       createdAt: u.createdAt.toISOString(),
@@ -254,6 +281,7 @@ export class ContactsService {
       .limit(10)
       .getMany();
 
+    const deptNameMap = await this.getDepartmentNameMap(users.map((u) => u.departmentId));
     const results: ContactSearchResultDto[] = [];
     const seenEmails = new Set<string>();
 
@@ -266,9 +294,9 @@ export class ContactsService {
           name: u.name,
           email: u.email,
           company: '사내 임직원',
-          department: null,
-          position: null,
-          phone: null,
+          department: u.departmentId ? deptNameMap.get(u.departmentId) || null : null,
+          position: u.position || u.jobTitle || null,
+          phone: u.phone || u.mobile || null,
           source: 'SYSTEM_USER',
         });
       }

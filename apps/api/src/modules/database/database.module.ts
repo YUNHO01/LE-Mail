@@ -23,6 +23,8 @@ import {
   CalendarEvent,
   CalendarEventAttendee,
   SystemHoliday,
+  Department,
+  OrgSyncLog,
 } from './entities';
 
 @Module({
@@ -59,6 +61,8 @@ import {
             CalendarEvent,
             CalendarEventAttendee,
             SystemHoliday,
+            Department,
+            OrgSyncLog,
           ],
           synchronize: false,
           timezone: 'Z',
@@ -87,6 +91,8 @@ import {
       CalendarEvent,
       CalendarEventAttendee,
       SystemHoliday,
+      Department,
+      OrgSyncLog,
     ]),
   ],
   exports: [TypeOrmModule],

@@ -23,7 +23,7 @@ import {
 } from '@lemail/shared-types';
 import { contactsApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { DatePicker, TimePicker, SelectDropdown } from '../common';
+import { DatePicker, TimePicker, SelectDropdown, ToggleSwitch } from '../common';
 import { formatDateInputValue, formatTimeInputValue } from './dateUtils';
 
 export interface EventDraftInitial {
@@ -334,15 +334,13 @@ export const EventModal: React.FC<EventModalProps> = ({
                         </div>
 
                         <div className="flex items-end pb-2">
-                            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={isAllDay}
-                                    onChange={(e) => setIsAllDay(e.target.checked)}
-                                    className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                                />
-                                <span className="text-sm font-medium text-slate-700">종일 일정</span>
-                            </label>
+                            <ToggleSwitch
+                                checked={isAllDay}
+                                onChange={setIsAllDay}
+                                disabled={isReadOnly}
+                                label="종일 일정"
+                                color="sky"
+                            />
                         </div>
                     </div>
 

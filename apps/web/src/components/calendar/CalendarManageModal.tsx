@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Palette, Trash2 } from 'lucide-react';
 import { CalendarDto, CreateCalendarDto, UpdateCalendarDto } from '@lemail/shared-types';
 import { CALENDAR_COLORS } from './dateUtils';
+import { ToggleSwitch } from '../common';
 
 interface CalendarManageModalProps {
   isOpen: boolean;
@@ -148,17 +149,14 @@ export const CalendarManageModal: React.FC<CalendarManageModalProps> = ({
           </div>
 
           {!initialCalendar?.isDefault && initialCalendar?.type !== 'HOLIDAY' && (
-            <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
-              <input
-                type="checkbox"
+            <div className="pt-1">
+              <ToggleSwitch
                 checked={isShared}
-                onChange={(e) => setIsShared(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                onChange={setIsShared}
+                label="사내 구성원 전체에게 공유 (읽기 전용)"
+                color="sky"
               />
-              <span className="text-xs font-medium text-slate-700">
-                사내 구성원 전체에게 공유 (읽기 전용)
-              </span>
-            </label>
+            </div>
           )}
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-100">

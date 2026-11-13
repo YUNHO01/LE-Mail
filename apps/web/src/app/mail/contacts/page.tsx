@@ -145,7 +145,9 @@ export default function ContactsPage() {
       (u) =>
         u.name.toLowerCase().includes(s) ||
         u.email.toLowerCase().includes(s) ||
-        (u.employeeId && u.employeeId.toLowerCase().includes(s)),
+        (u.employeeId && u.employeeId.toLowerCase().includes(s)) ||
+        (u.departmentName && u.departmentName.toLowerCase().includes(s)) ||
+        (u.position && u.position.toLowerCase().includes(s)),
     );
   }, [companyUsers, searchTerm]);
 
@@ -267,10 +269,10 @@ export default function ContactsPage() {
         ? filteredCompanyUsers.map((u) => [
             u.name || '',
             u.email || '',
-            '-',
+            u.phone || u.mobile || '-',
             '사내',
-            u.employeeId ? `사번: ${u.employeeId}` : '-',
-            '-',
+            u.departmentName || (u.employeeId ? `사번: ${u.employeeId}` : '-'),
+            u.position || u.jobTitle || '-',
             u.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원',
           ])
         : filteredContacts.map((c) => [
@@ -309,10 +311,10 @@ export default function ContactsPage() {
       ? (targetItems as typeof filteredCompanyUsers).map((u) => [
           u.name || '',
           u.email || '',
-          '-',
+          u.phone || u.mobile || '-',
           '사내',
-          u.employeeId ? `사번: ${u.employeeId}` : '-',
-          '-',
+          u.departmentName || (u.employeeId ? `사번: ${u.employeeId}` : '-'),
+          u.position || u.jobTitle || '-',
           u.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원',
           u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : '-',
         ])

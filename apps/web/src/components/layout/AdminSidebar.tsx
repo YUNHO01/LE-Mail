@@ -18,6 +18,7 @@ import {
   Settings,
   KeyRound,
   CalendarDays,
+  Building2,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -46,6 +47,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       href: '/admin/users',
       label: '사용자 계정 관리',
       icon: UserCog,
+    },
+    {
+      href: '/admin/org',
+      label: '조직도 및 AMS 연동',
+      icon: Building2,
     },
     {
       href: '/admin/domains',

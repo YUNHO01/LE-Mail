@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, orgApi } from '@/lib/api';
 import {
   Users,
   UserPlus,
@@ -30,7 +30,7 @@ import {
   BadgeAlert,
   IdCard,
 } from 'lucide-react';
-import { UserDto, UserRole, DomainDto } from '@lemail/shared-types';
+import { UserDto, UserRole, DomainDto, DepartmentDto, EmploymentStatus } from '@lemail/shared-types';
 import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 
@@ -78,6 +78,7 @@ export default function UsersManagementPage() {
   const [targetUser, setTargetUser] = useState<UserDto | null>(null);
 
   // 등록 폼 상태
+  const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [createForm, setCreateForm] = useState<{
     localPart: string;
     selectedDomain: string;
@@ -88,6 +89,10 @@ export default function UsersManagementPage() {
     preferredLanguage: string;
     timezone: string;
     employeeId: string;
+    departmentId: string;
+    position: string;
+    jobTitle: string;
+    phone: string;
   }>({
     localPart: '',
     selectedDomain: '',
@@ -98,6 +103,10 @@ export default function UsersManagementPage() {
     preferredLanguage: 'ko',
     timezone: 'Asia/Seoul',
     employeeId: '',
+    departmentId: '',
+    position: '',
+    jobTitle: '',
+    phone: '',
   });
 
   // 수정 폼 상태
@@ -109,6 +118,11 @@ export default function UsersManagementPage() {
     preferredLanguage: string;
     timezone: string;
     employeeId: string;
+    departmentId: string;
+    position: string;
+    jobTitle: string;
+    phone: string;
+    employmentStatus: EmploymentStatus;
     password?: string;
   }>({
     name: '',
@@ -118,6 +132,11 @@ export default function UsersManagementPage() {
     preferredLanguage: 'ko',
     timezone: 'Asia/Seoul',
     employeeId: '',
+    departmentId: '',
+    position: '',
+    jobTitle: '',
+    phone: '',
+    employmentStatus: 'ACTIVE',
     password: '',
   });
 
@@ -313,6 +332,7 @@ export default function UsersManagementPage() {
   // 신규 등록 모달 열기
   const openCreateModal = () => {
     loadAvailableDomains();
+    orgApi.getDepartments().then(setDepartments).catch(() => {});
     setCreateForm({
       localPart: '',
       selectedDomain: '',
@@ -323,6 +343,10 @@ export default function UsersManagementPage() {
       preferredLanguage: 'ko',
       timezone: 'Asia/Seoul',
       employeeId: '',
+      departmentId: '',
+      position: '',
+      jobTitle: '',
+      phone: '',
     });
     setIsCreateModalOpen(true);
   };
@@ -365,6 +389,10 @@ export default function UsersManagementPage() {
           preferredLanguage: createForm.preferredLanguage,
           timezone: createForm.timezone,
           employeeId: createForm.employeeId.trim() || undefined,
+          departmentId: createForm.departmentId || null,
+          position: createForm.position.trim() || null,
+          jobTitle: createForm.jobTitle.trim() || null,
+          phone: createForm.phone.trim() || null,
         }),
       });
 
@@ -387,6 +415,7 @@ export default function UsersManagementPage() {
   // 수정 모달 열기
   const openEditModal = (target: UserDto) => {
     setTargetUser(target);
+    orgApi.getDepartments().then(setDepartments).catch(() => {});
     setEditForm({
       name: target.name,
       role: target.role,
@@ -395,6 +424,11 @@ export default function UsersManagementPage() {
       preferredLanguage: target.preferredLanguage || 'ko',
       timezone: target.timezone || 'Asia/Seoul',
       employeeId: target.employeeId || '',
+      departmentId: target.departmentId || '',
+      position: target.position || '',
+      jobTitle: target.jobTitle || '',
+      phone: target.phone || '',
+      employmentStatus: target.employmentStatus || 'ACTIVE',
       password: '',
     });
     setIsEditModalOpen(true);
@@ -427,6 +461,11 @@ export default function UsersManagementPage() {
         preferredLanguage: editForm.preferredLanguage,
         timezone: editForm.timezone,
         employeeId: editForm.employeeId.trim() || null,
+        departmentId: editForm.departmentId || null,
+        position: editForm.position.trim() || null,
+        jobTitle: editForm.jobTitle.trim() || null,
+        phone: editForm.phone.trim() || null,
+        employmentStatus: editForm.employmentStatus,
       };
 
       if (editForm.password && editForm.password.trim().length >= 6) {
@@ -758,6 +797,16 @@ export default function UsersManagementPage() {
                                 <span className="inline-flex items-center gap-0.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-600 border border-slate-200">
                                   <IdCard className="h-2.5 w-2.5 text-slate-400" />
                                   {item.employeeId}
+                                </span>
+                              )}
+                              {(item.departmentName || item.position) && (
+                                <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200">
+                                  {[item.departmentName, item.position].filter(Boolean).join(' · ')}
+                                </span>
+                              )}
+                              {item.employmentStatus && item.employmentStatus !== 'ACTIVE' && (
+                                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
+                                  {item.employmentStatus === 'ON_LEAVE' ? '휴직' : '퇴사'}
                                 </span>
                               )}
                               {isSelf && (
@@ -1114,20 +1163,88 @@ export default function UsersManagementPage() {
                   </div>
                 </div>
 
-                {/* User/Employee ID (사번) */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    User/Employee ID (사번)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="예: 20261101 또는 EMP0123"
-                    value={createForm.employeeId}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, employeeId: e.target.value })
-                    }
-                    className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
-                  />
+                {/* User/Employee ID (사번) & 소속 부서 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      User/Employee ID (사번)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="예: 20261101 또는 EMP0123"
+                      value={createForm.employeeId}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, employeeId: e.target.value })
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      소속 부서
+                    </label>
+                    <SelectDropdown
+                      options={[
+                        { value: '', label: '미지정' },
+                        ...departments.map((d) => ({
+                          value: d.id,
+                          label: `${'— '.repeat(d.depth)}${d.name}`,
+                        })),
+                      ]}
+                      value={createForm.departmentId}
+                      onChange={(val) =>
+                        setCreateForm({ ...createForm, departmentId: val })
+                      }
+                      size="md"
+                      fullWidth
+                    />
+                  </div>
+                </div>
+
+                {/* 직위 & 직책 & 내선전화 */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      직위
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="예: 과장"
+                      value={createForm.position}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, position: e.target.value })
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      직책
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="예: 팀장"
+                      value={createForm.jobTitle}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, jobTitle: e.target.value })
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      사내 전화
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="예: 02-1234-5678"
+                      value={createForm.phone}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, phone: e.target.value })
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
                 </div>
 
                 {/* 초기 비밀번호 & 권한 (2단 그리드) */}
@@ -1296,20 +1413,105 @@ export default function UsersManagementPage() {
                 </div>
               </div>
 
-              {/* User/Employee ID (사번) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  User/Employee ID (사번)
-                </label>
-                <input
-                  type="text"
-                  placeholder="예: 20261101 또는 EMP0123"
-                  value={editForm.employeeId}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, employeeId: e.target.value })
-                  }
-                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
-                />
+              {/* User/Employee ID (사번) & 소속 부서 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    User/Employee ID (사번)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 20261101 또는 EMP0123"
+                    value={editForm.employeeId}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, employeeId: e.target.value })
+                    }
+                    className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    소속 부서
+                  </label>
+                  <SelectDropdown
+                    options={[
+                      { value: '', label: '미지정' },
+                      ...departments.map((d) => ({
+                        value: d.id,
+                        label: `${'— '.repeat(d.depth)}${d.name}`,
+                      })),
+                    ]}
+                    value={editForm.departmentId}
+                    onChange={(val) =>
+                      setEditForm({ ...editForm, departmentId: val })
+                    }
+                    size="md"
+                    fullWidth
+                  />
+                </div>
+              </div>
+
+              {/* 직위 & 직책 & 내선전화 & 재직 상태 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    직위 / 직책
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="직위 (과장)"
+                      value={editForm.position}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, position: e.target.value })
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="직책 (팀장)"
+                      value={editForm.jobTitle}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, jobTitle: e.target.value })
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      사내 전화
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="02-1234-5678"
+                      value={editForm.phone}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, phone: e.target.value })
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      재직 상태
+                    </label>
+                    <SelectDropdown
+                      options={[
+                        { value: 'ACTIVE', label: '재직 (ACTIVE)' },
+                        { value: 'ON_LEAVE', label: '휴직 (ON_LEAVE)' },
+                        { value: 'RESIGNED', label: '퇴사 (RESIGNED)' },
+                      ]}
+                      value={editForm.employmentStatus}
+                      onChange={(val) =>
+                        setEditForm({ ...editForm, employmentStatus: val as EmploymentStatus })
+                      }
+                      size="md"
+                      fullWidth
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* 비밀번호 변경 (선택) */}

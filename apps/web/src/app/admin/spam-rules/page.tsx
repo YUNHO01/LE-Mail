@@ -27,7 +27,7 @@ import {
   Server,
   Zap,
 } from 'lucide-react';
-import { PageHeader, SelectDropdown } from '@/components/common';
+import { PageHeader, SelectDropdown, ToggleSwitch } from '@/components/common';
 
 export default function AdminSpamRulesPage() {
   const [rules, setRules] = useState<SpamRuleDto[]>([]);
@@ -217,15 +217,12 @@ export default function AdminSpamRulesPage() {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <span className="text-xs font-semibold text-slate-700">백신 검사 활성화</span>
-            <input
-              type="checkbox"
-              checked={clamavEnabled}
-              onChange={(e) => setClamavEnabled(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-          </label>
+          <ToggleSwitch
+            checked={clamavEnabled}
+            onChange={setClamavEnabled}
+            label="백신 검사 활성화"
+            color="indigo"
+          />
         </div>
 
         {/* 연결 파라미터 입력 필드 */}

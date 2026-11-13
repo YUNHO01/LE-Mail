@@ -220,7 +220,9 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
       (u) =>
         u.name?.toLowerCase().includes(q) ||
         u.email?.toLowerCase().includes(q) ||
-        u.employeeId?.toLowerCase().includes(q),
+        u.employeeId?.toLowerCase().includes(q) ||
+        u.departmentName?.toLowerCase().includes(q) ||
+        u.position?.toLowerCase().includes(q),
     );
   }, [companyUsers, searchInput]);
 
@@ -239,7 +241,10 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
       key: `company:${u.id}`,
       name: u.name,
       email: u.email || '',
-      subText: u.employeeId ? `사번 ${u.employeeId}` : '사내 임직원',
+      subText:
+        [u.departmentName, u.position || u.jobTitle, u.employeeId ? `사번 ${u.employeeId}` : null]
+          .filter(Boolean)
+          .join(' · ') || '사내 임직원',
       isStarred: false,
     }));
   }, [activeTab, contacts, filteredCompanyUsers]);

@@ -38,6 +38,42 @@ const schemaStatements = [
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
+  `CREATE TABLE IF NOT EXISTS \`department\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`code\` VARCHAR(64) NULL,
+    \`ams_dept_id\` VARCHAR(100) NULL,
+    \`parent_id\` VARCHAR(36) NULL,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`depth\` INT NOT NULL DEFAULT 0,
+    \`path\` VARCHAR(500) NULL,
+    \`sort_order\` INT NOT NULL DEFAULT 0,
+    \`manager_employee_id\` VARCHAR(50) NULL,
+    \`source\` ENUM('LOCAL', 'AMS') NOT NULL DEFAULT 'LOCAL',
+    \`is_active\` BOOLEAN NOT NULL DEFAULT TRUE,
+    \`last_synced_at\` TIMESTAMP NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE INDEX \`uq_dept_code\` (\`code\`),
+    UNIQUE INDEX \`uq_dept_ams_id\` (\`ams_dept_id\`),
+    INDEX \`idx_dept_parent\` (\`parent_id\`, \`sort_order\`),
+    INDEX \`idx_dept_active\` (\`is_active\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`org_sync_log\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`sync_type\` ENUM('FULL', 'INCREMENTAL', 'WEBHOOK') NOT NULL DEFAULT 'FULL',
+    \`status\` ENUM('RUNNING', 'SUCCESS', 'PARTIAL', 'FAILED') NOT NULL DEFAULT 'RUNNING',
+    \`total_count\` INT NOT NULL DEFAULT 0,
+    \`created_count\` INT NOT NULL DEFAULT 0,
+    \`updated_count\` INT NOT NULL DEFAULT 0,
+    \`deactivated_count\` INT NOT NULL DEFAULT 0,
+    \`skipped_count\` INT NOT NULL DEFAULT 0,
+    \`error_summary\` TEXT NULL,
+    \`started_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`finished_at\` TIMESTAMP NULL,
+    INDEX \`idx_org_sync_started\` (\`started_at\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
   `CREATE TABLE IF NOT EXISTS \`user\` (
     \`id\` VARCHAR(36) PRIMARY KEY,
     \`email\` VARCHAR(255) NOT NULL UNIQUE,
@@ -49,12 +85,27 @@ const schemaStatements = [
     \`preferred_language\` VARCHAR(20) NOT NULL DEFAULT 'ko',
     \`timezone\` VARCHAR(50) NOT NULL DEFAULT 'Asia/Seoul',
     \`employee_id\` VARCHAR(50) NULL,
+    \`ams_user_id\` VARCHAR(100) NULL,
+    \`department_id\` VARCHAR(36) NULL,
+    \`position\` VARCHAR(100) NULL,
+    \`job_title\` VARCHAR(100) NULL,
+    \`phone\` VARCHAR(50) NULL,
+    \`mobile\` VARCHAR(50) NULL,
+    \`sync_source\` ENUM('LOCAL', 'AMS') NOT NULL DEFAULT 'LOCAL',
+    \`employment_status\` ENUM('ACTIVE', 'ON_LEAVE', 'RESIGNED') NOT NULL DEFAULT 'ACTIVE',
+    \`resigned_at\` TIMESTAMP NULL,
+    \`last_synced_at\` TIMESTAMP NULL,
     \`last_login_at\` TIMESTAMP NULL,
+    \`use_signature\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`signature_html\` MEDIUMTEXT NULL,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX \`idx_user_email\` (\`email\`),
     INDEX \`idx_user_role\` (\`role\`),
-    INDEX \`idx_user_employee_id\` (\`employee_id\`)
+    UNIQUE INDEX \`uq_user_employee_id\` (\`employee_id\`),
+    UNIQUE INDEX \`uq_user_ams_user_id\` (\`ams_user_id\`),
+    INDEX \`idx_user_dept\` (\`department_id\`, \`is_active\`),
+    INDEX \`idx_user_emp_status\` (\`employment_status\`, \`is_active\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
   `CREATE TABLE IF NOT EXISTS \`mail_message\` (
@@ -318,6 +369,16 @@ export async function syncDatabaseSchema(
     { name: 'preferred_language', ddl: 'ALTER TABLE `user` ADD COLUMN `preferred_language` VARCHAR(20) NOT NULL DEFAULT "ko" AFTER `mailbox_quota_mb`;' },
     { name: 'timezone', ddl: 'ALTER TABLE `user` ADD COLUMN `timezone` VARCHAR(50) NOT NULL DEFAULT "Asia/Seoul" AFTER `preferred_language`;' },
     { name: 'employee_id', ddl: 'ALTER TABLE `user` ADD COLUMN `employee_id` VARCHAR(50) NULL AFTER `timezone`;' },
+    { name: 'ams_user_id', ddl: 'ALTER TABLE `user` ADD COLUMN `ams_user_id` VARCHAR(100) NULL AFTER `employee_id`;' },
+    { name: 'department_id', ddl: 'ALTER TABLE `user` ADD COLUMN `department_id` VARCHAR(36) NULL AFTER `ams_user_id`;' },
+    { name: 'position', ddl: 'ALTER TABLE `user` ADD COLUMN `position` VARCHAR(100) NULL AFTER `department_id`;' },
+    { name: 'job_title', ddl: 'ALTER TABLE `user` ADD COLUMN `job_title` VARCHAR(100) NULL AFTER `position`;' },
+    { name: 'phone', ddl: 'ALTER TABLE `user` ADD COLUMN `phone` VARCHAR(50) NULL AFTER `job_title`;' },
+    { name: 'mobile', ddl: 'ALTER TABLE `user` ADD COLUMN `mobile` VARCHAR(50) NULL AFTER `phone`;' },
+    { name: 'sync_source', ddl: "ALTER TABLE `user` ADD COLUMN `sync_source` ENUM('LOCAL', 'AMS') NOT NULL DEFAULT 'LOCAL' AFTER `mobile`;" },
+    { name: 'employment_status', ddl: "ALTER TABLE `user` ADD COLUMN `employment_status` ENUM('ACTIVE', 'ON_LEAVE', 'RESIGNED') NOT NULL DEFAULT 'ACTIVE' AFTER `sync_source`;" },
+    { name: 'resigned_at', ddl: 'ALTER TABLE `user` ADD COLUMN `resigned_at` TIMESTAMP NULL AFTER `employment_status`;' },
+    { name: 'last_synced_at', ddl: 'ALTER TABLE `user` ADD COLUMN `last_synced_at` TIMESTAMP NULL AFTER `resigned_at`;' },
     { name: 'use_signature', ddl: 'ALTER TABLE `user` ADD COLUMN `use_signature` BOOLEAN NOT NULL DEFAULT FALSE AFTER `last_login_at`;' },
     { name: 'signature_html', ddl: 'ALTER TABLE `user` ADD COLUMN `signature_html` MEDIUMTEXT NULL AFTER `use_signature`;' },
   ];
@@ -331,6 +392,58 @@ export async function syncDatabaseSchema(
         // Duplicate column name, already exists
       } else {
         console.warn(`Column migration note for ${col.name}: ${err.message}`);
+      }
+    }
+  }
+
+  // Normalize empty employee_id strings to NULL before enforcing UNIQUE index
+  try {
+    await query("UPDATE `user` SET `employee_id` = NULL WHERE `employee_id` = '';");
+  } catch (err: any) {
+    logger.warn(`Failed to normalize empty employee_id: ${err.message}`);
+  }
+
+  // Migrate idx_user_employee_id -> uq_user_employee_id (only if no duplicate employee_id exists)
+  try {
+    const existingIdx: any[] = await query(
+      "SHOW INDEX FROM `user` WHERE Key_name = 'uq_user_employee_id';",
+    );
+    if (!Array.isArray(existingIdx) || existingIdx.length === 0) {
+      const duplicates: any[] = await query(
+        'SELECT `employee_id`, COUNT(*) AS cnt FROM `user` WHERE `employee_id` IS NOT NULL GROUP BY `employee_id` HAVING cnt > 1 LIMIT 5;',
+      );
+      if (Array.isArray(duplicates) && duplicates.length > 0) {
+        logger.warn(
+          `[OrgSchema] Duplicate user.employee_id values detected (${duplicates.map((d) => d.employee_id).join(', ')}). Skipping UNIQUE index uq_user_employee_id creation until resolved.`,
+        );
+      } else {
+        try {
+          await query('ALTER TABLE `user` DROP INDEX `idx_user_employee_id`;');
+        } catch (dropErr: any) {
+          if (getMysqlErrno(dropErr) !== 1091) {
+            logger.warn(`Drop index idx_user_employee_id note: ${dropErr.message}`);
+          }
+        }
+        await query('ALTER TABLE `user` ADD UNIQUE INDEX `uq_user_employee_id` (`employee_id`);');
+      }
+    }
+  } catch (err: any) {
+    logger.warn(`Index migration note for uq_user_employee_id: ${err.message}`);
+  }
+
+  // Add idempotent indexes for user organization & AMS columns
+  const userIndexes = [
+    { name: 'uq_user_ams_user_id', ddl: 'ALTER TABLE `user` ADD UNIQUE INDEX `uq_user_ams_user_id` (`ams_user_id`);' },
+    { name: 'idx_user_dept', ddl: 'ALTER TABLE `user` ADD INDEX `idx_user_dept` (`department_id`, `is_active`);' },
+    { name: 'idx_user_emp_status', ddl: 'ALTER TABLE `user` ADD INDEX `idx_user_emp_status` (`employment_status`, `is_active`);' },
+  ];
+
+  for (const idx of userIndexes) {
+    try {
+      await query(idx.ddl);
+    } catch (err: any) {
+      if (getMysqlErrno(err) !== 1061) {
+        logger.warn(`Index migration note for user.${idx.name}: ${err.message}`);
       }
     }
   }

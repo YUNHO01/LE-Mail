@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { fetchApi } from '@/lib/api';
 import { DomainDto } from '@lemail/shared-types';
-import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
+import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown, ToggleSwitch } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 import {
   Globe,
@@ -675,17 +675,14 @@ export default function DomainsPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
+              <div className="pt-1">
+                <ToggleSwitch
                   id="defaultDomainCheckbox"
                   checked={isDefault}
-                  onChange={(e) => setIsDefault(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  onChange={setIsDefault}
+                  label="시스템 기본 대표 도메인으로 지정"
+                  color="indigo"
                 />
-                <label htmlFor="defaultDomainCheckbox" className="text-xs text-slate-700 cursor-pointer select-none font-medium">
-                  시스템 기본 대표 도메인으로 지정
-                </label>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

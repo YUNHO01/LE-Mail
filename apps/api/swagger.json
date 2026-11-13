@@ -2407,9 +2407,18 @@
     },
     "/api/contacts/company-users": {
       "get": {
-        "description": "사내 등록된 활성 사용자 중 일반 사용자(USER) 권한을 가진 목록을 조회합니다.",
+        "description": "사내 등록된 활성 사용자 중 일반 사용자(USER) 권한을 가진 목록을 조회합니다. (부서 필터 선택 가능)",
         "operationId": "ContactsController_getCompanyUsers",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "departmentId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3305,6 +3314,292 @@
           "Admin Holidays"
         ]
       }
+    },
+    "/api/org/departments": {
+      "get": {
+        "description": "사내 부서 목록을 정렬 순서대로 조회합니다.",
+        "operationId": "OrgController_getDepartments",
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "부서 목록 조회",
+        "tags": [
+          "Organization"
+        ]
+      },
+      "post": {
+        "description": "LEMail 단독 운영 시 사내 부서를 직접 등록합니다.",
+        "operationId": "OrgController_createDepartment",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDepartmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "부서 등록 (관리자 전용, 단독 운영 지원)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/departments/tree": {
+      "get": {
+        "description": "계층 구조의 조직도 트리와 부서별 활성 인원 수를 조회합니다.",
+        "operationId": "OrgController_getDepartmentTree",
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "조직도 트리 조회",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/departments/{id}": {
+      "patch": {
+        "description": "부서명, 상위 부서, 정렬 순서, 활성 상태 등을 수정합니다.",
+        "operationId": "OrgController_updateDepartment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDepartmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "부서 수정 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      },
+      "delete": {
+        "description": "하위 부서 및 소속 사용자가 없는 부서를 삭제합니다.",
+        "operationId": "OrgController_deleteDepartment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "부서 삭제 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/sync/ams": {
+      "post": {
+        "description": "AMS 조직도 데이터를 수신하여 부서 트리 및 임직원(employeeNumber 기준) 상태를 동기화합니다. 퇴사/휴직자는 사서함 비활성화 후 메일 백업으로 대응할 수 있습니다.",
+        "operationId": "OrgController_syncFromAms",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncAmsOrgDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "AMS 조직도/임직원 동기화 실행 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/sync/logs": {
+      "get": {
+        "description": "최근 AMS 조직도 동기화 실행 이력과 스킵/오류 사유를 조회합니다.",
+        "operationId": "OrgController_getSyncLogs",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "AMS 조직도 동기화 이력 조회 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/sync/settings": {
+      "get": {
+        "operationId": "OrgController_getSyncSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "AMS 조직도 자동 동기화 설정 조회 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      },
+      "patch": {
+        "operationId": "OrgController_updateSyncSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAmsSyncSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "AMS 조직도 자동 동기화 설정 저장 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/sync/pull": {
+      "post": {
+        "operationId": "OrgController_pullFromAms",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "설정된 AMS API에서 조직도 즉시 가져오기 및 동기화 실행 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
     }
   },
   "info": {
@@ -3635,6 +3930,39 @@
             "type": "string",
             "example": "EMP1001",
             "description": "사번 / 직원 ID"
+          },
+          "departmentId": {
+            "type": "object",
+            "description": "소속 부서 ID"
+          },
+          "position": {
+            "type": "object",
+            "example": "과장",
+            "description": "직위"
+          },
+          "jobTitle": {
+            "type": "object",
+            "example": "팀장",
+            "description": "직책"
+          },
+          "phone": {
+            "type": "object",
+            "example": "02-1234-5678",
+            "description": "사내 전화/내선"
+          },
+          "mobile": {
+            "type": "object",
+            "example": "010-1234-5678",
+            "description": "휴대전화"
+          },
+          "employmentStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ON_LEAVE",
+              "RESIGNED"
+            ],
+            "description": "재직 상태"
           }
         },
         "required": [
@@ -3689,9 +4017,42 @@
             "description": "타임존"
           },
           "employeeId": {
-            "type": "string",
+            "type": "object",
             "example": "EMP1001",
             "description": "사번 / 직원 ID"
+          },
+          "departmentId": {
+            "type": "object",
+            "description": "소속 부서 ID"
+          },
+          "position": {
+            "type": "object",
+            "example": "과장",
+            "description": "직위"
+          },
+          "jobTitle": {
+            "type": "object",
+            "example": "팀장",
+            "description": "직책"
+          },
+          "phone": {
+            "type": "object",
+            "example": "02-1234-5678",
+            "description": "사내 전화/내선"
+          },
+          "mobile": {
+            "type": "object",
+            "example": "010-1234-5678",
+            "description": "휴대전화"
+          },
+          "employmentStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ON_LEAVE",
+              "RESIGNED"
+            ],
+            "description": "재직 상태"
           }
         }
       },
@@ -4332,6 +4693,261 @@
             "items": {
               "$ref": "#/components/schemas/CalendarAttendeeInputDto"
             }
+          }
+        }
+      },
+      "CreateDepartmentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "개발본부",
+            "description": "부서명"
+          },
+          "code": {
+            "type": "object",
+            "example": "DEV",
+            "description": "부서 코드 (선택, 유니크)"
+          },
+          "parentId": {
+            "type": "object",
+            "description": "상위 부서 ID (최상위 부서일 경우 null)"
+          },
+          "sortOrder": {
+            "type": "number",
+            "example": 0,
+            "description": "정렬 순서"
+          },
+          "managerEmployeeId": {
+            "type": "object",
+            "example": "EMP1001",
+            "description": "부서장 사번"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "부서 활성 여부"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateDepartmentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "플랫폼개발팀",
+            "description": "부서명"
+          },
+          "code": {
+            "type": "object",
+            "example": "DEV_PLATFORM",
+            "description": "부서 코드"
+          },
+          "parentId": {
+            "type": "object",
+            "description": "상위 부서 ID"
+          },
+          "sortOrder": {
+            "type": "number",
+            "example": 1,
+            "description": "정렬 순서"
+          },
+          "managerEmployeeId": {
+            "type": "object",
+            "example": "EMP1002",
+            "description": "부서장 사번"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "부서 활성 여부"
+          }
+        }
+      },
+      "AmsDepartmentPayloadDto": {
+        "type": "object",
+        "properties": {
+          "amsDeptId": {
+            "type": "string",
+            "example": "AMS-DEPT-001",
+            "description": "AMS 부서 고유 ID"
+          },
+          "code": {
+            "type": "object",
+            "example": "DEV",
+            "description": "부서 코드"
+          },
+          "parentAmsDeptId": {
+            "type": "object",
+            "example": "AMS-DEPT-000",
+            "description": "상위 부서의 AMS ID"
+          },
+          "name": {
+            "type": "string",
+            "example": "개발팀",
+            "description": "부서명"
+          },
+          "sortOrder": {
+            "type": "number",
+            "example": 1,
+            "description": "정렬 순서"
+          },
+          "managerEmployeeId": {
+            "type": "object",
+            "example": "EMP1001",
+            "description": "부서장 사번(employeeNumber)"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "활성 여부"
+          }
+        },
+        "required": [
+          "amsDeptId",
+          "name"
+        ]
+      },
+      "AmsEmployeePayloadDto": {
+        "type": "object",
+        "properties": {
+          "employeeNumber": {
+            "type": "string",
+            "example": "EMP1001",
+            "description": "AMS 유니크 사번 (employeeNumber)"
+          },
+          "amsUserId": {
+            "type": "object",
+            "example": "ams-user-uuid",
+            "description": "AMS 내부 사용자 ID"
+          },
+          "name": {
+            "type": "string",
+            "example": "홍길동",
+            "description": "이름"
+          },
+          "email": {
+            "type": "object",
+            "example": "hong@lineedge.com",
+            "description": "이메일 (신규 메일 계정 생성 시 필수)"
+          },
+          "amsDeptId": {
+            "type": "object",
+            "example": "AMS-DEPT-001",
+            "description": "소속 부서의 AMS ID"
+          },
+          "departmentCode": {
+            "type": "object",
+            "example": "DEV",
+            "description": "소속 부서 코드 (amsDeptId 없을 때 보조 매핑)"
+          },
+          "position": {
+            "type": "object",
+            "example": "과장",
+            "description": "직위"
+          },
+          "jobTitle": {
+            "type": "object",
+            "example": "팀장",
+            "description": "직책"
+          },
+          "phone": {
+            "type": "object",
+            "example": "02-1234-5678",
+            "description": "사내 전화/내선"
+          },
+          "mobile": {
+            "type": "object",
+            "example": "010-1234-5678",
+            "description": "휴대전화"
+          },
+          "employmentStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "ON_LEAVE",
+              "RESIGNED"
+            ],
+            "default": "ACTIVE",
+            "description": "재직 상태"
+          },
+          "mailEnabled": {
+            "type": "boolean",
+            "example": true,
+            "default": true,
+            "description": "LEMail 계정 생성 허용 여부"
+          }
+        },
+        "required": [
+          "employeeNumber",
+          "name"
+        ]
+      },
+      "SyncAmsOrgDto": {
+        "type": "object",
+        "properties": {
+          "syncType": {
+            "type": "string",
+            "enum": [
+              "FULL",
+              "INCREMENTAL",
+              "WEBHOOK"
+            ],
+            "default": "FULL",
+            "description": "동기화 유형"
+          },
+          "departments": {
+            "description": "동기화할 부서 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AmsDepartmentPayloadDto"
+            }
+          },
+          "employees": {
+            "description": "동기화할 임직원 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AmsEmployeePayloadDto"
+            }
+          },
+          "autoProvisionMailbox": {
+            "type": "boolean",
+            "example": true,
+            "default": true,
+            "description": "미등록 신규 임직원에 대한 LEMail 사서함 자동 생성 여부 (라이선스 한도 내)"
+          }
+        }
+      },
+      "UpdateAmsSyncSettingsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "example": false,
+            "description": "AMS 자동 동기화 활성화 여부"
+          },
+          "apiUrl": {
+            "type": "string",
+            "example": "https://ams.company.com/api/org/export",
+            "description": "AMS 조직도 조회 API URL"
+          },
+          "apiToken": {
+            "type": "string",
+            "example": "secret-token",
+            "description": "AMS API Bearer 토큰 (변경 시에만 입력)"
+          },
+          "intervalMinutes": {
+            "type": "number",
+            "example": 60,
+            "description": "자동 동기화 주기 (분, 최소 5분)"
+          },
+          "autoProvisionMailbox": {
+            "type": "boolean",
+            "example": true,
+            "description": "신규 입사자 사서함 자동 생성 여부"
           }
         }
       }

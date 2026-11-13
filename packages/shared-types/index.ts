@@ -91,6 +91,28 @@ export interface MoveMailDto {
   targetFolderId: string;
 }
 
+export type OrgSyncSource = 'LOCAL' | 'AMS';
+export type EmploymentStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
+export type OrgSyncType = 'FULL' | 'INCREMENTAL' | 'WEBHOOK';
+export type OrgSyncStatus = 'RUNNING' | 'SUCCESS' | 'PARTIAL' | 'FAILED';
+
+export interface DepartmentDto {
+  id: string;
+  code: string | null;
+  amsDeptId: string | null;
+  parentId: string | null;
+  name: string;
+  depth: number;
+  path: string | null;
+  sortOrder: number;
+  managerEmployeeId: string | null;
+  source: OrgSyncSource;
+  isActive: boolean;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UserDto {
   id: string;
   email: string;
@@ -105,6 +127,17 @@ export interface UserDto {
   preferredLanguage: string;
   timezone: string;
   employeeId: string | null;
+  amsUserId?: string | null;
+  departmentId?: string | null;
+  departmentName?: string | null;
+  position?: string | null;
+  jobTitle?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  syncSource?: OrgSyncSource;
+  employmentStatus?: EmploymentStatus;
+  resignedAt?: string | null;
+  lastSyncedAt?: string | null;
   lastLoginAt: string | null;
   useSignature?: boolean;
   signatureHtml?: string | null;
@@ -130,6 +163,12 @@ export interface CreateUserDto {
   preferredLanguage?: string;
   timezone?: string;
   employeeId?: string | null;
+  departmentId?: string | null;
+  position?: string | null;
+  jobTitle?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  employmentStatus?: EmploymentStatus;
 }
 
 export interface UpdateUserDto {
@@ -141,6 +180,12 @@ export interface UpdateUserDto {
   preferredLanguage?: string;
   timezone?: string;
   employeeId?: string | null;
+  departmentId?: string | null;
+  position?: string | null;
+  jobTitle?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  employmentStatus?: EmploymentStatus;
 }
 
 export interface LoginResponseDto {

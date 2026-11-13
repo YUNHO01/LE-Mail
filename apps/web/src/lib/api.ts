@@ -1,3 +1,10 @@
+import type {
+  DepartmentDto,
+  EmploymentStatus,
+  OrgSyncStatus,
+  OrgSyncType,
+} from '@lemail/shared-types';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -72,8 +79,10 @@ export const contactsApi = {
     }>(`/contacts${qs ? `?${qs}` : ''}`);
   },
 
-  getCompanyUsers: () =>
-    fetchApi<import('@lemail/shared-types').UserDto[]>('/contacts/company-users'),
+  getCompanyUsers: (departmentId?: string) => {
+    const qs = departmentId ? `?departmentId=${encodeURIComponent(departmentId)}` : '';
+    return fetchApi<import('@lemail/shared-types').UserDto[]>(`/contacts/company-users${qs}`);
+  },
 
   getContactById: (id: string) =>
     fetchApi<import('@lemail/shared-types').ContactDto>(`/contacts/${id}`),
@@ -284,6 +293,138 @@ export const adminHolidaysApi = {
   delete: (id: string) =>
     fetchApi<{ deleted: boolean }>(`/admin/holidays/${id}`, {
       method: 'DELETE',
+    }),
+};
+
+export interface DepartmentTreeNodeDto extends DepartmentDto {
+  userCount: number;
+  children: DepartmentTreeNodeDto[];
+}
+
+export interface OrgSyncLogDto {
+  id: string;
+  syncType: OrgSyncType;
+  status: OrgSyncStatus;
+  totalCount: number;
+  createdCount: number;
+  updatedCount: number;
+  deactivatedCount: number;
+  skippedCount: number;
+  errorSummary: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
+export const orgApi = {
+  getDepartments: (includeInactive = false) =>
+    fetchApi<DepartmentDto[]>(
+      `/org/departments${includeInactive ? '?includeInactive=true' : ''}`,
+    ),
+
+  getDepartmentTree: (includeInactive = false) =>
+    fetchApi<DepartmentTreeNodeDto[]>(
+      `/org/departments/tree${includeInactive ? '?includeInactive=true' : ''}`,
+    ),
+
+  createDepartment: (dto: {
+    name: string;
+    code?: string | null;
+    parentId?: string | null;
+    sortOrder?: number;
+    managerEmployeeId?: string | null;
+    isActive?: boolean;
+  }) =>
+    fetchApi<DepartmentDto>('/org/departments', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+  updateDepartment: (
+    id: string,
+    dto: {
+      name?: string;
+      code?: string | null;
+      parentId?: string | null;
+      sortOrder?: number;
+      managerEmployeeId?: string | null;
+      isActive?: boolean;
+    },
+  ) =>
+    fetchApi<DepartmentDto>(`/org/departments/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  deleteDepartment: (id: string) =>
+    fetchApi<{ success: boolean; message: string }>(`/org/departments/${id}`, {
+      method: 'DELETE',
+    }),
+
+  syncAms: (payload: {
+    syncType?: OrgSyncType;
+    autoProvisionMailbox?: boolean;
+    departments?: Array<{
+      amsDeptId: string;
+      code?: string | null;
+      parentAmsDeptId?: string | null;
+      name: string;
+      sortOrder?: number;
+      managerEmployeeId?: string | null;
+      isActive?: boolean;
+    }>;
+    employees?: Array<{
+      employeeNumber: string;
+      amsUserId?: string | null;
+      name: string;
+      email?: string | null;
+      amsDeptId?: string | null;
+      departmentCode?: string | null;
+      position?: string | null;
+      jobTitle?: string | null;
+      phone?: string | null;
+      mobile?: string | null;
+      employmentStatus?: EmploymentStatus;
+      mailEnabled?: boolean;
+    }>;
+  }) =>
+    fetchApi<OrgSyncLogDto>('/org/sync/ams', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getSyncLogs: (limit = 20) =>
+    fetchApi<OrgSyncLogDto[]>(`/org/sync/logs?limit=${limit}`),
+
+  getSyncSettings: () =>
+    fetchApi<{
+      enabled: boolean;
+      apiUrl: string;
+      hasApiToken: boolean;
+      intervalMinutes: number;
+      autoProvisionMailbox: boolean;
+    }>('/org/sync/settings'),
+
+  updateSyncSettings: (dto: {
+    enabled?: boolean;
+    apiUrl?: string;
+    apiToken?: string;
+    intervalMinutes?: number;
+    autoProvisionMailbox?: boolean;
+  }) =>
+    fetchApi<{
+      enabled: boolean;
+      apiUrl: string;
+      hasApiToken: boolean;
+      intervalMinutes: number;
+      autoProvisionMailbox: boolean;
+    }>('/org/sync/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  pullAms: () =>
+    fetchApi<OrgSyncLogDto>('/org/sync/pull', {
+      method: 'POST',
     }),
 };
 

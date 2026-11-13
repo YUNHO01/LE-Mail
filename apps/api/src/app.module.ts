@@ -20,6 +20,7 @@ import { LicenseModule } from './modules/license/license.module';
 import { MailBackupModule } from './modules/mail-backup/mail-backup.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { OrgModule } from './modules/org/org.module';
 import { LicenseGuard } from './modules/license/guards/license.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -52,6 +53,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
     MailBackupModule,
     ContactsModule,
     CalendarModule,
+    OrgModule,
     SeedModule,
   ],
   controllers: [AppController],

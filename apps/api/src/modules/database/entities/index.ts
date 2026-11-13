@@ -17,5 +17,7 @@ export * from './calendar.entity';
 export * from './calendar-event.entity';
 export * from './calendar-event-attendee.entity';
 export * from './system-holiday.entity';
+export * from './department.entity';
+export * from './org-sync-log.entity';
 
 
