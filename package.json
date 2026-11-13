@@ -32,6 +32,8 @@
     "api:build": "yarn --cwd apps/api build",
     "web:dev": "yarn --cwd apps/web dev",
     "web:build": "yarn --cwd apps/web build",
+    "mobile:dev": "yarn --cwd apps/mobile dev",
+    "mobile:build": "yarn --cwd apps/mobile build",
     "haraka:dev": "node services/haraka/index.js",
     "haraka:start": "node services/haraka/index.js",
     "imap:dev": "yarn --cwd services/imap dev",

@@ -115,6 +115,9 @@ async function runPackaging() {
   console.log('  -> apps/web 프로덕션 빌드 (yarn --cwd apps/web build)...');
   execSync('yarn --cwd apps/web build', { stdio: 'inherit', cwd: rootDir });
 
+  console.log('  -> apps/mobile 프로덕션 빌드 (yarn --cwd apps/mobile build)...');
+  execSync('yarn --cwd apps/mobile build', { stdio: 'inherit', cwd: rootDir });
+
   // 4. bin 디렉터리 준비
   console.log('\n[2/5] 📁 bin 스테이징 디렉터리 초기화...');
   if (!fs.existsSync(binDir)) {
@@ -142,9 +145,10 @@ async function runPackaging() {
     ],
     scripts: {
       "start": "yarn start:all",
-      "start:all": "concurrently \"yarn start:api\" \"yarn start:web\" \"yarn start:imap\" \"yarn start:haraka\"",
+      "start:all": "concurrently \"yarn start:api\" \"yarn start:web\" \"yarn start:mobile\" \"yarn start:imap\" \"yarn start:haraka\"",
       "start:api": "yarn --cwd apps/api start:prod",
       "start:web": "yarn --cwd apps/web start",
+      "start:mobile": "yarn --cwd apps/mobile start",
       "start:imap": "yarn --cwd services/imap start",
       "start:haraka": "yarn --cwd services/haraka start",
       "pm2:start": "pm2 start ecosystem.config.js",
@@ -220,6 +224,30 @@ async function runPackaging() {
   fs.writeFileSync(path.join(webDest, 'package.json'), JSON.stringify(prodWebPkg, null, 2), 'utf8');
   if (fs.existsSync(path.join(rootDir, 'apps', 'web', 'next.config.mjs'))) {
     fs.copyFileSync(path.join(rootDir, 'apps', 'web', 'next.config.mjs'), path.join(webDest, 'next.config.mjs'));
+  }
+
+  // (4-2) apps/mobile (.next, public, scripts, next.config.mjs, 운영 전용 package.json)
+  console.log('  -> apps/mobile 프론트엔드 산출물 및 운영 전용 package.json 복사');
+  const mobileDest = path.join(stagingDir, 'apps', 'mobile');
+  fs.mkdirSync(mobileDest, { recursive: true });
+
+  copyDirSync(path.join(rootDir, 'apps', 'mobile', '.next'), path.join(mobileDest, '.next'), ['cache']);
+  copyDirSync(path.join(rootDir, 'apps', 'mobile', 'public'), path.join(mobileDest, 'public'));
+  copyDirSync(path.join(rootDir, 'apps', 'mobile', 'scripts'), path.join(mobileDest, 'scripts'));
+
+  const originalMobilePkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'apps', 'mobile', 'package.json'), 'utf8'));
+  const prodMobilePkg = {
+    name: originalMobilePkg.name,
+    version: originalMobilePkg.version,
+    private: true,
+    scripts: {
+      "start": "node scripts/start.js"
+    },
+    dependencies: originalMobilePkg.dependencies
+  };
+  fs.writeFileSync(path.join(mobileDest, 'package.json'), JSON.stringify(prodMobilePkg, null, 2), 'utf8');
+  if (fs.existsSync(path.join(rootDir, 'apps', 'mobile', 'next.config.mjs'))) {
+    fs.copyFileSync(path.join(rootDir, 'apps', 'mobile', 'next.config.mjs'), path.join(mobileDest, 'next.config.mjs'));
   }
 
   // (5) services/imap 복사
