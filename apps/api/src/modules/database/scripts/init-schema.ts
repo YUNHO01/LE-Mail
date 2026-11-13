@@ -293,21 +293,24 @@ const schemaStatements = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
-async function run() {
-  console.log('Connecting to MySQL database...');
-  const conn = await mysql.createConnection({
-    host: process.env.DB_HOST || '127.0.0.1',
-    port: parseInt(process.env.DB_PORT || '3300', 10),
-    user: process.env.DB_USERNAME || 'lemail',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_DATABASE || 'lemaildb',
-  });
+export interface SchemaLogger {
+  log: (msg: string) => void;
+  warn: (msg: string) => void;
+}
 
-  console.log('Connected! Executing schema initializations...');
+export type SchemaQueryFn = (sql: string, params?: any[]) => Promise<any>;
+
+function getMysqlErrno(err: any): number | undefined {
+  return err?.errno ?? err?.driverError?.errno;
+}
+
+export async function syncDatabaseSchema(
+  query: SchemaQueryFn,
+  logger: SchemaLogger = console,
+): Promise<void> {
   for (const statement of schemaStatements) {
-    await conn.query(statement);
+    await query(statement);
   }
-  console.log('All tables created successfully!');
 
   // Migrate user table columns if missing
   const alterColumns = [
@@ -321,10 +324,10 @@ async function run() {
 
   for (const col of alterColumns) {
     try {
-      await conn.query(col.ddl);
+      await query(col.ddl);
       console.log(`Added column ${col.name} to user table.`);
     } catch (err: any) {
-      if (err.errno === 1060) {
+      if (getMysqlErrno(err) === 1060) {
         // Duplicate column name, already exists
       } else {
         console.warn(`Column migration note for ${col.name}: ${err.message}`);
@@ -350,10 +353,10 @@ async function run() {
 
   for (const col of messageColumns) {
     try {
-      await conn.query(col.ddl);
+      await query(col.ddl);
       console.log(`Added column ${col.name} to mail_message table.`);
     } catch (err: any) {
-      if (err.errno === 1060) {
+      if (getMysqlErrno(err) === 1060) {
         // Already exists
       } else {
         console.warn(`Column migration note for mail_message.${col.name}: ${err.message}`);
@@ -369,10 +372,10 @@ async function run() {
 
   for (const col of folderColumns) {
     try {
-      await conn.query(col.ddl);
+      await query(col.ddl);
       console.log(`Added column ${col.name} to mail_folder table.`);
     } catch (err: any) {
-      if (err.errno === 1060) {
+      if (getMysqlErrno(err) === 1060) {
         // Already exists
       } else {
         console.warn(`Column migration note for mail_folder.${col.name}: ${err.message}`);
@@ -382,7 +385,7 @@ async function run() {
 
   // Update uidvalidity with timestamp if it's 1
   try {
-    await conn.query('UPDATE `mail_folder` SET `uidvalidity` = UNIX_TIMESTAMP() WHERE `uidvalidity` <= 1;');
+    await query('UPDATE `mail_folder` SET `uidvalidity` = UNIX_TIMESTAMP() WHERE `uidvalidity` <= 1;');
   } catch (err: any) {
     console.warn('Note updating mail_folder uidvalidity:', err.message);
   }
@@ -397,44 +400,50 @@ async function run() {
     { name: 'is_draft', ddl: 'ALTER TABLE `user_mail` ADD COLUMN `is_draft` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_forwarded`;' },
   ];
 
+  let uidColumnAdded = false;
   for (const col of userMailColumns) {
     try {
-      await conn.query(col.ddl);
-      console.log(`Added column ${col.name} to user_mail table.`);
+      await query(col.ddl);
+      logger.log(`Added column ${col.name} to user_mail table.`);
+      if (col.name === 'uid') {
+        uidColumnAdded = true;
+      }
     } catch (err: any) {
-      if (err.errno === 1060) {
+      if (getMysqlErrno(err) === 1060) {
         // Already exists
       } else {
-        console.warn(`Column migration note for user_mail.${col.name}: ${err.message}`);
+        logger.warn(`Column migration note for user_mail.${col.name}: ${err.message}`);
       }
     }
   }
 
-  // Backfill sequential UID per folder for existing user_mail records
-  console.log('Checking and backfilling user_mail UIDs per folder...');
-  const [folders] = (await conn.query('SELECT `id` FROM `mail_folder`;')) as any;
-  for (const f of folders) {
-    const [mails] = (await conn.query(
-      'SELECT `id`, `uid` FROM `user_mail` WHERE `folder_id` = ? ORDER BY `created_at` ASC, `id` ASC;',
-      [f.id],
-    )) as any;
+  // Backfill sequential UID per folder only when uid column is newly added
+  if (uidColumnAdded) {
+    logger.log('Checking and backfilling user_mail UIDs per folder...');
+    const folders = (await query('SELECT `id` FROM `mail_folder`;')) as any[];
+    for (const f of folders) {
+      const mails = (await query(
+        'SELECT `id`, `uid` FROM `user_mail` WHERE `folder_id` = ? ORDER BY `created_at` ASC, `id` ASC;',
+        [f.id],
+      )) as any[];
 
-    if (mails && mails.length > 0) {
-      let currentSeq = 1;
-      for (const m of mails) {
-        await conn.query('UPDATE `user_mail` SET `uid` = ? WHERE `id` = ?;', [currentSeq, m.id]);
-        currentSeq++;
+      if (mails && mails.length > 0) {
+        let currentSeq = 1;
+        for (const m of mails) {
+          await query('UPDATE `user_mail` SET `uid` = ? WHERE `id` = ?;', [currentSeq, m.id]);
+          currentSeq++;
+        }
+        await query('UPDATE `mail_folder` SET `uidnext` = ? WHERE `id` = ?;', [currentSeq, f.id]);
       }
-      await conn.query('UPDATE `mail_folder` SET `uidnext` = ? WHERE `id` = ?;', [currentSeq, f.id]);
     }
   }
 
   // Ensure unique index idx_folder_uid on user_mail
   try {
-    await conn.query('ALTER TABLE `user_mail` ADD UNIQUE INDEX `idx_folder_uid` (`folder_id`, `uid`);');
+    await query('ALTER TABLE `user_mail` ADD UNIQUE INDEX `idx_folder_uid` (`folder_id`, `uid`);');
     console.log('Created unique index idx_folder_uid on user_mail.');
   } catch (err: any) {
-    if (err.errno === 1061) {
+    if (getMysqlErrno(err) === 1061) {
       // Duplicate key name, index already exists
     } else {
       console.warn('Index migration note for idx_folder_uid:', err.message);
@@ -443,7 +452,7 @@ async function run() {
 
   // Ensure contact.email allows NULL (e.g. for phone-only contacts from Google/smartphones)
   try {
-    await conn.query('ALTER TABLE `contact` MODIFY COLUMN `email` VARCHAR(255) NULL;');
+    await query('ALTER TABLE `contact` MODIFY COLUMN `email` VARCHAR(255) NULL;');
     console.log('Modified contact.email to allow NULL.');
   } catch (err: any) {
     console.warn(`Column migration note for contact.email: ${err.message}`);
@@ -463,10 +472,10 @@ async function run() {
 
   for (const col of contactNewColumns) {
     try {
-      await conn.query(col.ddl);
+      await query(col.ddl);
       console.log(`Added column ${col.name} to contact table.`);
     } catch (err: any) {
-      if (err.errno === 1060) {
+      if (getMysqlErrno(err) === 1060) {
         // Already exists
       } else {
         console.warn(`Column migration note for contact.${col.name}: ${err.message}`);
@@ -476,10 +485,10 @@ async function run() {
 
   // Drop deprecated is_public column if exists
   try {
-    await conn.query('ALTER TABLE `contact` DROP COLUMN `is_public`;');
+    await query('ALTER TABLE `contact` DROP COLUMN `is_public`;');
     console.log('Dropped deprecated column is_public from contact table.');
   } catch (err: any) {
-    if (err.errno === 1091) {
+    if (getMysqlErrno(err) === 1091) {
       // Column does not exist
     } else {
       console.warn(`Column drop note for contact.is_public: ${err.message}`);
@@ -496,14 +505,32 @@ async function run() {
 
   for (const col of calendarEventColumns) {
     try {
-      await conn.query(col.ddl);
+      await query(col.ddl);
       console.log(`Added column ${col.name} to calendar_event table.`);
     } catch (err: any) {
-      if (err.errno !== 1060) {
-        console.warn(`Column migration note for calendar_event.${col.name}: ${err.message}`);
+      if (getMysqlErrno(err) !== 1060) {
+        logger.warn(`Column migration note for calendar_event.${col.name}: ${err.message}`);
       }
     }
   }
+}
+
+async function run() {
+  console.log('Connecting to MySQL database...');
+  const conn = await mysql.createConnection({
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: parseInt(process.env.DB_PORT || '3300', 10),
+    user: process.env.DB_USERNAME || 'lemail',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_DATABASE || 'lemaildb',
+  });
+
+  console.log('Connected! Executing schema initializations...');
+  await syncDatabaseSchema(async (sql, params) => {
+    const [rows] = await conn.query(sql, params);
+    return rows;
+  });
+  console.log('Schema sync completed successfully!');
 
   const [tables] = await conn.query('SHOW TABLES;');
   console.log('Current tables:', tables);
@@ -511,7 +538,9 @@ async function run() {
   await conn.end();
 }
 
-run().catch((err) => {
-  console.error('Schema initialization failed:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  run().catch((err) => {
+    console.error('Schema initialization failed:', err);
+    process.exit(1);
+  });
+}
