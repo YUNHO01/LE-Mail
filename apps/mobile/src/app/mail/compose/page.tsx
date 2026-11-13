@@ -483,37 +483,22 @@ function ComposeMailContent() {
             )}
 
             {/* 상단 네이티브 바 */}
-            <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-100 bg-white/95 px-3 backdrop-blur-xl">
+            <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-100 bg-white/95 px-4 backdrop-blur-xl">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/10 text-[#007AFF]">
+                        <MailIcon className="h-4 w-4" />
+                    </div>
+                    <h1 className="text-base font-bold text-slate-900 truncate">메일 쓰기</h1>
+                </div>
+
                 <button
                     type="button"
                     onClick={() => router.back()}
-                    className="px-2 py-1.5 text-sm font-medium text-slate-600 active:text-slate-900"
+                    aria-label="닫기"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 active:bg-slate-100 hover:bg-slate-100 hover:text-slate-600 transition"
                 >
-                    취소
+                    <X className="h-5 w-5" />
                 </button>
-
-                <h1 className="text-base font-bold text-slate-900">메일 쓰기</h1>
-
-                <div className="flex items-center gap-1.5">
-                    <button
-                        type="button"
-                        onClick={handleSaveDraft}
-                        disabled={savingDraft || sending}
-                        aria-label="임시저장"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 active:bg-slate-100 disabled:opacity-40"
-                    >
-                        {savingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={handleSend}
-                        disabled={sending || savingDraft || isSendBlockedByQuota}
-                        className="flex items-center gap-1 rounded-full bg-[#007AFF] px-4 py-1.5 text-xs font-bold text-white shadow-sm shadow-blue-500/25 active:scale-95 disabled:opacity-40"
-                    >
-                        <span>보내기</span>
-                    </button>
-                </div>
             </header>
 
             {quotaBlockMessage && (
@@ -635,7 +620,7 @@ function ComposeMailContent() {
                         value={subject}
                         onChange={(e) => setSubject(e.target.value)}
                         placeholder="제목을 입력하세요"
-                        className="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                        className="flex-1 min-w-0 bg-transparent text-base sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
                     />
                     <button
                         type="button"
@@ -694,7 +679,7 @@ function ComposeMailContent() {
                 </div>
 
                 {/* 본문 에디터 */}
-                <div className="flex-1 px-1 pb-6">
+                <div className="flex-1 px-1 pb-24">
                     <MailEditor
                         value={bodyHtml}
                         onChange={(html, text) => {
@@ -705,6 +690,40 @@ function ComposeMailContent() {
                         minHeight="320px"
                     />
                 </div>
+            </div>
+
+            {/* 하단 고정 액션 바 */}
+            <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-2 border-t border-slate-100 bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
+                <button
+                    type="button"
+                    onClick={() => router.back()}
+                    disabled={sending || savingDraft}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 active:bg-slate-100 transition disabled:opacity-40 whitespace-nowrap"
+                >
+                    취소
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={savingDraft || sending}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 active:bg-slate-50 transition disabled:opacity-40 whitespace-nowrap"
+                >
+                    {savingDraft ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <Save className="h-4 w-4 text-slate-500" />
+                    )}
+                    <span>임시저장</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={sending || savingDraft || isSendBlockedByQuota}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#007AFF] py-3 text-sm font-semibold text-white shadow-sm shadow-blue-500/20 active:scale-[0.98] transition disabled:opacity-40 whitespace-nowrap"
+                >
+                    <Send className="h-4 w-4" />
+                    <span>보내기</span>
+                </button>
             </div>
 
             {/* 주소록 선택 바텀 시트 */}

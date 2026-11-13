@@ -135,6 +135,73 @@ body {
 }
 
 /* ==========================================================================
+   모바일 메일 본문 HTML 렌더링 스타일
+   ========================================================================== */
+.mail-body-html {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: #1e293b;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.mail-body-html img,
+.mail-body-html video,
+.mail-body-html svg {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.mail-body-html table {
+  max-width: 100% !important;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-collapse: collapse;
+}
+
+.mail-body-html pre {
+  max-width: 100%;
+  overflow-x: auto;
+  background-color: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.mail-body-html a {
+  color: #007AFF;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.mail-body-html p {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mail-body-html ul,
+.mail-body-html ol {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.mail-body-html ul {
+  list-style-type: disc;
+}
+
+.mail-body-html ol {
+  list-style-type: decimal;
+}
+
+.mail-body-html blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 0.75rem;
+  color: #475569;
+  margin: 0.75rem 0;
+}
+
+/* ==========================================================================
    Print Styles (인쇄 시 목록 테이블만 깔끔하게 출력되도록 제어)
    ========================================================================== */
 @media print {

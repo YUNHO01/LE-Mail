@@ -1,7 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, MapPin, Settings2 } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Calendar as CalendarIcon,
+  MapPin,
+  Settings2,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
 import {
   CalendarDto,
   CalendarEventDto,
@@ -26,6 +36,7 @@ function isSameDay(a: Date, b: Date): boolean {
 }
 
 function CalendarPageContent() {
+  const { user } = useAuth();
   const [anchorDate, setAnchorDate] = useState<Date>(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [calendars, setCalendars] = useState<CalendarDto[]>([]);
@@ -145,6 +156,13 @@ function CalendarPageContent() {
     await loadEvents(cals);
   };
 
+  const handleToggleCalendarVisibility = async (cal: CalendarDto) => {
+    if (user && cal.userId !== user.id) return;
+    await calendarApi.updateCalendar(cal.id, { isVisible: !cal.isVisible });
+    const updated = await loadCalendars();
+    await loadEvents(updated);
+  };
+
   return (
     <div className="pb-8 space-y-3">
       {/* 상단 월 네비게이션 */}
@@ -194,6 +212,70 @@ function CalendarPageContent() {
           </button>
         </div>
       </div>
+
+      {/* 내 캘린더 가로 스크롤 칩 바 */}
+      {calendars.length > 0 && (
+        <div className="px-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {calendars.map((cal) => {
+            const isOwner = !user || cal.userId === user.id;
+            return (
+              <div
+                key={cal.id}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  cal.isVisible
+                    ? 'border-slate-200/80 bg-white text-slate-800 shadow-xs'
+                    : 'border-slate-200/50 bg-white/60 text-slate-400 opacity-70'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleToggleCalendarVisibility(cal)}
+                  disabled={!isOwner}
+                  title={cal.isVisible ? '캘린더 숨기기' : '캘린더 표시하기'}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap disabled:cursor-default"
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: cal.color || '#007AFF' }}
+                  />
+                  <span>{cal.name}</span>
+                  {cal.type === 'SHARED' && (
+                    <span className="rounded bg-indigo-50 px-1 py-0.5 text-[10px] font-semibold text-indigo-600">
+                      공유
+                    </span>
+                  )}
+                  {cal.type === 'HOLIDAY' && (
+                    <span className="rounded bg-rose-50 px-1 py-0.5 text-[10px] font-semibold text-rose-600">
+                      공휴일
+                    </span>
+                  )}
+                  {isOwner &&
+                    (cal.isVisible ? (
+                      <Eye className="h-3 w-3 text-slate-400" />
+                    ) : (
+                      <EyeOff className="h-3 w-3 text-slate-300" />
+                    ))}
+                </button>
+
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCalendar(cal);
+                      setCalModalOpen(true);
+                    }}
+                    aria-label={`${cal.name} 설정`}
+                    title="캘린더 설정"
+                    className="ml-0.5 rounded-full p-0.5 text-slate-400 active:bg-slate-100 hover:text-slate-700"
+                  >
+                    <Settings2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* 컴팩트 월간 그리드 카드 */}
       <div className="mx-3 rounded-2xl bg-white p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-slate-200/60">

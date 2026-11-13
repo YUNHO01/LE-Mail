@@ -269,324 +269,356 @@ export const EventModal: React.FC<EventModalProps> = ({
         }
     };
 
+    const inputClass = `w-full min-w-0 rounded-xl border border-slate-200 px-3.5 py-2.5 text-base sm:text-sm focus:border-[#007AFF] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/15 transition ${
+        isReadOnly
+            ? 'bg-slate-50 text-slate-600 cursor-default'
+            : 'bg-white text-slate-900 placeholder:text-slate-400'
+    }`;
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-            <div className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-5 w-5 text-sky-600" />
-                        <h2 className="text-base font-bold text-slate-900">
+        <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-[1px] sm:p-4"
+            onClick={onClose}
+        >
+            <div
+                className="relative flex w-full max-w-xl h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[88dvh] flex-col rounded-none sm:rounded-2xl bg-white shadow-2xl border-0 sm:border sm:border-slate-200/80 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header (Fixed) */}
+                <div className="flex h-14 items-center justify-between px-4 sm:px-6 border-b border-slate-100 bg-white shrink-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/10 text-[#007AFF]">
+                            <CalendarIcon className="h-4 w-4" />
+                        </div>
+                        <h2 className="text-base font-bold text-slate-900 truncate">
                             {isReadOnly ? '일정 상세 (읽기 전용)' : isEdit ? '일정 수정' : '새 일정 등록'}
                         </h2>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-600 transition"
+                        aria-label="닫기"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 active:bg-slate-100 hover:bg-slate-100 hover:text-slate-600 transition"
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-5 w-5" />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
-                    {error && (
-                        <div className="rounded-lg bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs font-medium text-rose-700">
-                            {error}
-                        </div>
-                    )}
+                {/* Form Body + Fixed Footer */}
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-4">
+                        {error && (
+                            <div className="rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs font-medium text-rose-700">
+                                {error}
+                            </div>
+                        )}
 
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                            제목 *
-                        </label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="일정 제목을 입력하세요"
-                            autoFocus
-                            className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                                캘린더
+                                제목 {!isReadOnly && <span className="text-rose-500">*</span>}
                             </label>
-                            <SelectDropdown
-                                options={(isReadOnly ? calendars : writableCalendars).map((c) => ({
-                                    value: c.id,
-                                    label: c.name,
-                                    icon: (
-                                        <span
-                                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                                            style={{ backgroundColor: c.color }}
-                                        />
-                                    ),
-                                }))}
-                                value={calendarId}
-                                onChange={setCalendarId}
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="일정 제목을 입력하세요"
                                 disabled={isReadOnly}
-                                size="md"
-                                fullWidth
+                                className={inputClass}
                             />
                         </div>
 
-                        <div className="flex items-end pb-2">
-                            <ToggleSwitch
-                                checked={isAllDay}
-                                onChange={setIsAllDay}
-                                disabled={isReadOnly}
-                                label="종일 일정"
-                                color="sky"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2.5 rounded-xl bg-slate-50 p-3.5 border border-slate-200/70">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                            <Clock className="h-3.5 w-3.5 text-sky-600" />
-                            <span>일시</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <span className="block text-[11px] text-slate-500 mb-1">시작</span>
-                                <div className="flex gap-1.5">
-                                    <DatePicker
-                                        value={startDate}
-                                        onChange={(val) => {
-                                            setStartDate(val);
-                                            if (val && val > endDate) setEndDate(val);
-                                        }}
-                                        disabled={isReadOnly}
-                                        size="sm"
-                                        className="flex-1"
-                                    />
-                                    {!isAllDay && (
-                                        <TimePicker
-                                            value={startTime}
-                                            onChange={setStartTime}
-                                            minuteIncrement={10}
-                                            disabled={isReadOnly}
-                                            size="sm"
-                                            className="w-28 shrink-0"
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <span className="block text-[11px] text-slate-500 mb-1">종료</span>
-                                <div className="flex gap-1.5">
-                                    <DatePicker
-                                        value={endDate}
-                                        onChange={setEndDate}
-                                        minDate={startDate}
-                                        disabled={isReadOnly}
-                                        size="sm"
-                                        className="flex-1"
-                                    />
-                                    {!isAllDay && (
-                                        <TimePicker
-                                            value={endTime}
-                                            onChange={setEndTime}
-                                            minuteIncrement={10}
-                                            disabled={isReadOnly}
-                                            size="sm"
-                                            className="w-28 shrink-0"
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 반복 및 이메일 알림 */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
-                                <Repeat className="h-3.5 w-3.5 text-slate-400" />
-                                <span>반복</span>
-                            </label>
-                            <SelectDropdown
-                                options={RECURRENCE_OPTIONS}
-                                value={rrule}
-                                onChange={setRrule}
-                                disabled={isReadOnly}
-                                size="md"
-                                fullWidth
-                            />
-                            {rrule && (
-                                <div className="mt-1.5 flex items-center gap-2">
-                                    <span className="text-[11px] text-slate-500 shrink-0">종료일:</span>
-                                    <DatePicker
-                                        value={recurrenceEndDate}
-                                        onChange={setRecurrenceEndDate}
-                                        minDate={startDate}
-                                        allowClear
-                                        disabled={isReadOnly}
-                                        size="xs"
-                                        className="flex-1"
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        <div>
-                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
-                                <Bell className="h-3.5 w-3.5 text-slate-400" />
-                                <span>이메일 알림</span>
-                            </label>
-                            <SelectDropdown
-                                options={REMINDER_OPTIONS}
-                                value={reminderMinutes}
-                                onChange={setReminderMinutes}
-                                disabled={isReadOnly}
-                                size="md"
-                                fullWidth
-                            />
-                        </div>
-                    </div>
-
-                    {/* 참석자 (주소록 자동완성 연동) */}
-                    <div>
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
-                            <Users className="h-3.5 w-3.5 text-slate-400" />
-                            <span>참석자</span>
-                        </label>
-                        <div className="relative">
-                            <div className="flex gap-1.5">
-                                <input
-                                    type="text"
-                                    value={attendeeQuery}
-                                    onChange={(e) => setAttendeeQuery(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            if (attendeeQuery.includes('@')) {
-                                                addAttendee(attendeeQuery);
-                                            }
-                                        }
-                                    }}
-                                    placeholder="이름 또는 이메일 검색 후 선택 (직접 입력 시 Enter)"
-                                    className="flex-1 rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 focus:border-sky-500 focus:outline-none"
+                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                    캘린더
+                                </label>
+                                <SelectDropdown
+                                    options={(isReadOnly ? calendars : writableCalendars).map((c) => ({
+                                        value: c.id,
+                                        label: c.name,
+                                        icon: (
+                                            <span
+                                                className="h-2.5 w-2.5 rounded-full shrink-0"
+                                                style={{ backgroundColor: c.color }}
+                                            />
+                                        ),
+                                    }))}
+                                    value={calendarId}
+                                    onChange={setCalendarId}
+                                    disabled={isReadOnly}
+                                    size="md"
+                                    fullWidth
                                 />
-                                {attendeeQuery.includes('@') && (
-                                    <button
-                                        type="button"
-                                        onClick={() => addAttendee(attendeeQuery)}
-                                        className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"
-                                    >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        추가
-                                    </button>
+                            </div>
+
+                            <div className="flex items-center sm:items-end sm:pb-2 pt-1 sm:pt-0">
+                                <ToggleSwitch
+                                    checked={isAllDay}
+                                    onChange={setIsAllDay}
+                                    disabled={isReadOnly}
+                                    label="종일 일정"
+                                    color="sky"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 rounded-2xl bg-slate-50/80 p-3.5 border border-slate-200/70">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                                <Clock className="h-3.5 w-3.5 text-[#007AFF]" />
+                                <span>일시</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="min-w-0">
+                                    <span className="block text-[11px] font-medium text-slate-500 mb-1">시작</span>
+                                    <div className="flex gap-1.5 min-w-0">
+                                        <DatePicker
+                                            value={startDate}
+                                            onChange={(val) => {
+                                                setStartDate(val);
+                                                if (val && val > endDate) setEndDate(val);
+                                            }}
+                                            disabled={isReadOnly}
+                                            size="sm"
+                                            className="flex-1 min-w-0"
+                                        />
+                                        {!isAllDay && (
+                                            <TimePicker
+                                                value={startTime}
+                                                onChange={setStartTime}
+                                                minuteIncrement={10}
+                                                disabled={isReadOnly}
+                                                size="sm"
+                                                className="w-28 shrink-0"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="min-w-0">
+                                    <span className="block text-[11px] font-medium text-slate-500 mb-1">종료</span>
+                                    <div className="flex gap-1.5 min-w-0">
+                                        <DatePicker
+                                            value={endDate}
+                                            onChange={setEndDate}
+                                            minDate={startDate}
+                                            disabled={isReadOnly}
+                                            size="sm"
+                                            className="flex-1 min-w-0"
+                                        />
+                                        {!isAllDay && (
+                                            <TimePicker
+                                                value={endTime}
+                                                onChange={setEndTime}
+                                                minuteIncrement={10}
+                                                disabled={isReadOnly}
+                                                size="sm"
+                                                className="w-28 shrink-0"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 반복 및 이메일 알림 */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
+                                    <Repeat className="h-3.5 w-3.5 text-slate-400" />
+                                    <span>반복</span>
+                                </label>
+                                <SelectDropdown
+                                    options={RECURRENCE_OPTIONS}
+                                    value={rrule}
+                                    onChange={setRrule}
+                                    disabled={isReadOnly}
+                                    size="md"
+                                    fullWidth
+                                />
+                                {rrule && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <span className="text-[11px] text-slate-500 shrink-0">종료일:</span>
+                                        <DatePicker
+                                            value={recurrenceEndDate}
+                                            onChange={setRecurrenceEndDate}
+                                            minDate={startDate}
+                                            allowClear
+                                            disabled={isReadOnly}
+                                            size="xs"
+                                            className="flex-1 min-w-0"
+                                        />
+                                    </div>
                                 )}
                             </div>
 
-                            {searchResults.length > 0 && (
-                                <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg z-20 divide-y divide-slate-100">
-                                    {searchResults.map((c) => (
-                                        <button
-                                            key={`${c.source}-${c.id}`}
-                                            type="button"
-                                            onClick={() => addAttendee(c.email, c.name)}
-                                            className="w-full text-left px-3.5 py-2 text-xs hover:bg-sky-50 flex items-center justify-between"
-                                        >
-                                            <div>
-                                                <span className="font-semibold text-slate-800">{c.name}</span>
-                                                <span className="ml-2 text-slate-500">{c.email}</span>
-                                            </div>
-                                            <span className="text-[10px] rounded bg-slate-100 px-1.5 py-0.5 text-slate-500">
-                                                {c.source === 'SYSTEM_USER' ? '사내' : '주소록'}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            <div>
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
+                                    <Bell className="h-3.5 w-3.5 text-slate-400" />
+                                    <span>이메일 알림</span>
+                                </label>
+                                <SelectDropdown
+                                    options={REMINDER_OPTIONS}
+                                    value={reminderMinutes}
+                                    onChange={setReminderMinutes}
+                                    disabled={isReadOnly}
+                                    size="md"
+                                    fullWidth
+                                />
+                            </div>
                         </div>
 
-                        {attendees.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                                {attendees.map((a) => (
-                                    <span
-                                        key={a.email}
-                                        className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200 px-2.5 py-1 text-[11px] font-medium text-sky-800"
-                                    >
-                                        <span>{a.name ? `${a.name} (${a.email})` : a.email}</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeAttendee(a.email)}
-                                            className="text-sky-500 hover:text-sky-800"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </span>
-                                ))}
+                        {/* 참석자 (주소록 자동완성 연동) */}
+                        {(!isReadOnly || attendees.length > 0) && (
+                            <div>
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
+                                    <Users className="h-3.5 w-3.5 text-slate-400" />
+                                    <span>참석자</span>
+                                </label>
+                                {!isReadOnly && (
+                                    <div className="relative">
+                                        <div className="flex gap-1.5">
+                                            <input
+                                                type="text"
+                                                value={attendeeQuery}
+                                                onChange={(e) => setAttendeeQuery(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (attendeeQuery.includes('@')) {
+                                                            addAttendee(attendeeQuery);
+                                                        }
+                                                    }
+                                                }}
+                                                placeholder="이름 또는 이메일 검색 후 선택"
+                                                className={`flex-1 ${inputClass}`}
+                                            />
+                                            {attendeeQuery.includes('@') && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => addAttendee(attendeeQuery)}
+                                                    className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 active:bg-slate-200 whitespace-nowrap"
+                                                >
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                    추가
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {searchResults.length > 0 && (
+                                            <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg z-20 divide-y divide-slate-100">
+                                                {searchResults.map((c) => (
+                                                    <button
+                                                        key={`${c.source}-${c.id}`}
+                                                        type="button"
+                                                        onClick={() => addAttendee(c.email, c.name)}
+                                                        className="w-full text-left px-3.5 py-2.5 text-xs active:bg-sky-50 hover:bg-sky-50 flex items-center justify-between gap-2"
+                                                    >
+                                                        <div className="min-w-0 flex-1 truncate">
+                                                            <span className="font-semibold text-slate-800">{c.name}</span>
+                                                            <span className="ml-2 text-slate-500">{c.email}</span>
+                                                        </div>
+                                                        <span className="shrink-0 text-[10px] rounded bg-slate-100 px-1.5 py-0.5 text-slate-500">
+                                                            {c.source === 'SYSTEM_USER' ? '사내' : '주소록'}
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {attendees.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                        {attendees.map((a) => (
+                                            <span
+                                                key={a.email}
+                                                className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200 px-2.5 py-1 text-xs font-medium text-sky-800"
+                                            >
+                                                <span className="truncate">
+                                                    {a.name ? `${a.name} (${a.email})` : a.email}
+                                                </span>
+                                                {!isReadOnly && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeAttendee(a.email)}
+                                                        aria-label={`${a.email} 제거`}
+                                                        className="shrink-0 text-sky-500 active:text-sky-800"
+                                                    >
+                                                        <X className="h-3.5 w-3.5" />
+                                                    </button>
+                                                )}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {(!isReadOnly || location) && (
+                            <div>
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
+                                    <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                    <span>장소</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={location}
+                                    onChange={(e) => setLocation(e.target.value)}
+                                    placeholder={isReadOnly ? '' : '회의실 또는 화상회의 링크'}
+                                    disabled={isReadOnly}
+                                    className={inputClass}
+                                />
+                            </div>
+                        )}
+
+                        {(!isReadOnly || description) && (
+                            <div>
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
+                                    <AlignLeft className="h-3.5 w-3.5 text-slate-400" />
+                                    <span>메모</span>
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder={isReadOnly ? '' : '일정에 대한 상세 내용을 입력하세요'}
+                                    disabled={isReadOnly}
+                                    className={`${inputClass} resize-none`}
+                                />
                             </div>
                         )}
                     </div>
 
-                    <div>
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
-                            <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                            <span>장소</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={location}
-                            onChange={(e) => setLocation(e.target.value)}
-                            placeholder="회의실 또는 화상회의 링크"
-                            className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
-                            <AlignLeft className="h-3.5 w-3.5 text-slate-400" />
-                            <span>메모</span>
-                        </label>
-                        <textarea
-                            rows={3}
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="일정에 대한 상세 내용을 입력하세요"
-                            className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none"
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                        <div>
-                            {!isReadOnly && isEdit && onDelete && (
-                                <button
-                                    type="button"
-                                    onClick={handleDelete}
-                                    disabled={submitting}
-                                    className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    <span>삭제</span>
-                                </button>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2">
+                    {/* Footer Actions (Fixed) */}
+                    <div className="flex items-center gap-2.5 border-t border-slate-100 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 shrink-0">
+                        {!isReadOnly && isEdit && onDelete && (
                             <button
                                 type="button"
-                                onClick={onClose}
+                                onClick={handleDelete}
                                 disabled={submitting}
-                                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                                aria-label="일정 삭제"
+                                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm font-semibold text-rose-600 active:bg-rose-100 transition disabled:opacity-50"
                             >
-                                {isReadOnly ? '닫기' : '취소'}
+                                <Trash2 className="h-4 w-4" />
+                                <span>삭제</span>
                             </button>
-                            {!isReadOnly && (
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="rounded-xl bg-sky-600 px-5 py-2 text-xs font-semibold text-white hover:bg-sky-700 shadow-sm transition disabled:opacity-50"
-                                >
-                                    {submitting ? '저장 중...' : isEdit ? '수정 저장' : '일정 등록'}
-                                </button>
-                            )}
-                        </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={submitting}
+                            className="flex-1 rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-semibold text-slate-700 active:bg-slate-100 transition disabled:opacity-50"
+                        >
+                            {isReadOnly ? '닫기' : '취소'}
+                        </button>
+                        {!isReadOnly && (
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="flex-1 rounded-xl bg-[#007AFF] py-3 text-sm font-semibold text-white shadow-sm shadow-blue-500/20 active:scale-[0.98] transition disabled:opacity-50"
+                            >
+                                {submitting ? '저장 중...' : isEdit ? '수정 저장' : '일정 등록'}
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>

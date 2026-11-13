@@ -128,9 +128,9 @@ function ContactsContent() {
 
   return (
     <div className="pb-6">
-      {/* 검색바 + 연락처 추가 */}
-      <div className="flex items-center gap-2 px-3 pt-1 pb-2.5">
-        <div className="relative flex-1">
+      {/* 검색바 */}
+      <div className="px-3 pt-1 pb-2.5">
+        <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
@@ -149,18 +149,6 @@ function ContactsContent() {
             </button>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedContact(null);
-            setContactModalOpen(true);
-          }}
-          aria-label="연락처 추가"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#007AFF] text-white shadow-sm shadow-blue-500/25 active:scale-95"
-        >
-          <UserPlus className="h-4 w-4" />
-        </button>
       </div>
 
       {/* 세그먼트 필터 */}
@@ -209,7 +197,7 @@ function ContactsContent() {
               <Users className="h-6 w-6" />
             </div>
             <p className="text-sm font-semibold text-slate-700">표시할 연락처가 없습니다.</p>
-            <p className="mt-1 text-xs text-slate-400">우측 상단 + 버튼으로 새 연락처를 추가해 보세요.</p>
+            <p className="mt-1 text-xs text-slate-400">우측 하단 버튼으로 새 연락처를 추가해 보세요.</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -289,6 +277,19 @@ function ContactsContent() {
           </div>
         )}
       </div>
+
+      {/* 플로팅 연락처 추가 버튼 */}
+      <button
+        type="button"
+        onClick={() => {
+          setSelectedContact(null);
+          setContactModalOpen(true);
+        }}
+        aria-label="새 연락처 추가"
+        className="fixed bottom-20 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007AFF] text-white shadow-lg shadow-blue-500/35 active:scale-95 transition-transform"
+      >
+        <UserPlus className="h-6 w-6" />
+      </button>
 
       {contactModalOpen && (
         <ContactModal

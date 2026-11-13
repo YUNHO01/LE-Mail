@@ -1,10 +1,8 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, PenSquare } from 'lucide-react';
-import { useNavigation } from '../../contexts/NavigationContext';
+import { Menu } from 'lucide-react';
 
 interface MobileHeaderProps {
   onOpenDrawer: () => void;
@@ -28,21 +26,17 @@ function getHeaderTitle(pathname: string | null): string {
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ onOpenDrawer }) => {
   const pathname = usePathname();
-  const { startNavigation } = useNavigation();
   const title = getHeaderTitle(pathname);
 
-  // 메일 쓰기 화면은 자체 상단 네비게이션 바(취소 / 보내기)를 사용
-  if (pathname === '/mail/compose') {
+  const isMailDetail =
+    /^\/mail\/(?!inbox|sent|drafts|spam|trash|compose|contacts|calendar|settings|folder|view)[^/]+$/.test(
+      pathname || '',
+    );
+
+  // 메일 쓰기 / 메일 상세 화면은 자체 상단 네비게이션 바를 사용
+  if (pathname === '/mail/compose' || isMailDetail) {
     return null;
   }
-
-  const isMailFolder =
-    pathname?.startsWith('/mail/inbox') ||
-    pathname?.startsWith('/mail/sent') ||
-    pathname?.startsWith('/mail/drafts') ||
-    pathname?.startsWith('/mail/spam') ||
-    pathname?.startsWith('/mail/trash') ||
-    pathname?.startsWith('/mail/folder');
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-[#F2F2F7]/90 px-3 backdrop-blur-xl">
@@ -57,17 +51,6 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ onOpenDrawer }) => {
         </button>
         <h1 className="text-[20px] font-bold tracking-tight text-slate-900">{title}</h1>
       </div>
-
-      {isMailFolder && (
-        <Link
-          href="/mail/compose"
-          onClick={() => startNavigation('/mail/compose')}
-          aria-label="메일 쓰기"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF]/10 text-[#007AFF] active:scale-95"
-        >
-          <PenSquare className="h-[18px] w-[18px]" />
-        </Link>
-      )}
     </header>
   );
 };

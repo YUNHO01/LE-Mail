@@ -48,7 +48,12 @@ export const MobileBottomNav: React.FC = () => {
   const pathname = usePathname() || '';
   const { startNavigation } = useNavigation();
 
-  if (pathname.startsWith('/mail/compose')) {
+  const isMailDetail =
+    /^\/mail\/(?!inbox|sent|drafts|spam|trash|compose|contacts|calendar|settings|folder|view)[^/]+$/.test(
+      pathname,
+    );
+
+  if (pathname.startsWith('/mail/compose') || isMailDetail) {
     return null;
   }
 

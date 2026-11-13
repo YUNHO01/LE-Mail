@@ -306,7 +306,7 @@ function MailMultiViewContent() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="px-3 py-2 space-y-4">
       {/* Top Bar */}
       <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -639,16 +639,16 @@ function MailMultiViewContent() {
                   )}
 
                   {/* Mail Body */}
-                  <div className="p-6">
+                  <div className="p-4">
                     {mail.body?.html ? (
                       <div
-                        className="prose max-w-none text-sm text-slate-800"
+                        className="mail-body-html"
                         dangerouslySetInnerHTML={{
                           __html: sanitizeHtml(mail.body.html),
                         }}
                       />
                     ) : mail.body?.text ? (
-                      <pre className="whitespace-pre-wrap font-sans text-sm text-slate-800">
+                      <pre className="whitespace-pre-wrap break-words font-sans text-[15px] leading-relaxed text-slate-800">
                         {mail.body.text}
                       </pre>
                     ) : (

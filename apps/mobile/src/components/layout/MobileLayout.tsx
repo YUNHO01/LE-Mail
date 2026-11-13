@@ -29,7 +29,11 @@ export const MobileLayout: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   }
 
-  const isCompose = pathname?.startsWith('/mail/compose');
+  const isMailDetail =
+    /^\/mail\/(?!inbox|sent|drafts|spam|trash|compose|contacts|calendar|settings|folder|view)[^/]+$/.test(
+      pathname || '',
+    );
+  const hideBottomNav = pathname?.startsWith('/mail/compose') || isMailDetail;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[#F2F2F7]">
@@ -42,7 +46,7 @@ export const MobileLayout: React.FC<{ children: React.ReactNode }> = ({ children
         </div>
       )}
 
-      <main className={`relative flex-1 overflow-x-hidden ${isCompose ? '' : 'pb-16'}`}>
+      <main className={`relative flex-1 overflow-x-hidden ${hideBottomNav ? '' : 'pb-16'}`}>
         {children}
       </main>
 
