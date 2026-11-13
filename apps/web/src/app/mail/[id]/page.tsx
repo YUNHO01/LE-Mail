@@ -2,9 +2,17 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, calendarApi } from '@/lib/api';
 import { sanitizeHtml } from '@/lib/sanitize';
-import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
+import {
+  MailMessageDto,
+  MailFolderDto,
+  FolderType,
+  CalendarDto,
+  CreateCalendarEventDto,
+  UpdateCalendarEventDto,
+} from '@lemail/shared-types';
+import { EventModal } from '@/components/calendar/EventModal';
 import {
   ArrowLeft,
   Download,
@@ -21,6 +29,7 @@ import {
   Mail as MailIcon,
   MailCheck,
   Star,
+  CalendarPlus,
 } from 'lucide-react';
 
 export default function MailDetailPage() {
@@ -31,6 +40,27 @@ export default function MailDetailPage() {
   const [mail, setMail] = useState<MailMessageDto | null>(null);
   const [spamFolderId, setSpamFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [calendars, setCalendars] = useState<CalendarDto[]>([]);
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+
+  const handleOpenCreateCalendarEvent = async () => {
+    try {
+      if (calendars.length === 0) {
+        const cals = await calendarApi.getCalendars();
+        setCalendars(cals || []);
+      }
+      setCalendarModalOpen(true);
+    } catch (err: any) {
+      alert(err?.message || '캘린더 목록을 불러오지 못했습니다.');
+    }
+  };
+
+  const handleSaveCalendarEvent = async (
+    payload: CreateCalendarEventDto | UpdateCalendarEventDto,
+  ) => {
+    await calendarApi.createEvent(payload as CreateCalendarEventDto);
+    alert('캘린더에 일정이 등록되었습니다.');
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -186,6 +216,14 @@ export default function MailDetailPage() {
           >
             <Forward className="h-3.5 w-3.5 text-slate-500" />
             <span>전달</span>
+          </button>
+
+          <button
+            onClick={handleOpenCreateCalendarEvent}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm hover:bg-violet-100 transition"
+          >
+            <CalendarPlus className="h-3.5 w-3.5 text-violet-600" />
+            <span>일정 등록</span>
           </button>
 
           <div className="h-4 w-px bg-slate-200 mx-1" />
@@ -387,6 +425,21 @@ export default function MailDetailPage() {
           </button>
         </div>
       </div>
+
+      <EventModal
+        isOpen={calendarModalOpen}
+        onClose={() => setCalendarModalOpen(false)}
+        calendars={calendars}
+        initialDraft={{
+          title: mail.subject || '(제목 없음)',
+          description: `보낸사람: ${mail.sender}\n수신일시: ${new Date(mail.createdAt).toLocaleString('ko-KR')}\n\n${mail.body?.text || ''}`.slice(0, 2000),
+          sourceMailId: mail.id,
+          attendees: mail.sender?.includes('@')
+            ? [{ email: mail.sender.replace(/.*<([^>]+)>.*/, '$1').trim() }]
+            : [],
+        }}
+        onSave={handleSaveCalendarEvent}
+      />
     </div>
   );
 }

@@ -13,5 +13,9 @@ export * from './system-license.entity';
 export * from './mail-backup.entity';
 export * from './contact-group.entity';
 export * from './contact.entity';
+export * from './calendar.entity';
+export * from './calendar-event.entity';
+export * from './calendar-event-attendee.entity';
+export * from './system-holiday.entity';
 
 

@@ -17,6 +17,7 @@ import {
   Server,
   Settings,
   KeyRound,
+  CalendarDays,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -75,6 +76,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       href: '/admin/settings',
       label: '시스템 환경설정',
       icon: Settings,
+    },
+    {
+      href: '/admin/holidays',
+      label: '공휴일 관리',
+      icon: CalendarDays,
     },
     {
       href: '/admin/license',

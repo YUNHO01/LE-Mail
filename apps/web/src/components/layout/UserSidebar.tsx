@@ -19,9 +19,12 @@ import {
   Building2,
   UserCheck,
   ChevronDown,
+  Calendar as CalendarIcon,
+  CalendarDays,
+  CalendarClock,
 } from 'lucide-react';
-import { contactsApi } from '../../lib/api';
-import { ContactGroupDto } from '@lemail/shared-types';
+import { contactsApi, calendarApi } from '../../lib/api';
+import { ContactGroupDto, CalendarDto } from '@lemail/shared-types';
 
 interface UserSidebarProps {
   sidebarOpen: boolean;
@@ -37,28 +40,38 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const { startNavigation } = useNavigation();
   const isCompose = pathname === '/mail/compose';
   const isContacts = pathname?.startsWith('/mail/contacts');
+  const isCalendar = pathname?.startsWith('/mail/calendar');
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   // 상위 메뉴 펼침/접힘 상태 (초기값: 현재 경로에 따라 한쪽만 활성화)
-  const [mailExpanded, setMailExpanded] = React.useState<boolean>(!isContacts);
+  const [mailExpanded, setMailExpanded] = React.useState<boolean>(!isContacts && !isCalendar);
   const [contactsExpanded, setContactsExpanded] = React.useState<boolean>(Boolean(isContacts));
+  const [calendarExpanded, setCalendarExpanded] = React.useState<boolean>(Boolean(isCalendar));
   const [groups, setGroups] = React.useState<ContactGroupDto[]>([]);
+  const [calendars, setCalendars] = React.useState<CalendarDto[]>([]);
 
   React.useEffect(() => {
     if (isContacts) {
       setContactsExpanded(true);
       setMailExpanded(false);
+      setCalendarExpanded(false);
+    } else if (isCalendar) {
+      setCalendarExpanded(true);
+      setMailExpanded(false);
+      setContactsExpanded(false);
     } else if (pathname?.startsWith('/mail') && pathname !== '/mail/settings') {
       setMailExpanded(true);
       setContactsExpanded(false);
+      setCalendarExpanded(false);
     }
-  }, [isContacts, pathname]);
+  }, [isContacts, isCalendar, pathname]);
 
   const handleToggleMail = () => {
     setMailExpanded((prev) => {
       const next = !prev;
       if (next) {
         setContactsExpanded(false);
+        setCalendarExpanded(false);
       }
       return next;
     });
@@ -69,6 +82,18 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
       const next = !prev;
       if (next) {
         setMailExpanded(false);
+        setCalendarExpanded(false);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleCalendar = () => {
+    setCalendarExpanded((prev) => {
+      const next = !prev;
+      if (next) {
+        setMailExpanded(false);
+        setContactsExpanded(false);
       }
       return next;
     });
@@ -84,11 +109,27 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     }
   };
 
+  // 캘린더 목록 로드
+  const loadSidebarCalendars = async () => {
+    try {
+      const data = await calendarApi.getCalendars();
+      setCalendars(data || []);
+    } catch {
+      // ignore
+    }
+  };
+
   React.useEffect(() => {
     loadSidebarGroups();
-    const handleRefresh = () => loadSidebarGroups();
-    window.addEventListener('contacts:refresh-groups', handleRefresh);
-    return () => window.removeEventListener('contacts:refresh-groups', handleRefresh);
+    loadSidebarCalendars();
+    const handleRefreshGroups = () => loadSidebarGroups();
+    const handleRefreshCalendars = () => loadSidebarCalendars();
+    window.addEventListener('contacts:refresh-groups', handleRefreshGroups);
+    window.addEventListener('calendar:refresh', handleRefreshCalendars);
+    return () => {
+      window.removeEventListener('contacts:refresh-groups', handleRefreshGroups);
+      window.removeEventListener('calendar:refresh', handleRefreshCalendars);
+    };
   }, []);
 
   const handleRefreshQuota = async () => {
@@ -308,6 +349,91 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                           <span className="text-[10px] text-slate-500 font-mono">
                             {g.contactCount}
                           </span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 3. 캘린더 상위 메뉴 및 하위 캘린더 메뉴 */}
+          <div className="space-y-1 pt-2 border-t border-slate-700/80">
+            <button
+              type="button"
+              onClick={handleToggleCalendar}
+              className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white hover:bg-slate-800/60 transition group"
+            >
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-violet-400" />
+                <span>캘린더</span>
+              </div>
+              <ChevronDown
+                className={`h-3.5 w-3.5 text-slate-500 group-hover:text-slate-300 transition-transform duration-200 ${
+                  calendarExpanded ? 'rotate-0' : '-rotate-90'
+                }`}
+              />
+            </button>
+
+            {calendarExpanded && (
+              <div className="space-y-0.5 pl-2 pt-0.5 animate-fadeIn text-xs">
+                <Link
+                  href="/mail/calendar"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    startNavigation('/mail/calendar');
+                  }}
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
+                    pathname === '/mail/calendar'
+                      ? 'bg-slate-800 text-white font-semibold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
+                    <span>전체 일정</span>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/mail/calendar?view=day"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    startNavigation('/mail/calendar?view=day');
+                  }}
+                  className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/50"
+                >
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="h-3.5 w-3.5 text-sky-400" />
+                    <span>오늘 일정</span>
+                  </div>
+                </Link>
+
+                {calendars.length > 0 && (
+                  <div className="pt-1.5 mt-1 border-t border-slate-800/60">
+                    <div className="px-3 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                      내 캘린더
+                    </div>
+                    {calendars.map((cal) => (
+                      <Link
+                        key={cal.id}
+                        href={`/mail/calendar?calendarId=${cal.id}`}
+                        onClick={() => {
+                          setSidebarOpen(false);
+                          startNavigation(`/mail/calendar?calendarId=${cal.id}`);
+                        }}
+                        className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-white hover:bg-slate-800/50"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: cal.color || '#0284c7' }}
+                          />
+                          <span className="truncate">{cal.name}</span>
+                        </div>
+                        {!cal.isVisible && (
+                          <span className="text-[10px] text-slate-500">숨김</span>
                         )}
                       </Link>
                     ))}

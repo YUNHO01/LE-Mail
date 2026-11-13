@@ -228,6 +228,68 @@ const schemaStatements = [
     CONSTRAINT \`fk_c_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE,
     CONSTRAINT \`fk_c_group\` FOREIGN KEY (\`group_id\`) REFERENCES \`contact_group\`(\`id\`) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`calendar\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`color\` VARCHAR(20) NOT NULL DEFAULT '#0284c7',
+    \`type\` ENUM('PERSONAL', 'SHARED', 'HOLIDAY') NOT NULL DEFAULT 'PERSONAL',
+    \`is_default\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`is_visible\` BOOLEAN NOT NULL DEFAULT TRUE,
+    \`sort_order\` INT NOT NULL DEFAULT 0,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_calendar_user\` (\`user_id\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`calendar_event\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`calendar_id\` VARCHAR(36) NOT NULL,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`title\` VARCHAR(255) NOT NULL,
+    \`description\` TEXT NULL,
+    \`location\` VARCHAR(255) NULL,
+    \`start_at\` DATETIME NOT NULL,
+    \`end_at\` DATETIME NOT NULL,
+    \`is_all_day\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`timezone\` VARCHAR(50) NOT NULL DEFAULT 'Asia/Seoul',
+    \`rrule\` VARCHAR(255) NULL,
+    \`recurrence_end_at\` DATETIME NULL,
+    \`reminder_minutes_before\` INT NULL,
+    \`reminder_sent_at\` DATETIME NULL,
+    \`source_mail_id\` VARCHAR(36) NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_ce_calendar\` (\`calendar_id\`),
+    INDEX \`idx_ce_user_range\` (\`user_id\`, \`start_at\`, \`end_at\`),
+    CONSTRAINT \`fk_ce_calendar\` FOREIGN KEY (\`calendar_id\`) REFERENCES \`calendar\`(\`id\`) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`calendar_event_attendee\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`event_id\` VARCHAR(36) NOT NULL,
+    \`email\` VARCHAR(255) NOT NULL,
+    \`name\` VARCHAR(100) NULL,
+    \`rsvp_status\` ENUM('PENDING', 'ACCEPTED', 'DECLINED', 'TENTATIVE') NOT NULL DEFAULT 'PENDING',
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX \`idx_cea_event\` (\`event_id\`),
+    CONSTRAINT \`fk_cea_event\` FOREIGN KEY (\`event_id\`) REFERENCES \`calendar_event\`(\`id\`) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`system_holiday\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`holiday_date\` VARCHAR(10) NOT NULL,
+    \`year\` INT NOT NULL,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`is_substitute\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`source\` ENUM('SEED', 'KASI_API', 'ICS_IMPORT', 'ADMIN_MANUAL') NOT NULL DEFAULT 'SEED',
+    \`is_active\` BOOLEAN NOT NULL DEFAULT TRUE,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_sh_year\` (\`year\`),
+    UNIQUE INDEX \`idx_sh_date_name\` (\`holiday_date\`, \`name\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 async function run() {
@@ -419,6 +481,25 @@ async function run() {
       // Column does not exist
     } else {
       console.warn(`Column drop note for contact.is_public: ${err.message}`);
+    }
+  }
+
+  // Migrate calendar_event columns (rrule, recurrence_end_at, reminder_minutes_before, reminder_sent_at)
+  const calendarEventColumns = [
+    { name: 'rrule', ddl: 'ALTER TABLE `calendar_event` ADD COLUMN `rrule` VARCHAR(255) NULL AFTER `timezone`;' },
+    { name: 'recurrence_end_at', ddl: 'ALTER TABLE `calendar_event` ADD COLUMN `recurrence_end_at` DATETIME NULL AFTER `rrule`;' },
+    { name: 'reminder_minutes_before', ddl: 'ALTER TABLE `calendar_event` ADD COLUMN `reminder_minutes_before` INT NULL AFTER `recurrence_end_at`;' },
+    { name: 'reminder_sent_at', ddl: 'ALTER TABLE `calendar_event` ADD COLUMN `reminder_sent_at` DATETIME NULL AFTER `reminder_minutes_before`;' },
+  ];
+
+  for (const col of calendarEventColumns) {
+    try {
+      await conn.query(col.ddl);
+      console.log(`Added column ${col.name} to calendar_event table.`);
+    } catch (err: any) {
+      if (err.errno !== 1060) {
+        console.warn(`Column migration note for calendar_event.${col.name}: ${err.message}`);
+      }
     }
   }
 

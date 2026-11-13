@@ -142,4 +142,150 @@ export const contactsApi = {
     }),
 };
 
+export const calendarApi = {
+  getCalendars: () =>
+    fetchApi<import('@lemail/shared-types').CalendarDto[]>('/calendar/calendars'),
+
+  createCalendar: (dto: import('@lemail/shared-types').CreateCalendarDto) =>
+    fetchApi<import('@lemail/shared-types').CalendarDto>('/calendar/calendars', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+  updateCalendar: (id: string, dto: import('@lemail/shared-types').UpdateCalendarDto) =>
+    fetchApi<import('@lemail/shared-types').CalendarDto>(`/calendar/calendars/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  deleteCalendar: (id: string) =>
+    fetchApi<{ deleted: boolean }>(`/calendar/calendars/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getEvents: (params?: {
+    start?: string;
+    end?: string;
+    calendarIds?: string[];
+    search?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.start) searchParams.set('start', params.start);
+    if (params?.end) searchParams.set('end', params.end);
+    if (params?.calendarIds && params.calendarIds.length > 0) {
+      searchParams.set('calendarIds', params.calendarIds.join(','));
+    }
+    if (params?.search) searchParams.set('search', params.search);
+    const qs = searchParams.toString();
+    return fetchApi<import('@lemail/shared-types').CalendarEventDto[]>(
+      `/calendar/events${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  createEvent: (dto: import('@lemail/shared-types').CreateCalendarEventDto) =>
+    fetchApi<import('@lemail/shared-types').CalendarEventDto>('/calendar/events', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+  updateEvent: (id: string, dto: import('@lemail/shared-types').UpdateCalendarEventDto) =>
+    fetchApi<import('@lemail/shared-types').CalendarEventDto>(`/calendar/events/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  deleteEvent: (id: string) =>
+    fetchApi<{ deleted: boolean }>(`/calendar/events/${id}`, {
+      method: 'DELETE',
+    }),
+
+  importIcs: (icsContent: string, calendarId?: string) =>
+    fetchApi<{ imported: number }>('/calendar/import-ics', {
+      method: 'POST',
+      body: JSON.stringify({ icsContent, calendarId }),
+    }),
+
+  exportIcs: async (params?: { start?: string; end?: string; calendarIds?: string[] }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.start) searchParams.set('start', params.start);
+    if (params?.end) searchParams.set('end', params.end);
+    if (params?.calendarIds && params.calendarIds.length > 0) {
+      searchParams.set('calendarIds', params.calendarIds.join(','));
+    }
+    const qs = searchParams.toString();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lemail_token') : null;
+    const res = await fetch(`${API_BASE_URL}/api/calendar/export-ics${qs ? `?${qs}` : ''}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      throw new Error('ICS 내보내기에 실패했습니다.');
+    }
+    return res.blob();
+  },
+};
+
+export const adminHolidaysApi = {
+  listByYear: (year: number) =>
+    fetchApi<import('@lemail/shared-types').SystemHolidayDto[]>(
+      `/admin/holidays?year=${year}`,
+    ),
+
+  getSyncSettings: () =>
+    fetchApi<import('@lemail/shared-types').HolidaySyncSettingsDto>(
+      '/admin/holidays/settings',
+    ),
+
+  saveSyncSettings: (dto: {
+    autoSyncEnabled?: boolean;
+    kasiApiKey?: string;
+    icsFeedUrl?: string;
+  }) =>
+    fetchApi<import('@lemail/shared-types').HolidaySyncSettingsDto>(
+      '/admin/holidays/settings',
+      {
+        method: 'PATCH',
+        body: JSON.stringify(dto),
+      },
+    ),
+
+  syncNow: (years?: number[]) =>
+    fetchApi<import('@lemail/shared-types').HolidaySyncResultDto>(
+      '/admin/holidays/sync',
+      {
+        method: 'POST',
+        body: JSON.stringify({ years }),
+      },
+    ),
+
+  importIcs: (icsContent: string) =>
+    fetchApi<import('@lemail/shared-types').HolidaySyncResultDto>(
+      '/admin/holidays/import-ics',
+      {
+        method: 'POST',
+        body: JSON.stringify({ icsContent }),
+      },
+    ),
+
+  create: (dto: import('@lemail/shared-types').CreateHolidayDto) =>
+    fetchApi<import('@lemail/shared-types').SystemHolidayDto>('/admin/holidays', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+  update: (id: string, dto: import('@lemail/shared-types').UpdateHolidayDto) =>
+    fetchApi<import('@lemail/shared-types').SystemHolidayDto>(
+      `/admin/holidays/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(dto),
+      },
+    ),
+
+  delete: (id: string) =>
+    fetchApi<{ deleted: boolean }>(`/admin/holidays/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+
 

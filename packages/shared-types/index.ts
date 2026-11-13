@@ -702,6 +702,152 @@ export interface ContactSearchResultDto {
   source: 'CONTACT' | 'SYSTEM_USER';
 }
 
+// ==========================================
+// Calendar & Event Types
+// ==========================================
+export type CalendarType = 'PERSONAL' | 'SHARED' | 'HOLIDAY';
+
+export interface CalendarDto {
+  id: string;
+  userId: string;
+  name: string;
+  color: string;
+  type: CalendarType;
+  isDefault: boolean;
+  isVisible: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCalendarDto {
+  name: string;
+  color?: string;
+  type?: 'PERSONAL' | 'SHARED';
+  isVisible?: boolean;
+  sortOrder?: number;
+}
+
+export interface UpdateCalendarDto {
+  name?: string;
+  color?: string;
+  type?: 'PERSONAL' | 'SHARED';
+  isVisible?: boolean;
+  sortOrder?: number;
+}
+
+export interface CalendarAttendeeDto {
+  id?: string;
+  email: string;
+  name?: string | null;
+  rsvpStatus: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'TENTATIVE';
+}
+
+export interface CreateCalendarAttendeeDto {
+  email: string;
+  name?: string | null;
+}
+
+export interface CalendarEventDto {
+  id: string;
+  calendarId: string;
+  calendarName?: string;
+  calendarColor?: string;
+  userId: string;
+  title: string;
+  description?: string | null;
+  location?: string | null;
+  startAt: string;
+  endAt: string;
+  isAllDay: boolean;
+  timezone: string;
+  rrule?: string | null;
+  recurrenceEndAt?: string | null;
+  reminderMinutesBefore?: number | null;
+  sourceMailId?: string | null;
+  attendees?: CalendarAttendeeDto[];
+  isRecurringInstance?: boolean;
+  isReadOnly?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type HolidaySource = 'SEED' | 'KASI_API' | 'ICS_IMPORT' | 'ADMIN_MANUAL';
+
+export interface SystemHolidayDto {
+  id: string;
+  holidayDate: string; // YYYY-MM-DD
+  year: number;
+  name: string;
+  isSubstitute: boolean;
+  source: HolidaySource;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateHolidayDto {
+  holidayDate: string;
+  name: string;
+  isSubstitute?: boolean;
+  isActive?: boolean;
+}
+
+export interface UpdateHolidayDto {
+  holidayDate?: string;
+  name?: string;
+  isSubstitute?: boolean;
+  isActive?: boolean;
+}
+
+export interface HolidaySyncSettingsDto {
+  autoSyncEnabled: boolean;
+  kasiApiKey: string;
+  icsFeedUrl: string;
+  lastSyncedAt: string | null;
+  lastSyncStatus: string | null;
+}
+
+export interface HolidaySyncResultDto {
+  syncedYears: number[];
+  upserted: number;
+  skippedManual: number;
+  source: 'KASI_API' | 'ICS_IMPORT' | 'SEED';
+  syncedAt: string;
+}
+
+export interface CreateCalendarEventDto {
+  calendarId?: string;
+  title: string;
+  description?: string | null;
+  location?: string | null;
+  startAt: string;
+  endAt: string;
+  isAllDay?: boolean;
+  timezone?: string;
+  rrule?: string | null;
+  recurrenceEndAt?: string | null;
+  reminderMinutesBefore?: number | null;
+  sourceMailId?: string | null;
+  attendees?: CreateCalendarAttendeeDto[];
+}
+
+export interface UpdateCalendarEventDto {
+  calendarId?: string;
+  title?: string;
+  description?: string | null;
+  location?: string | null;
+  startAt?: string;
+  endAt?: string;
+  isAllDay?: boolean;
+  timezone?: string;
+  rrule?: string | null;
+  recurrenceEndAt?: string | null;
+  reminderMinutesBefore?: number | null;
+  attendees?: CreateCalendarAttendeeDto[];
+}
+
+
 
 
 

@@ -17,6 +17,10 @@ import {
   MailBackup,
   ContactGroup,
   Contact,
+  Calendar,
+  CalendarEvent,
+  CalendarEventAttendee,
+  SystemHoliday,
 } from './entities';
 
 @Module({
@@ -49,6 +53,10 @@ import {
             MailBackup,
             ContactGroup,
             Contact,
+            Calendar,
+            CalendarEvent,
+            CalendarEventAttendee,
+            SystemHoliday,
           ],
           synchronize: false,
           timezone: 'Z',
@@ -73,6 +81,10 @@ import {
       MailBackup,
       ContactGroup,
       Contact,
+      Calendar,
+      CalendarEvent,
+      CalendarEventAttendee,
+      SystemHoliday,
     ]),
   ],
   exports: [TypeOrmModule],
