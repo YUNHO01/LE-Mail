@@ -177,14 +177,8 @@ export default function FolderMailsPage() {
   const folderName = folder ? folder.name : '개인편지함';
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={folderName}
-        icon={<FolderOpen className="h-6 w-6 text-amber-500" />}
-        subtitle={`${folderName} 편지함에 보관된 메일 목록입니다.`}
-      />
-
-      {/* Mail Data Table */}
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Mail 2-Pane Master-Detail */}
       <MailDataTable
         mails={mails}
         total={total}

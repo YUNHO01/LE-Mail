@@ -193,6 +193,45 @@ export interface LoginResponseDto {
   user: UserDto;
 }
 
+export interface PasskeyCredentialDto {
+  id: string;
+  credentialId: string;
+  deviceName: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export interface WebAuthnRegisterOptionsResponseDto {
+  challenge: string;
+  rp: {
+    name: string;
+    id: string;
+  };
+  user: {
+    id: string;
+    name: string;
+    displayName: string;
+  };
+  pubKeyCredParams: Array<{ type: 'public-key'; alg: number }>;
+  timeout: number;
+  attestation: 'none';
+  authenticatorSelection: {
+    authenticatorAttachment?: 'platform';
+    residentKey?: 'preferred' | 'required';
+    userVerification: 'required' | 'preferred';
+  };
+  excludeCredentials: Array<{ id: string; type: 'public-key' }>;
+}
+
+export interface WebAuthnLoginOptionsResponseDto {
+  challengeToken: string;
+  challenge: string;
+  rpId: string;
+  timeout: number;
+  userVerification: 'required' | 'preferred';
+  allowCredentials: Array<{ id: string; type: 'public-key'; transports?: string[] }>;
+}
+
 export interface MailboxDto {
   id: string;
   email: string;

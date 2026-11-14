@@ -164,18 +164,8 @@ export default function MailInboxPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="받은편지함"
-        icon={<Inbox className="h-6 w-6 text-sky-600" />}
-        subtitle={
-          user?.name
-            ? `${user.name}님에게 수신된 메일 목록입니다.`
-            : '수신된 이메일 목록을 열람하고 첨부파일을 다운로드합니다.'
-        }
-      />
-
-      {/* Mail Data Table */}
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Mail 2-Pane Master-Detail */}
       <MailDataTable
         mails={mails}
         total={total}

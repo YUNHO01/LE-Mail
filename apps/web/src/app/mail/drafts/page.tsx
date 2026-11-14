@@ -119,14 +119,8 @@ export default function MailDraftsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="임시보관함"
-        icon={<FileEdit className="h-6 w-6 text-sky-600" />}
-        subtitle="작성 중 임시 저장된 메일 목록입니다."
-      />
-
-      {/* Mail Data Table */}
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Mail 2-Pane Master-Detail */}
       <MailDataTable
         mails={mails}
         total={total}

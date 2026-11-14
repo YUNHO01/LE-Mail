@@ -174,8 +174,8 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               <div
                 className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
                   active
-                    ? 'bg-sky-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                    : 'text-[#1d1d1f] hover:bg-black/[0.04]'
                 }`}
                 style={{ paddingLeft: `${depth * 14 + 10}px` }}
               >
@@ -184,7 +184,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
                     <button
                       type="button"
                       onClick={(e) => toggleExpand(node.id, e)}
-                      className="p-0.5 text-slate-400 hover:text-white rounded"
+                      className="p-0.5 text-[#86868b] hover:text-[#1d1d1f] rounded"
                     >
                       {isExpanded ? (
                         <ChevronDown className="h-3 w-3" />
@@ -206,9 +206,9 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
                     className="flex items-center gap-1.5 truncate flex-1"
                   >
                     {isExpanded ? (
-                      <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                      <FolderOpen className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-[#0071e3]' : 'text-[#86868b]'}`} />
                     ) : (
-                      <Folder className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                      <Folder className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-[#0071e3]' : 'text-[#86868b]'}`} />
                     )}
                     <span className="truncate">{node.name}</span>
                   </Link>
@@ -216,7 +216,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
 
                 <div className="flex items-center gap-1 shrink-0 ml-1">
                   {node.unreadCount !== undefined && node.unreadCount > 0 && (
-                    <span className="rounded-full bg-sky-500/20 px-1.5 py-0.2 text-[10px] font-bold text-sky-400">
+                    <span className={`text-[11px] tabular-nums font-semibold ${active ? 'text-[#0071e3]' : 'text-[#86868b]'}`}>
                       {node.unreadCount}
                     </span>
                   )}
@@ -226,7 +226,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
                     <button
                       title="하위 편지함 추가"
                       onClick={(e) => openCreateModal(node, e)}
-                      className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-700"
+                      className="p-1 rounded text-[#86868b] hover:text-[#1d1d1f] hover:bg-black/[0.06]"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -234,7 +234,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
                       <button
                         title="편지함 삭제"
                         onClick={(e) => handleDeleteFolder(node, e)}
-                        className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-700"
+                        className="p-1 rounded text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10"
                       >
                         <Trash className="h-3 w-3" />
                       </button>
@@ -256,7 +256,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
     <div className="space-y-4">
       {/* 1~6 기본 편지함 일체형 목록 */}
       <div>
-        <nav className="space-y-1">
+        <nav className="space-y-0.5">
           {/* 1. 받은편지함 */}
           <Link
             href="/mail/inbox"
@@ -265,18 +265,18 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/inbox');
             }}
             onMouseDown={() => startNavigation('/mail/inbox')}
-            className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
               isLinkActive('/mail/inbox')
-                ? 'bg-sky-600 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <Inbox className="h-4 w-4" />
+            <div className="flex items-center gap-2.5">
+              <Inbox className={`h-4 w-4 ${isLinkActive('/mail/inbox') ? 'text-[#0071e3]' : 'text-[#6e6e73]'}`} />
               <span>받은편지함</span>
             </div>
             {inbox?.unreadCount !== undefined && inbox.unreadCount > 0 && (
-              <span className="rounded-full bg-sky-400 px-2 py-0.5 text-xs font-bold text-slate-900">
+              <span className={`text-[11px] tabular-nums font-semibold ${isLinkActive('/mail/inbox') ? 'text-[#0071e3]' : 'text-[#86868b]'}`}>
                 {inbox.unreadCount}
               </span>
             )}
@@ -290,18 +290,18 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/sent');
             }}
             onMouseDown={() => startNavigation('/mail/sent')}
-            className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
               isLinkActive('/mail/sent')
-                ? 'bg-sky-600 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <Send className="h-4 w-4" />
+            <div className="flex items-center gap-2.5">
+              <Send className={`h-4 w-4 ${isLinkActive('/mail/sent') ? 'text-[#0071e3]' : 'text-[#6e6e73]'}`} />
               <span>보낸편지함</span>
             </div>
             {sent?.unreadCount !== undefined && sent.unreadCount > 0 && (
-              <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-400 border border-sky-500/30">
+              <span className={`text-[11px] tabular-nums font-semibold ${isLinkActive('/mail/sent') ? 'text-[#0071e3]' : 'text-[#86868b]'}`}>
                 {sent.unreadCount}
               </span>
             )}
@@ -315,18 +315,18 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/drafts');
             }}
             onMouseDown={() => startNavigation('/mail/drafts')}
-            className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
               isLinkActive('/mail/drafts')
-                ? 'bg-sky-600 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <FileEdit className="h-4 w-4" />
+            <div className="flex items-center gap-2.5">
+              <FileEdit className={`h-4 w-4 ${isLinkActive('/mail/drafts') ? 'text-[#0071e3]' : 'text-[#6e6e73]'}`} />
               <span>임시보관함</span>
             </div>
             {drafts?.unreadCount !== undefined && drafts.unreadCount > 0 && (
-              <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-300 border border-slate-700">
+              <span className={`text-[11px] tabular-nums font-semibold ${isLinkActive('/mail/drafts') ? 'text-[#0071e3]' : 'text-[#86868b]'}`}>
                 {drafts.unreadCount}
               </span>
             )}
@@ -340,18 +340,18 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/spam');
             }}
             onMouseDown={() => startNavigation('/mail/spam')}
-            className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
               isLinkActive('/mail/spam')
-                ? 'bg-sky-600 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="h-4 w-4 text-amber-400" />
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className={`h-4 w-4 ${isLinkActive('/mail/spam') ? 'text-[#0071e3]' : 'text-[#ff9500]'}`} />
               <span>스팸메일함</span>
             </div>
             {spam?.unreadCount !== undefined && spam.unreadCount > 0 && (
-              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-400 border border-amber-500/30">
+              <span className={`text-[11px] tabular-nums font-semibold ${isLinkActive('/mail/spam') ? 'text-[#0071e3]' : 'text-[#ff9500]'}`}>
                 {spam.unreadCount}
               </span>
             )}
@@ -365,43 +365,43 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/trash');
             }}
             onMouseDown={() => startNavigation('/mail/trash')}
-            className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
               isLinkActive('/mail/trash')
-                ? 'bg-sky-600 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <Trash2 className="h-4 w-4" />
+            <div className="flex items-center gap-2.5">
+              <Trash2 className={`h-4 w-4 ${isLinkActive('/mail/trash') ? 'text-[#0071e3]' : 'text-[#6e6e73]'}`} />
               <span>휴지통</span>
             </div>
             {trash?.unreadCount !== undefined && trash.unreadCount > 0 && (
-              <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-400 border border-slate-700">
+              <span className={`text-[11px] tabular-nums font-semibold ${isLinkActive('/mail/trash') ? 'text-[#0071e3]' : 'text-[#86868b]'}`}>
                 {trash.unreadCount}
               </span>
             )}
           </Link>
 
           {/* 6. 개인편지함 (트리 루트 및 하위 편지함 관리) */}
-          <div className="pt-1">
+          <div className="pt-2 mt-2 border-t border-black/[0.06]">
             <div
-              className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-[13px] font-medium transition-colors ${
                 customRoot && pathname === `/mail/folder/${customRoot.id}`
-                  ? 'bg-sky-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                  : 'text-[#1d1d1f] hover:bg-black/[0.04]'
               }`}
             >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
                 <button
                   type="button"
                   title="하위 편지함 펼치기/접기"
                   onClick={(e) => customRoot && toggleExpand(customRoot.id, e)}
-                  className="p-0.5 text-slate-400 hover:text-white rounded"
+                  className="p-0.5 text-[#86868b] hover:text-[#1d1d1f] rounded"
                 >
                   {customRoot && expandedFolders[customRoot.id] ? (
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-3.5 w-3.5" />
                   ) : (
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-3.5 w-3.5" />
                   )}
                 </button>
 
@@ -417,9 +417,9 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
                   className="flex items-center gap-2 flex-1 truncate"
                 >
                   {customRoot && expandedFolders[customRoot.id] ? (
-                    <FolderOpen className="h-4 w-4 text-amber-400 shrink-0" />
+                    <FolderOpen className="h-4 w-4 text-[#86868b] shrink-0" />
                   ) : (
-                    <Folder className="h-4 w-4 text-amber-400 shrink-0" />
+                    <Folder className="h-4 w-4 text-[#86868b] shrink-0" />
                   )}
                   <span className="truncate">개인편지함</span>
                 </Link>
@@ -427,7 +427,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
 
               <div className="flex items-center gap-1 shrink-0">
                 {customRoot?.unreadCount !== undefined && customRoot.unreadCount > 0 && (
-                  <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-400 border border-sky-500/30 mr-1">
+                  <span className="text-[11px] tabular-nums font-semibold text-[#86868b] mr-1">
                     {customRoot.unreadCount}
                   </span>
                 )}
@@ -436,7 +436,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
                     type="button"
                     title="새 하위 편지함 만들기"
                     onClick={(e) => openCreateModal(customRoot, e)}
-                    className="p-1 rounded text-slate-400 hover:text-sky-400 hover:bg-slate-700/60 transition-colors"
+                    className="p-1 rounded text-[#86868b] hover:text-[#0071e3] hover:bg-black/[0.05] transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -450,7 +450,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
                 {customRoot.children && customRoot.children.length > 0 ? (
                   renderTreeNodes(customRoot.children, 1)
                 ) : (
-                  <div className="pl-9 pr-3 py-1.5 text-xs text-slate-500 italic">
+                  <div className="pl-8 pr-3 py-1.5 text-xs text-[#86868b]">
                     하위 편지함 없음 (+ 버튼 클릭)
                   </div>
                 )}

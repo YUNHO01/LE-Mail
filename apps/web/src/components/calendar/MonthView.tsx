@@ -48,18 +48,18 @@ export const MonthView: React.FC<MonthViewProps> = ({
   }, [moreModalDay, events]);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col bg-white overflow-hidden">
       {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80">
+      <div className="grid grid-cols-7 border-b border-black/[0.08] bg-[#f5f5f7]/70 shrink-0">
         {WEEKDAY_LABELS.map((label, idx) => (
           <div
             key={label}
-            className={`py-2.5 text-center text-xs font-bold tracking-wide ${
+            className={`py-2 text-center text-[11px] font-semibold tracking-wide ${
               idx === 0
-                ? 'text-rose-500'
+                ? 'text-[#ff3b30]'
                 : idx === 6
-                ? 'text-sky-600'
-                : 'text-slate-600'
+                ? 'text-[#0071e3]'
+                : 'text-[#6e6e73]'
             }`}
           >
             {label}
@@ -68,7 +68,10 @@ export const MonthView: React.FC<MonthViewProps> = ({
       </div>
 
       {/* 6주 x 7일 주 단위 행 */}
-      <div className="divide-y divide-slate-100">
+      <div
+        className="flex-1 min-h-0 grid divide-y divide-black/[0.06] overflow-y-auto"
+        style={{ gridTemplateRows: `repeat(${weeks.length}, minmax(108px, 1fr))` }}
+      >
         {weeks.map((weekDays, weekIdx) => {
           const lanes = layoutWeekSpanEvents(weekDays, events);
           const visibleLanes = lanes.slice(0, MAX_LANES);
@@ -86,9 +89,9 @@ export const MonthView: React.FC<MonthViewProps> = ({
           });
 
           return (
-            <div key={`week-${weekIdx}`} className="relative min-h-[122px]">
+            <div key={`week-${weekIdx}`} className="relative min-h-[108px]">
               {/* 배경 날짜 셀 레이어 */}
-              <div className="grid grid-cols-7 divide-x divide-slate-100 min-h-[122px]">
+              <div className="grid grid-cols-7 divide-x divide-black/[0.06] h-full min-h-[108px]">
                 {weekDays.map((day, colIdx) => {
                   const isCurrentMonth = day.getMonth() === currentMonth;
                   const isToday = isSameDay(day, today);
@@ -99,22 +102,22 @@ export const MonthView: React.FC<MonthViewProps> = ({
                     <div
                       key={day.toISOString()}
                       onClick={() => onSelectDate(day)}
-                      className={`p-1.5 sm:p-2 cursor-pointer transition-colors hover:bg-sky-50/40 flex flex-col justify-between ${
-                        isCurrentMonth ? 'bg-white' : 'bg-slate-50/60'
+                      className={`p-1.5 sm:p-2 cursor-pointer transition-colors hover:bg-[#0071e3]/[0.03] flex flex-col justify-between ${
+                        isCurrentMonth ? 'bg-white' : 'bg-[#f5f5f7]/45'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span
                           className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
                             isToday
-                              ? 'bg-sky-600 text-white shadow-sm'
+                              ? 'bg-[#0071e3] text-white shadow-xs'
                               : !isCurrentMonth
-                              ? 'text-slate-300'
+                              ? 'text-[#86868b]/50'
                               : dayOfWeek === 0
-                              ? 'text-rose-500'
+                              ? 'text-[#ff3b30]'
                               : dayOfWeek === 6
-                              ? 'text-sky-600'
-                              : 'text-slate-700'
+                              ? 'text-[#0071e3]'
+                              : 'text-[#1d1d1f]'
                           }`}
                         >
                           {day.getDate()}
@@ -128,7 +131,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
                             e.stopPropagation();
                             setMoreModalDay(day);
                           }}
-                          className="mt-auto pt-1 text-left px-1 text-[10px] font-semibold text-slate-500 hover:text-sky-600 z-10"
+                          className="mt-auto pt-1 text-left px-1 text-[10px] font-semibold text-[#6e6e73] hover:text-[#0071e3] z-10"
                         >
                           +{overflowCount}개 더보기
                         </button>
@@ -209,29 +212,29 @@ export const MonthView: React.FC<MonthViewProps> = ({
       {/* +N개 더보기 팝업 모달 */}
       {moreModalDay && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-[2px] p-4"
           onClick={() => setMoreModalDay(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden"
+            className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-black/[0.08] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/70">
-              <span className="text-sm font-bold text-slate-900">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.08] bg-[#f5f5f7]">
+              <span className="text-[13px] font-semibold text-[#1d1d1f]">
                 {moreModalDay.getFullYear()}년 {moreModalDay.getMonth() + 1}월{' '}
                 {moreModalDay.getDate()}일 ({WEEKDAY_LABELS[moreModalDay.getDay()]})
               </span>
               <button
                 type="button"
                 onClick={() => setMoreModalDay(null)}
-                className="rounded-lg p-1 text-slate-400 hover:text-slate-600"
+                className="rounded-lg p-1 text-[#86868b] hover:bg-black/[0.06] hover:text-[#1d1d1f] transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="p-3 space-y-1.5 max-h-80 overflow-y-auto">
               {moreDayEvents.map((ev) => {
-                const color = ev.calendarColor || '#0284c7';
+                const color = ev.calendarColor || '#0071e3';
                 return (
                   <button
                     key={ev.id}
@@ -240,16 +243,16 @@ export const MonthView: React.FC<MonthViewProps> = ({
                       setMoreModalDay(null);
                       onSelectEvent(ev);
                     }}
-                    className="w-full text-left flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs hover:bg-slate-50 border border-slate-100 transition"
+                    className="w-full text-left flex items-center gap-2 rounded-xl px-2.5 py-2 text-xs hover:bg-[#0071e3]/[0.04] border border-black/[0.06] transition-colors"
                   >
                     <span
                       className="h-2.5 w-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: color }}
                     />
-                    <span className="font-mono text-[11px] text-slate-500 shrink-0">
+                    <span className="font-mono text-[11px] text-[#86868b] shrink-0">
                       {ev.isAllDay ? '종일' : formatTimeShort(ev.startAt)}
                     </span>
-                    <span className="font-semibold text-slate-800 truncate">
+                    <span className="font-semibold text-[#1d1d1f] truncate">
                       {ev.title}
                     </span>
                   </button>

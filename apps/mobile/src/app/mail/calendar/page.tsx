@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'reac
 import {
   ChevronLeft,
   ChevronRight,
-  Plus,
+  CalendarPlus,
   Calendar as CalendarIcon,
   MapPin,
   Settings2,
@@ -416,7 +416,7 @@ function CalendarPageContent() {
         aria-label="새 일정"
         className="fixed bottom-20 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007AFF] text-white shadow-lg shadow-blue-500/35 active:scale-95 transition-transform"
       >
-        <Plus className="h-6 w-6" />
+        <CalendarPlus className="h-6 w-6" />
       </button>
 
       <EventModal

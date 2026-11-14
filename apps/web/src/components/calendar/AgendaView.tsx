@@ -30,10 +30,10 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
   if (grouped.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
-        <CalendarDays className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-        <p className="text-sm font-semibold text-slate-700">등록된 일정이 없습니다.</p>
-        <p className="text-xs text-slate-400 mt-1">
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-white p-12 text-center">
+        <CalendarDays className="h-10 w-10 text-[#86868b]/50 mb-3" />
+        <p className="text-sm font-semibold text-[#1d1d1f]">등록된 일정이 없습니다.</p>
+        <p className="text-xs text-[#86868b] mt-1">
           우측 상단의 &lsquo;새 일정&rsquo; 버튼을 눌러 일정을 추가해 보세요.
         </p>
       </div>
@@ -41,27 +41,27 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100 overflow-hidden">
+    <div className="flex-1 min-h-0 overflow-y-auto bg-white divide-y divide-black/[0.06]">
       {grouped.map(([dateKey, dayEvents]) => {
         const d = new Date(`${dateKey}T00:00:00`);
         const label = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY_LABELS[d.getDay()]})`;
 
         return (
-          <div key={dateKey} className="p-4 sm:p-5 flex flex-col sm:flex-row gap-4">
+          <div key={dateKey} className="px-5 py-4 sm:py-5 flex flex-col sm:flex-row gap-4">
             <div className="w-36 shrink-0">
-              <div className="text-sm font-bold text-slate-900">{label}</div>
-              <div className="text-[11px] text-slate-400 font-mono">{dateKey}</div>
+              <div className="text-[13px] font-semibold text-[#1d1d1f]">{label}</div>
+              <div className="text-[11px] text-[#86868b] font-mono mt-0.5">{dateKey}</div>
             </div>
 
             <div className="flex-1 space-y-2">
               {dayEvents.map((ev) => {
-                const color = ev.calendarColor || '#0284c7';
+                const color = ev.calendarColor || '#0071e3';
                 return (
                   <button
                     key={ev.id}
                     type="button"
                     onClick={() => onSelectEvent(ev)}
-                    className="w-full text-left rounded-xl border border-slate-200/80 p-3 hover:border-sky-300 hover:bg-sky-50/30 transition flex items-start justify-between gap-3"
+                    className="w-full text-left rounded-xl border border-black/[0.08] bg-white p-3 hover:border-[#0071e3]/35 hover:bg-[#0071e3]/[0.03] transition-colors flex items-start justify-between gap-3"
                   >
                     <div className="flex items-start gap-3 min-w-0">
                       <span
@@ -69,19 +69,19 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                         style={{ backgroundColor: color }}
                       />
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900 truncate">
+                        <div className="text-[13px] font-semibold text-[#1d1d1f] truncate">
                           {ev.title}
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-500">
+                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-[#6e6e73]">
                           <span className="inline-flex items-center gap-1 font-mono">
-                            <Clock className="h-3 w-3 text-slate-400" />
+                            <Clock className="h-3 w-3 text-[#86868b]" />
                             {ev.isAllDay
                               ? '종일'
                               : `${formatTimeShort(ev.startAt)} ~ ${formatTimeShort(ev.endAt)}`}
                           </span>
                           {ev.location && (
                             <span className="inline-flex items-center gap-1 truncate">
-                              <MapPin className="h-3 w-3 text-slate-400" />
+                              <MapPin className="h-3 w-3 text-[#86868b]" />
                               {ev.location}
                             </span>
                           )}
@@ -90,7 +90,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                     </div>
 
                     {ev.calendarName && (
-                      <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                      <span className="shrink-0 rounded-md bg-black/[0.04] px-2 py-0.5 text-[11px] font-medium text-[#6e6e73]">
                         {ev.calendarName}
                       </span>
                     )}

@@ -10,20 +10,23 @@ import {
   ChevronLeft,
   LogOut,
   HardDrive,
+  Fingerprint,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SignatureSettingsTab } from '@/components/settings/SignatureSettingsTab';
 import { SpamBlockSettingsTab } from '@/components/settings/SpamBlockSettingsTab';
 import { MailboxBackupTab } from '@/components/settings/MailboxBackupTab';
 import { PasswordChangeTab } from '@/components/settings/PasswordChangeTab';
+import { BiometricSettingsTab } from '@/components/settings/BiometricSettingsTab';
 
-type SettingsSection = 'menu' | 'signature' | 'spam' | 'backup' | 'password';
+type SettingsSection = 'menu' | 'signature' | 'spam' | 'backup' | 'password' | 'biometric';
 
 const SECTION_META: Record<Exclude<SettingsSection, 'menu'>, string> = {
   signature: '서명 관리',
   spam: '스팸 및 수신 차단',
   backup: '메일함 백업',
   password: '비밀번호 변경',
+  biometric: '생체인식 로그인',
 };
 
 function SettingsContent() {
@@ -55,6 +58,7 @@ function SettingsContent() {
           {section === 'spam' && <SpamBlockSettingsTab />}
           {section === 'backup' && <MailboxBackupTab />}
           {section === 'password' && <PasswordChangeTab />}
+          {section === 'biometric' && <BiometricSettingsTab />}
         </div>
       </div>
     );
@@ -143,6 +147,20 @@ function SettingsContent() {
                 <KeyRound className="h-4 w-4" />
               </span>
               <span className="text-sm font-semibold text-slate-900">비밀번호 변경</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-slate-300" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSection('biometric')}
+            className="flex w-full items-center justify-between px-4 py-3.5 text-left active:bg-slate-50"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#007AFF] text-white">
+                <Fingerprint className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-semibold text-slate-900">생체인식 로그인</span>
             </div>
             <ChevronRight className="h-4 w-4 text-slate-300" />
           </button>

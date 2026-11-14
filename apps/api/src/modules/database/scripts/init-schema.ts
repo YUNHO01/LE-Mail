@@ -342,6 +342,23 @@ const schemaStatements = [
     INDEX \`idx_sh_year\` (\`year\`),
     UNIQUE INDEX \`idx_sh_date_name\` (\`holiday_date\`, \`name\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`user_passkey\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`credential_id\` VARCHAR(512) NOT NULL,
+    \`public_key_pem\` TEXT NOT NULL,
+    \`algorithm\` INT NOT NULL DEFAULT -7,
+    \`counter\` INT UNSIGNED NOT NULL DEFAULT 0,
+    \`transports\` VARCHAR(255) NULL,
+    \`device_name\` VARCHAR(120) NOT NULL DEFAULT '모바일 기기',
+    \`last_used_at\` TIMESTAMP NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_up_user\` (\`user_id\`),
+    UNIQUE INDEX \`uq_up_credential_id\` (\`credential_id\`),
+    CONSTRAINT \`fk_up_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 export interface SchemaLogger {

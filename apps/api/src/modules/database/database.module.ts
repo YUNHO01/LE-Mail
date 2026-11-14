@@ -25,6 +25,7 @@ import {
   SystemHoliday,
   Department,
   OrgSyncLog,
+  UserPasskey,
 } from './entities';
 
 @Module({
@@ -63,6 +64,7 @@ import {
             SystemHoliday,
             Department,
             OrgSyncLog,
+            UserPasskey,
           ],
           synchronize: false,
           timezone: 'Z',

@@ -3,6 +3,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { SystemLicenseInfo, UserDto } from '@lemail/shared-types';
+import { authenticateWithBiometric, BIOMETRIC_HINT_EMAIL_KEY } from '../lib/webauthn';
+
+interface AuthResult {
+  success: boolean;
+  message?: string;
+  user?: UserDto;
+  licenseStatus?: SystemLicenseInfo | null;
+}
 
 interface AuthContextType {
   user: UserDto | null;
@@ -11,15 +19,8 @@ interface AuthContextType {
   licenseStatus: SystemLicenseInfo | null;
   isLicenseLoading: boolean;
   refreshLicenseStatus: () => Promise<SystemLicenseInfo | null>;
-  login: (
-    email: string,
-    pass: string,
-  ) => Promise<{
-    success: boolean;
-    message?: string;
-    user?: UserDto;
-    licenseStatus?: SystemLicenseInfo | null;
-  }>;
+  login: (email: string, pass: string) => Promise<AuthResult>;
+  loginWithBiometric: (email?: string) => Promise<AuthResult>;
   logout: () => void;
   refreshStorageUsage: () => Promise<void>;
   isAuthenticated: boolean;
@@ -170,15 +171,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   };
 
-  const login = async (
-    email: string,
-    pass: string,
-  ): Promise<{
-    success: boolean;
-    message?: string;
-    user?: UserDto;
-    licenseStatus?: SystemLicenseInfo | null;
-  }> => {
+  const completeLogin = async (data: { accessToken: string; user: UserDto }): Promise<AuthResult> => {
+    const licStatus = await refreshLicenseStatus();
+    if (licStatus && !licStatus.isValid) {
+      return {
+        success: false,
+        message: '유효한 시스템 라이선스가 없습니다. 내부 관리자 콘솔에서 라이선스를 등록해 주세요.',
+        licenseStatus: licStatus,
+      };
+    }
+
+    setToken(data.accessToken);
+    setUser(data.user);
+    localStorage.setItem('lemail_token', data.accessToken);
+    localStorage.setItem('lemail_user', JSON.stringify(data.user));
+
+    fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
+      headers: { Authorization: `Bearer ${data.accessToken}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((usage) => {
+        if (usage) {
+          setUser((prev) => {
+            if (!prev) return null;
+            const updated: UserDto = {
+              ...prev,
+              mailboxQuotaMb: usage.quotaMb ?? prev.mailboxQuotaMb,
+              usedBytes: usage.usedBytes ?? 0,
+              usedMb: usage.usedMb ?? 0,
+              usagePercent: usage.usagePercent ?? 0,
+              messageCount: usage.messageCount ?? 0,
+            };
+            localStorage.setItem('lemail_user', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      })
+      .catch(() => {});
+
+    return { success: true, user: data.user, licenseStatus: licStatus };
+  };
+
+  const login = async (email: string, pass: string): Promise<AuthResult> => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -191,46 +225,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.message || '로그인에 실패했습니다.' };
       }
 
-      const licStatus = await refreshLicenseStatus();
-      if (licStatus && !licStatus.isValid) {
-        return {
-          success: false,
-          message: '유효한 시스템 라이선스가 없습니다. 내부 관리자 콘솔에서 라이선스를 등록해 주세요.',
-          licenseStatus: licStatus,
-        };
-      }
-
-      setToken(data.accessToken);
-      setUser(data.user);
-      localStorage.setItem('lemail_token', data.accessToken);
-      localStorage.setItem('lemail_user', JSON.stringify(data.user));
-
-      fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {
-        headers: { Authorization: `Bearer ${data.accessToken}` },
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((usage) => {
-          if (usage) {
-            setUser((prev) => {
-              if (!prev) return null;
-              const updated: UserDto = {
-                ...prev,
-                mailboxQuotaMb: usage.quotaMb ?? prev.mailboxQuotaMb,
-                usedBytes: usage.usedBytes ?? 0,
-                usedMb: usage.usedMb ?? 0,
-                usagePercent: usage.usagePercent ?? 0,
-                messageCount: usage.messageCount ?? 0,
-              };
-              localStorage.setItem('lemail_user', JSON.stringify(updated));
-              return updated;
-            });
-          }
-        })
-        .catch(() => {});
-
-      return { success: true, user: data.user, licenseStatus: licStatus };
+      return completeLogin(data);
     } catch (err: any) {
       return { success: false, message: err.message || '서버 통신 오류가 발생했습니다.' };
+    }
+  };
+
+  const loginWithBiometric = async (email?: string): Promise<AuthResult> => {
+    try {
+      const data = await authenticateWithBiometric(email);
+      if (data.user?.email && typeof window !== 'undefined') {
+        localStorage.setItem(BIOMETRIC_HINT_EMAIL_KEY, data.user.email);
+      }
+      return completeLogin(data);
+    } catch (err: any) {
+      return { success: false, message: err.message || '생체인식 로그인에 실패했습니다.' };
     }
   };
 
@@ -252,6 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLicenseLoading,
         refreshLicenseStatus,
         login,
+        loginWithBiometric,
         logout,
         refreshStorageUsage,
         isAuthenticated: !!token && !!user,

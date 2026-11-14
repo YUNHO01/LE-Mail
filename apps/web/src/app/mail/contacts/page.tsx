@@ -42,9 +42,11 @@ export default function ContactsPage() {
   const [groups, setGroups] = useState<ContactGroupDto[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 20;
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectMode, setSelectMode] = useState(false);
+  const [activeDetailId, setActiveDetailId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   // 필터 상태
@@ -375,114 +377,81 @@ export default function ContactsPage() {
     return { dateStr, timeStr };
   };
 
+  const activeContact = useMemo(
+    () => (currentGroupId !== 'company' ? contacts.find((c) => c.id === activeDetailId) || null : null),
+    [contacts, activeDetailId, currentGroupId],
+  );
+
+  const activeCompanyUser = useMemo(
+    () => (currentGroupId === 'company' ? companyUsers.find((u) => u.id === activeDetailId) || null : null),
+    [companyUsers, activeDetailId, currentGroupId],
+  );
+
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => {
+      const next = !prev;
+      if (!next) setSelectedIds([]);
+      return next;
+    });
+  };
+
   return (
-    <div className="space-y-6">
-      {/* 1. 편지함 스타일 표준 PageHeader */}
-      <PageHeader
-        title={getCategoryTitle()}
-        icon={<Users className="h-6 w-6 text-sky-600" />}
-        subtitle="연락처를 관리하고 외부 주소록과 연동하거나 메일을 작성하세요."
-        action={
-          currentGroupId !== 'company' && (
-            <div className="flex items-center gap-2 flex-wrap print:hidden">
-              {/* 그룹 관리 버튼 */}
-              <button
-                type="button"
-                onClick={() => setGroupModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition"
-              >
-                <Tag className="h-3.5 w-3.5 text-slate-500" />
-                <span>그룹 관리</span>
-              </button>
-
-              {/* 가져오기 버튼 */}
-              <button
-                type="button"
-                onClick={() => setImportModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition"
-              >
-                <Upload className="h-3.5 w-3.5 text-emerald-600" />
-                <span>가져오기</span>
-              </button>
-
-              {/* 내보내기 드롭다운 */}
-              <div className="relative" ref={exportMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setExportMenuOpen(!exportMenuOpen)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition"
-                >
-                  <Download className="h-3.5 w-3.5 text-sky-600" />
-                  <span>내보내기</span>
-                  <ChevronDown className="h-3 w-3 text-slate-400" />
-                </button>
-
-                {exportMenuOpen && (
-                  <div className="absolute right-0 mt-1.5 w-52 rounded-xl bg-white border border-slate-200 shadow-xl py-1 z-30 text-xs animate-in fade-in zoom-in-95 duration-100">
-                    <button
-                      type="button"
-                      onClick={() => handleExport('xlsx')}
-                      className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <div className="font-semibold text-slate-800 flex items-center gap-1.5">
-                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>Excel 통합문서 (.xlsx)</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400">15개 표준 항목 전체 포함 양식</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExport('csv')}
-                      className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-50 transition border-t border-slate-100"
-                    >
-                      <div className="font-semibold text-slate-800">Outlook 호환 CSV (.csv)</div>
-                      <div className="text-[10px] text-slate-400">Windows/Outlook 호환 텍스트</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExport('vcf')}
-                      className="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-50 transition border-t border-slate-100"
-                    >
-                      <div className="font-semibold text-slate-800">vCard 포맷 (.vcf)</div>
-                      <div className="text-[10px] text-slate-400">스마트폰 / Apple / 표준 주소록</div>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* 새 연락처 추가 버튼 */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedContact(null);
-                  setContactModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md shadow-sky-600/20 transition active:scale-[0.98]"
-              >
-                <UserPlus className="h-3.5 w-3.5" />
-                <span>새 연락처</span>
-              </button>
+    <div className="flex-1 flex min-h-0 bg-white overflow-hidden">
+      {/* PANE 2: iCloud Contacts List Column */}
+      <section className="w-full lg:w-[360px] xl:w-[395px] shrink-0 border-r border-black/[0.08] flex flex-col min-h-0 bg-white">
+        {/* Sticky Header */}
+        <div className="px-4 pt-4 pb-2.5 border-b border-black/[0.06] space-y-2.5 bg-white/95 backdrop-blur-md">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="text-[19px] font-bold tracking-tight text-[#1d1d1f] truncate">
+                {getCategoryTitle()}
+              </h1>
+              <p className="text-[11px] text-[#86868b] mt-0.5 tabular-nums">
+                전체 {activeItemsCount}명
+              </p>
             </div>
-          )
-        }
-      />
 
-      {/* 2. 편지함 스타일 일체형 데이터 테이블 카드 */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
-        {/* 인쇄 전용 타이틀 헤더 */}
-        <div className="hidden print:block p-4 border-b-2 border-slate-800">
-          <h2 className="text-base font-bold text-slate-900">
-            [LEMail] {getCategoryTitle()} 목록
-          </h2>
-          <div className="text-xs text-slate-600 mt-1">
-            출력일시: {new Date().toLocaleString('ko-KR')} | 목록 {currentGroupId === 'company' ? paginatedCompanyUsers.length : paginatedContacts.length}건
+            <div className="flex items-center gap-1.5 shrink-0">
+              {currentGroupId !== 'company' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={toggleSelectMode}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+                      selectMode || selectedIds.length > 0
+                        ? 'bg-[#0071e3] text-white'
+                        : 'text-[#0071e3] hover:bg-[#007aff]/10'
+                    }`}
+                  >
+                    {selectMode ? '완료' : '선택'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedContact(null);
+                      setContactModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0071e3] hover:bg-[#0077ed] text-white text-xs font-medium shadow-xs transition"
+                    title="새 연락처"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    <span>추가</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* 상단 통합 툴바 영역 (카드 상단 헤더) */}
-        <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white print:hidden">
-          {/* 좌측: 필터 + 검색창 */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Search + Filter */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <SearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="이름, 이메일, 전화번호 검색..."
+                size="sm"
+              />
+            </div>
             {currentGroupId !== 'company' && (
               <div className="shrink-0">
                 <SelectDropdown
@@ -494,431 +463,547 @@ export default function ContactsPage() {
                   }}
                   headerLabel="연락처 필터"
                   size="sm"
-                  menuWidthClass="w-40"
+                  menuWidthClass="w-36"
                 />
               </div>
             )}
-
-            {/* 표준 SearchInput */}
-            <div className="w-full sm:w-64">
-              <SearchInput
-                value={searchTerm}
-                onChange={setSearchTerm}
-                placeholder="이름, 이메일, 전화번호 검색..."
-                size="md"
-              />
-            </div>
           </div>
 
-          {/* 우측: 다중 선택 일괄 액션 & 표준 TableUtility 3종 버튼 */}
-          <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap sm:flex-nowrap">
-            {selectedIds.length > 0 && currentGroupId !== 'company' && (
-              <div className="flex items-center gap-1.5 mr-1 pr-2 border-r border-slate-200">
-                <span className="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
-                  {selectedIds.length}개 선택
-                </span>
+          {/* Compact Manage Actions (그룹 관리 / 가져오기 / 내보내기) */}
+          {currentGroupId !== 'company' && (
+            <div className="flex items-center justify-between gap-1 pt-0.5 text-[11px]">
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={handleBulkDelete}
-                  className="px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-600 text-xs font-medium transition inline-flex items-center gap-1"
+                  onClick={() => setGroupModalOpen(true)}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>삭제</span>
+                  <Tag className="h-3 w-3" />
+                  <span>그룹</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setImportModalOpen(true)}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
+                >
+                  <Upload className="h-3 w-3" />
+                  <span>가져오기</span>
+                </button>
+                <div className="relative" ref={exportMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
+                  >
+                    <Download className="h-3 w-3" />
+                    <span>내보내기</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  {exportMenuOpen && (
+                    <div className="absolute left-0 mt-1 w-52 rounded-xl bg-white border border-black/[0.08] shadow-xl py-1 z-30 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => handleExport('xlsx')}
+                        className="w-full text-left px-3.5 py-2 text-[#1d1d1f] hover:bg-black/[0.04] transition"
+                      >
+                        <div className="font-medium flex items-center gap-1.5">
+                          <FileSpreadsheet className="h-3.5 w-3.5 text-[#34c759]" />
+                          <span>Excel 통합문서 (.xlsx)</span>
+                        </div>
+                        <div className="text-[10px] text-[#86868b]">15개 표준 항목 전체 포함</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExport('csv')}
+                        className="w-full text-left px-3.5 py-2 text-[#1d1d1f] hover:bg-black/[0.04] transition border-t border-black/[0.05]"
+                      >
+                        <div className="font-medium">Outlook 호환 CSV (.csv)</div>
+                        <div className="text-[10px] text-[#86868b]">Windows/Outlook 호환</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExport('vcf')}
+                        className="w-full text-left px-3.5 py-2 text-[#1d1d1f] hover:bg-black/[0.04] transition border-t border-black/[0.05]"
+                      >
+                        <div className="font-medium">vCard 포맷 (.vcf)</div>
+                        <div className="text-[10px] text-[#86868b]">Apple / 스마트폰 표준</div>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
 
-            <TableUtilityButtons
-              onCopy={handleCopy}
-              onExcel={handleExcelExport}
-              onPrint={handlePrint}
-              copied={copied}
-            />
-          </div>
-        </div>
-
-        {/* 3. 데이터 테이블 영역 */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
-                <th className="w-10 px-3 py-3 text-center print:hidden">
+              {(selectMode || selectedIds.length > 0) && (
+                <label className="inline-flex items-center gap-1 text-[#6e6e73] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={allCurrentSelected}
                     onChange={handleSelectAll}
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                    title="전체 선택"
+                    className="h-3.5 w-3.5 rounded accent-[#0071e3] cursor-pointer"
                   />
-                </th>
-                <th className="w-12 px-2 py-3 text-center whitespace-nowrap">상태</th>
-                <th className="w-36 px-3 py-3 whitespace-nowrap">이름</th>
-                <th className="w-48 px-3 py-3 whitespace-nowrap">이메일</th>
-                <th className="w-36 px-3 py-3 whitespace-nowrap">전화번호</th>
-                <th className="w-36 px-3 py-3 whitespace-nowrap">회사명</th>
-                <th className="w-32 px-3 py-3 whitespace-nowrap">부서명</th>
-                <th className="w-28 px-3 py-3 whitespace-nowrap">그룹</th>
-                <th className="w-32 px-3 py-3 text-center whitespace-nowrap">등록일시</th>
-                <th className="w-24 px-3 py-3 text-right whitespace-nowrap print:hidden">관리</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {loading ? (
-                <tr>
-                  <td colSpan={10} className="py-20 text-center text-slate-400">
-                    <div className="flex items-center justify-center gap-2">
-                      <RefreshCw className="h-5 w-5 animate-spin text-sky-600" />
-                      <span className="font-medium">주소록 데이터를 불러오는 중...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : currentGroupId === 'company' ? (
-                /* 사내 임직원 목록 */
-                paginatedCompanyUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-20 text-center text-slate-400">
-                      <div className="flex flex-col items-center justify-center">
-                        <Users className="h-10 w-10 text-slate-300 mb-2 stroke-1" />
-                        <p className="font-semibold text-slate-600 text-sm">
-                          등록된 사내 임직원이 없습니다.
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedCompanyUsers.map((u) => {
-                    const isSelected = selectedIds.includes(u.id);
-                    const { dateStr, timeStr } = formatDateParts(u.createdAt);
-                    return (
-                      <tr
-                        key={u.id}
-                        className={`transition cursor-default ${
-                          isSelected ? 'bg-sky-50/50' : 'hover:bg-slate-50/70'
-                        }`}
-                      >
-                        {/* 1. Checkbox */}
-                        <td className="px-3 py-3.5 text-center print:hidden">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => handleToggleSelect(u.id, e)}
-                            className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                          />
-                        </td>
-
-                        {/* 2. 상태 (사내 임직원 표시) */}
-                        <td className="px-2 py-3.5 text-center">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0" title="사내 임직원">
-                            <Building2 className="h-3.5 w-3.5" />
-                          </span>
-                        </td>
-
-                        {/* 3. 이름 */}
-                        <td className="px-3 py-3.5 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200">
-                              {u.name ? u.name.slice(0, 1).toUpperCase() : 'U'}
-                            </div>
-                            <span className="font-semibold text-slate-900 truncate">
-                              {u.name}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* 4. 이메일 */}
-                        <td className="px-3 py-3.5 whitespace-nowrap">
-                          <span
-                            onClick={(e) => handleComposeMail(u.email, e)}
-                            className="font-mono text-slate-700 hover:text-sky-600 hover:underline cursor-pointer"
-                            title="클릭하여 메일 작성"
-                          >
-                            {u.email}
-                          </span>
-                        </td>
-
-                        {/* 5. 전화번호 */}
-                        <td className="px-3 py-3.5 whitespace-nowrap font-mono text-slate-400">
-                          -
-                        </td>
-
-                        {/* 6. 회사명 */}
-                        <td className="px-3 py-3.5 whitespace-nowrap font-medium text-slate-800">
-                          사내
-                        </td>
-
-                        {/* 7. 부서명 */}
-                        <td className="px-3 py-3.5 whitespace-nowrap text-slate-500">
-                          {u.employeeId ? `사번: ${u.employeeId}` : '-'}
-                        </td>
-
-                        {/* 8. 그룹 */}
-                        <td className="px-3 py-3.5 whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 border border-indigo-200">
-                            {u.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원'}
-                          </span>
-                        </td>
-
-                        {/* 9. 등록일시 */}
-                        <td className="px-3 py-3.5 text-center whitespace-nowrap font-mono text-slate-500">
-                          <div>{dateStr}</div>
-                          <div className="text-[10px] text-slate-400">{timeStr}</div>
-                        </td>
-
-                        {/* 10. 관리 */}
-                        <td className="px-3 py-3.5 text-right whitespace-nowrap print:hidden">
-                          <button
-                            type="button"
-                            onClick={(e) => handleComposeMail(u.email, e)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:bg-sky-50 hover:text-sky-600 transition"
-                            title="메일 쓰기"
-                          >
-                            <Mail className="h-3.5 w-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )
-              ) : paginatedContacts.length === 0 ? (
-                /* 일반 주소록 비어있을 때 */
-                <tr>
-                  <td colSpan={10} className="py-20 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center">
-                      <Users className="h-10 w-10 text-slate-300 mb-2 stroke-1" />
-                      <p className="font-semibold text-slate-600 text-sm">
-                        등록된 연락처가 없습니다.
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        [새 연락처]를 추가하거나 아웃룩 등에서 [가져오기]를 진행해 보세요.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedContact(null);
-                          setContactModalOpen(true);
-                        }}
-                        className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md shadow-sky-600/20 transition active:scale-[0.98]"
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        <span>새 연락처 추가하기</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                /* 일반 주소록 목록 렌더링 */
-                paginatedContacts.map((c) => {
-                  const isSelected = selectedIds.includes(c.id);
-                  const { dateStr, timeStr } = formatDateParts(c.createdAt);
-                  const displayPhone = c.phone
-                    ? (c.mobileCountryCode && c.mobileCountryCode !== '+82' ? `${c.mobileCountryCode} ` : '') + c.phone
-                    : c.companyPhone || null;
-
-                  return (
-                    <tr
-                      key={c.id}
-                      onClick={() => {
-                        setSelectedContact(c);
-                        setContactModalOpen(true);
-                      }}
-                      className={`transition cursor-pointer ${
-                        isSelected ? 'bg-sky-50/50' : 'hover:bg-slate-50/70'
-                      }`}
-                    >
-                      {/* 1. Checkbox */}
-                      <td className="px-3 py-3.5 text-center print:hidden" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => handleToggleSelect(c.id, e)}
-                          className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                        />
-                      </td>
-
-                      {/* 2. 상태 (중요 별표 아이콘) */}
-                      <td className="px-2 py-3.5 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={(e) => handleToggleStar(c.id, e)}
-                          title={c.isStarred ? '중요 (클릭하여 해제)' : '중요 표시'}
-                          className="p-0.5 rounded hover:bg-amber-50 transition shrink-0"
-                        >
-                          <Star
-                            className={`h-4 w-4 ${
-                              c.isStarred
-                                ? 'fill-amber-400 text-amber-400'
-                                : 'text-slate-300 hover:text-amber-400'
-                            }`}
-                          />
-                        </button>
-                      </td>
-
-                      {/* 3. 이름 (아바타 + 이름 + 직급) */}
-                      <td className="px-3 py-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-sky-100 text-sky-700 ring-1 ring-sky-200">
-                            {c.name ? c.name.slice(0, 1).toUpperCase() : <User className="h-3.5 w-3.5" />}
-                          </div>
-                          <div className="min-w-0">
-                            <span className="font-semibold text-slate-900 truncate">
-                              {c.name || '-'}
-                            </span>
-                            {c.position && (
-                              <span className="ml-1.5 text-[11px] text-slate-400 font-normal">
-                                {c.position}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 4. 이메일 (분리된 컬럼) */}
-                      <td className="px-3 py-3.5 whitespace-nowrap">
-                        {c.email ? (
-                          <span
-                            onClick={(e) => handleComposeMail(c.email!, e)}
-                            className="font-mono text-slate-700 hover:text-sky-600 hover:underline cursor-pointer"
-                            title="클릭하여 메일 작성"
-                          >
-                            {c.email}
-                          </span>
-                        ) : (
-                          <span className="text-slate-300">-</span>
-                        )}
-                      </td>
-
-                      {/* 5. 전화번호 (분리된 컬럼) */}
-                      <td className="px-3 py-3.5 whitespace-nowrap font-mono text-slate-600">
-                        {displayPhone || <span className="text-slate-300 font-sans">-</span>}
-                      </td>
-
-                      {/* 6. 회사명 (분리된 컬럼) */}
-                      <td className="px-3 py-3.5 whitespace-nowrap font-medium text-slate-800">
-                        {c.company || <span className="text-slate-300 font-normal">-</span>}
-                      </td>
-
-                      {/* 7. 부서명 (분리된 컬럼) */}
-                      <td className="px-3 py-3.5 whitespace-nowrap text-slate-600">
-                        {c.department || <span className="text-slate-300">-</span>}
-                      </td>
-
-                      {/* 8. 그룹 */}
-                      <td className="px-3 py-3.5 whitespace-nowrap">
-                        {c.groupName ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700 border border-slate-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-                            <span>{c.groupName}</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-300 text-[11px]">-</span>
-                        )}
-                      </td>
-
-                      {/* 9. 등록일시 */}
-                      <td className="px-3 py-3.5 text-center whitespace-nowrap font-mono text-slate-500">
-                        <div>{dateStr}</div>
-                        <div className="text-[10px] text-slate-400">{timeStr}</div>
-                      </td>
-
-                      {/* 10. 관리 (메일 쓰기, 수정, 삭제) */}
-                      <td className="px-3 py-3.5 text-right whitespace-nowrap print:hidden" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          {c.email && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleComposeMail(c.email!, e)}
-                              className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-sky-600 transition"
-                              title="메일 쓰기"
-                            >
-                              <Mail className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedContact(c);
-                              setContactModalOpen(true);
-                            }}
-                            className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
-                            title="수정"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDelete(c.id, c.name, e)}
-                            className="p-1 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
-                            title="삭제"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                  <span>전체</span>
+                </label>
               )}
-            </tbody>
-          </table>
+            </div>
+          )}
+
+          {/* Bulk Action Bar */}
+          {selectedIds.length > 0 && currentGroupId !== 'company' && (
+            <div className="pt-2 border-t border-black/[0.06] flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-[#0071e3]">
+                {selectedIds.length}명 선택됨
+              </span>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                className="px-2.5 py-1 rounded-md bg-[#ff3b30]/10 hover:bg-[#ff3b30]/20 text-[#ff3b30] text-[11px] font-medium inline-flex items-center gap-1 transition"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>삭제</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* 4. 편지함 스타일 하단 페이징 및 카운트 바 */}
-        <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 print:hidden">
-          <div>
-            총 <span className="font-semibold text-slate-800">{activeItemsCount}</span>명 중{' '}
-            <span className="font-semibold text-slate-800">
-              {displayStart} - {displayEnd}
-            </span>
-            명 표시
-          </div>
+        {/* Scrollable Contact Card List */}
+        <div className="flex-1 overflow-y-auto py-1.5 divide-y divide-black/[0.04]">
+          {loading ? (
+            <div className="py-20 text-center text-[#86868b]">
+              <RefreshCw className="h-5 w-5 animate-spin text-[#0071e3] mx-auto mb-2" />
+              <span className="text-xs font-medium">주소록을 불러오는 중...</span>
+            </div>
+          ) : currentGroupId === 'company' ? (
+            paginatedCompanyUsers.length === 0 ? (
+              <div className="py-20 text-center text-[#86868b]">
+                <Users className="h-10 w-10 text-[#d2d2d7] mx-auto mb-2 stroke-[1.5]" />
+                <p className="font-medium text-[#1d1d1f] text-sm">등록된 사내 임직원이 없습니다.</p>
+              </div>
+            ) : (
+              paginatedCompanyUsers.map((u) => {
+                const isActive = activeDetailId === u.id;
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => setActiveDetailId(u.id)}
+                    className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition flex items-center gap-3 ${
+                      isActive ? 'bg-[#007aff]/12' : 'hover:bg-black/[0.03]'
+                    }`}
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-indigo-500/12 text-indigo-600">
+                      {u.name ? u.name.slice(0, 1).toUpperCase() : 'U'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[13.5px] font-semibold text-[#1d1d1f] truncate">
+                          {u.name}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 font-medium shrink-0">
+                          {u.role === 'SYSTEM_ADMIN' ? '관리자' : '임직원'}
+                        </span>
+                      </div>
+                      <div className="text-[12px] text-[#86868b] truncate mt-0.5">{u.email}</div>
+                    </div>
+                  </div>
+                );
+              })
+            )
+          ) : paginatedContacts.length === 0 ? (
+            <div className="py-20 px-6 text-center text-[#86868b]">
+              <Users className="h-10 w-10 text-[#d2d2d7] mx-auto mb-2 stroke-[1.5]" />
+              <p className="font-medium text-[#1d1d1f] text-sm">등록된 연락처가 없습니다.</p>
+              <p className="text-xs text-[#86868b] mt-1">
+                [추가] 버튼을 눌러 새 연락처를 등록해 보세요.
+              </p>
+            </div>
+          ) : (
+            paginatedContacts.map((c) => {
+              const isChecked = selectedIds.includes(c.id);
+              const isActive = activeDetailId === c.id;
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+                      setActiveDetailId(c.id);
+                    } else {
+                      setSelectedContact(c);
+                      setContactModalOpen(true);
+                    }
+                  }}
+                  className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition flex items-center gap-2.5 ${
+                    isActive
+                      ? 'bg-[#007aff]/12'
+                      : isChecked
+                      ? 'bg-[#007aff]/5'
+                      : 'hover:bg-black/[0.03]'
+                  }`}
+                >
+                  {(selectMode || selectedIds.length > 0) && (
+                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => handleToggleSelect(c.id, e)}
+                        className="h-3.5 w-3.5 rounded accent-[#0071e3] cursor-pointer"
+                      />
+                    </div>
+                  )}
 
-          {activeItemsCount > 0 && (
-            <div className="flex items-center gap-1 self-end sm:self-auto">
-              {/* 이전 버튼 */}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-[#0071e3]/12 text-[#0071e3]">
+                    {c.name ? c.name.slice(0, 1).toUpperCase() : <User className="h-4 w-4" />}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[13.5px] font-semibold text-[#1d1d1f] truncate">
+                          {c.name || '-'}
+                        </span>
+                        {c.company && (
+                          <span className="text-[11px] text-[#86868b] truncate">· {c.company}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleStar(c.id, e)}
+                        className={`p-0.5 rounded transition shrink-0 ${
+                          c.isStarred
+                            ? 'text-[#ff9500]'
+                            : 'text-[#d2d2d7] opacity-0 group-hover:opacity-100 hover:text-[#ff9500]'
+                        }`}
+                        title={c.isStarred ? '중요 해제' : '중요 표시'}
+                      >
+                        <Star className={`h-3.5 w-3.5 ${c.isStarred ? 'fill-[#ff9500]' : ''}`} />
+                      </button>
+                    </div>
+                    <div className="text-[12px] text-[#86868b] truncate mt-0.5">
+                      {c.email || c.phone || '연락처 정보 없음'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Compact Pagination Footer */}
+        <div className="px-4 py-2.5 border-t border-black/[0.06] bg-white flex items-center justify-between text-[11px] text-[#86868b]">
+          <span className="tabular-nums">
+            {displayStart}-{displayEnd} / {activeItemsCount}명
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                title="이전 페이지"
+                className="p-1 rounded-md hover:bg-black/[0.05] disabled:opacity-30 transition"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
-
-              {/* 번호형 페이지 버튼 */}
-              {Array.from({ length: totalPages }).map((_, i) => {
-                const p = i + 1;
-                const isActive = p === currentPage;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPage(p)}
-                    className={`h-7 w-7 rounded-lg text-xs font-semibold transition ${
-                      isActive
-                        ? 'bg-sky-600 text-white shadow-xs'
-                        : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
-
-              {/* 다음 버튼 */}
+              <span className="px-1.5 font-medium text-[#1d1d1f] tabular-nums">
+                {currentPage} / {totalPages}
+              </span>
               <button
                 type="button"
                 disabled={currentPage >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                title="다음 페이지"
+                className="p-1 rounded-md hover:bg-black/[0.05] disabled:opacity-30 transition"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
         </div>
+      </section>
+
+      {/* PANE 3: Contact Detail Pane (Desktop lg+) */}
+      <div className="hidden lg:flex flex-1 min-w-0 min-h-0 flex-col bg-white">
+        {activeContact ? (
+          <>
+            {/* Top Toolbar */}
+            <div className="h-12 shrink-0 px-6 border-b border-black/[0.06] flex items-center justify-between bg-white/95 backdrop-blur-md">
+              <div className="flex items-center gap-1.5">
+                {activeContact.email && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleComposeMail(activeContact.email!, e)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] hover:bg-[#0077ed] px-3 py-1.5 text-xs font-medium text-white shadow-xs transition"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    <span>메일 쓰기</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => handleToggleStar(activeContact.id, e)}
+                  className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] transition"
+                  title={activeContact.isStarred ? '중요 해제' : '중요 표시'}
+                >
+                  <Star
+                    className={`h-4 w-4 ${
+                      activeContact.isStarred ? 'fill-[#ff9500] text-[#ff9500]' : ''
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedContact(activeContact);
+                    setContactModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.05] transition"
+                >
+                  <Edit className="h-3.5 w-3.5 text-[#0071e3]" />
+                  <span>편집</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDelete(activeContact.id, activeContact.name, e)}
+                  className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition"
+                  title="삭제"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Profile Body */}
+            <div className="flex-1 overflow-y-auto px-8 py-8">
+              <div className="max-w-4xl space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-[#0071e3]/12 text-[#0071e3] text-xl font-bold flex items-center justify-center shrink-0">
+                    {activeContact.name ? activeContact.name.slice(0, 1).toUpperCase() : 'C'}
+                  </div>
+                  <div>
+                    <h2 className="text-[22px] font-bold tracking-tight text-[#1d1d1f]">
+                      {activeContact.name || '-'}
+                    </h2>
+                    {(activeContact.company || activeContact.department || activeContact.position) && (
+                      <p className="text-[13px] text-[#6e6e73] mt-0.5">
+                        {[activeContact.company, activeContact.department, activeContact.position]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    )}
+                    {activeContact.groupName && (
+                      <span className="inline-flex items-center gap-1.5 mt-2 rounded-full bg-[#f5f5f7] px-2.5 py-0.5 text-[11px] font-medium text-[#1d1d1f]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0071e3]" />
+                        {activeContact.groupName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2-Column Structured Info Cards */}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {/* Card 1: 연락처 정보 */}
+                  <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] overflow-hidden">
+                    <div className="px-5 py-2.5 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                      연락처 정보
+                    </div>
+                    <div className="divide-y divide-black/[0.06] text-[13px]">
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">이메일</span>
+                        {activeContact.email ? (
+                          <button
+                            type="button"
+                            onClick={(e) => handleComposeMail(activeContact.email!, e)}
+                            className="text-[#0071e3] hover:underline font-medium text-right break-all"
+                          >
+                            {activeContact.email}
+                          </button>
+                        ) : (
+                          <span className="text-[#86868b]">-</span>
+                        )}
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">휴대전화</span>
+                        <span className="text-[#1d1d1f] tabular-nums text-right">
+                          {activeContact.phone
+                            ? `${activeContact.mobileCountryCode && activeContact.mobileCountryCode !== '+82' ? `${activeContact.mobileCountryCode} ` : ''}${activeContact.phone}`
+                            : '-'}
+                        </span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">회사전화</span>
+                        <span className="text-[#1d1d1f] tabular-nums text-right">
+                          {activeContact.companyPhone || '-'}
+                        </span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">팩스</span>
+                        <span className="text-[#1d1d1f] tabular-nums text-right">
+                          {activeContact.companyFax || '-'}
+                        </span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">웹사이트</span>
+                        {activeContact.websiteUrl ? (
+                          <a
+                            href={activeContact.websiteUrl.startsWith('http') ? activeContact.websiteUrl : `https://${activeContact.websiteUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#0071e3] hover:underline text-right break-all"
+                          >
+                            {activeContact.websiteUrl}
+                          </a>
+                        ) : (
+                          <span className="text-[#86868b]">-</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: 소속 및 기념일 */}
+                  <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] overflow-hidden">
+                    <div className="px-5 py-2.5 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                      소속 및 기타 정보
+                    </div>
+                    <div className="divide-y divide-black/[0.06] text-[13px]">
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">회사명</span>
+                        <span className="text-[#1d1d1f] text-right">{activeContact.company || '-'}</span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">부서명</span>
+                        <span className="text-[#1d1d1f] text-right">{activeContact.department || '-'}</span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">직책</span>
+                        <span className="text-[#1d1d1f] text-right">{activeContact.position || '-'}</span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">그룹</span>
+                        <span className="text-[#1d1d1f] text-right">{activeContact.groupName || '미지정'}</span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">생일</span>
+                        <span className="text-[#1d1d1f] tabular-nums text-right">
+                          {activeContact.birthday || '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: 주소 정보 */}
+                <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] overflow-hidden">
+                  <div className="px-5 py-2.5 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                    주소
+                  </div>
+                  <div className="divide-y divide-black/[0.06] text-[13px]">
+                    <div className="px-5 py-3 flex items-center justify-between gap-4">
+                      <span className="text-[#86868b] w-24 shrink-0">우편번호</span>
+                      <span className="text-[#1d1d1f] tabular-nums text-right">
+                        {activeContact.postalCode || '-'}
+                      </span>
+                    </div>
+                    <div className="px-5 py-3 flex items-start justify-between gap-4">
+                      <span className="text-[#86868b] w-24 shrink-0">기본 주소</span>
+                      <span className="text-[#1d1d1f] text-right break-words">
+                        {activeContact.address || '-'}
+                      </span>
+                    </div>
+                    <div className="px-5 py-3 flex items-start justify-between gap-4">
+                      <span className="text-[#86868b] w-24 shrink-0">상세 주소</span>
+                      <span className="text-[#1d1d1f] text-right break-words">
+                        {activeContact.addressDetail || '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 4: 메모 & 메타 정보 */}
+                <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] overflow-hidden">
+                  <div className="px-5 py-2.5 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                    메모 및 기록
+                  </div>
+                  <div className="p-5 text-[13px] text-[#1d1d1f] whitespace-pre-wrap leading-relaxed">
+                    {activeContact.memo || <span className="text-[#86868b]">등록된 메모가 없습니다.</span>}
+                  </div>
+                  <div className="px-5 py-2.5 border-t border-black/[0.06] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#86868b] tabular-nums">
+                    <span>
+                      등록일시: {formatDateParts(activeContact.createdAt).dateStr}{' '}
+                      {formatDateParts(activeContact.createdAt).timeStr}
+                    </span>
+                    {activeContact.updatedAt && (
+                      <span>
+                        수정일시: {formatDateParts(activeContact.updatedAt).dateStr}{' '}
+                        {formatDateParts(activeContact.updatedAt).timeStr}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : activeCompanyUser ? (
+          <>
+            <div className="h-12 shrink-0 px-6 border-b border-black/[0.06] flex items-center justify-between bg-white/95 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={(e) => handleComposeMail(activeCompanyUser.email, e)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] hover:bg-[#0077ed] px-3 py-1.5 text-xs font-medium text-white shadow-xs transition"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                <span>메일 쓰기</span>
+              </button>
+              <span className="text-xs text-[#86868b]">사내 임직원 디렉토리</span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-8 py-8">
+              <div className="max-w-2xl space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-indigo-500/12 text-indigo-600 text-xl font-bold flex items-center justify-center shrink-0">
+                    {activeCompanyUser.name ? activeCompanyUser.name.slice(0, 1).toUpperCase() : 'U'}
+                  </div>
+                  <div>
+                    <h2 className="text-[22px] font-bold tracking-tight text-[#1d1d1f]">
+                      {activeCompanyUser.name}
+                    </h2>
+                    <p className="text-[13px] text-[#6e6e73] mt-0.5">
+                      {activeCompanyUser.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원'}
+                      {activeCompanyUser.employeeId ? ` · 사번 ${activeCompanyUser.employeeId}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] divide-y divide-black/[0.06] text-[13px]">
+                  <div className="px-5 py-3.5 flex items-center justify-between gap-4">
+                    <span className="text-[#86868b] w-24 shrink-0">이메일</span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleComposeMail(activeCompanyUser.email, e)}
+                      className="text-[#0071e3] hover:underline font-medium"
+                    >
+                      {activeCompanyUser.email}
+                    </button>
+                  </div>
+                  <div className="px-5 py-3.5 flex items-center justify-between gap-4">
+                    <span className="text-[#86868b] w-24 shrink-0">등록일시</span>
+                    <span className="text-[#6e6e73] text-xs tabular-nums">
+                      {formatDateParts(activeCompanyUser.createdAt).dateStr}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-[#86868b] p-8 select-none">
+            <div className="w-16 h-16 rounded-2xl bg-[#f5f5f7] flex items-center justify-center mb-3">
+              <Users className="h-8 w-8 text-[#c7c7cc] stroke-[1.5]" />
+            </div>
+            <p className="text-[14px] font-medium text-[#6e6e73]">선택된 연락처가 없습니다</p>
+            <p className="text-[12px] text-[#86868b] mt-1">
+              목록에서 연락처를 선택하면 상세 정보가 표시됩니다.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 모달 컴포넌트들 */}

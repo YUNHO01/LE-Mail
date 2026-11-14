@@ -4,20 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   User,
-  Mail,
-  Phone,
-  Building2,
-  Briefcase,
-  Tag,
-  FileText,
   Star,
-  ChevronDown,
-  ChevronUp,
-  Globe,
-  MapPin,
-  Calendar,
-  Printer,
-  Plus,
   Search,
 } from 'lucide-react';
 import { contactsApi } from '@/lib/api';
@@ -31,6 +18,22 @@ interface ContactModalProps {
   groups: ContactGroupDto[];
   onSaved: () => void;
 }
+
+const normalizeBirthdayForDateInput = (value?: string | null): string => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  const sepMatch = trimmed.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/);
+  if (sepMatch) {
+    const [, y, m, d] = sepMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  const compactMatch = trimmed.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compactMatch) {
+    const [, y, m, d] = compactMatch;
+    return `${y}-${m}-${d}`;
+  }
+  return '';
+};
 
 export const ContactModal: React.FC<ContactModalProps> = ({
   isOpen,
@@ -62,9 +65,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   const [addressDetail, setAddressDetail] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
 
-  // 추가 항목 아코디언 펼침 여부
-  const [showAdditionalFields, setShowAdditionalFields] = useState(false);
-
   // Daum 우편번호 검색 모달
   const [isPostcodeModalOpen, setIsPostcodeModalOpen] = useState(false);
 
@@ -86,27 +86,11 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       setCompanyPhone(contact.companyPhone || '');
       setCompanyFax(contact.companyFax || '');
       setMobileCountryCode(contact.mobileCountryCode || '+82');
-      setBirthday(contact.birthday || '');
+      setBirthday(normalizeBirthdayForDateInput(contact.birthday));
       setPostalCode(contact.postalCode || '');
       setAddress(contact.address || '');
       setAddressDetail(contact.addressDetail || '');
       setWebsiteUrl(contact.websiteUrl || '');
-
-      // 추가 항목 데이터가 있으면 자동으로 펼침
-      if (
-        contact.companyPhone ||
-        contact.companyFax ||
-        contact.birthday ||
-        contact.postalCode ||
-        contact.address ||
-        contact.addressDetail ||
-        contact.websiteUrl ||
-        (contact.mobileCountryCode && contact.mobileCountryCode !== '+82')
-      ) {
-        setShowAdditionalFields(true);
-      } else {
-        setShowAdditionalFields(false);
-      }
     } else {
       setName('');
       setEmail('');
@@ -126,7 +110,6 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       setAddress('');
       setAddressDetail('');
       setWebsiteUrl('');
-      setShowAdditionalFields(false);
     }
     setIsPostcodeModalOpen(false);
     setError(null);
@@ -189,8 +172,10 @@ export const ContactModal: React.FC<ContactModalProps> = ({
     }
   };
 
-  const inputClass =
-    'w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base sm:text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/15 focus:outline-none transition';
+  const inlineInputClass =
+    'w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/15 focus:outline-none transition';
+
+  const avatarInitial = name.trim() ? name.trim().charAt(0).toUpperCase() : '?';
 
   return (
     <>
@@ -224,19 +209,21 @@ export const ContactModal: React.FC<ContactModalProps> = ({
 
           {/* Form Body + Fixed Footer */}
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-4">
+            <div className="flex-1 overflow-y-auto bg-slate-50/70 px-4 py-4 sm:px-6 space-y-4">
               {error && (
                 <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-medium text-rose-600">
                   {error}
                 </div>
               )}
 
-              {/* 기본 정보 구역 */}
-              <div className="space-y-3.5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* 이름 */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              {/* 상단 프로필 헤더 (아바타 + 이름 + 중요 연락처 토글) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-slate-200/80">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-full bg-[#007AFF]/12 text-[#007AFF] text-base font-bold flex items-center justify-center shrink-0">
+                    {avatarInitial}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">
                       이름 <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -245,277 +232,228 @@ export const ContactModal: React.FC<ContactModalProps> = ({
                       placeholder="예: 홍길동"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  {/* 이메일 */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      이메일
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="hong@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className={inputClass}
+                      className={inlineInputClass}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* 휴대전화번호 (국가번호 포함) */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      휴대전화번호
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="+82"
-                        value={mobileCountryCode}
-                        onChange={(e) => setMobileCountryCode(e.target.value)}
-                        className="w-16 shrink-0 rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-base sm:text-sm text-center text-slate-800 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/15 focus:outline-none transition"
-                        title="국가번호"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="010-0000-0000"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className={`flex-1 ${inputClass}`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* 그룹 선택 */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">그룹 분류</label>
-                    <SelectDropdown
-                      options={[
-                        { value: '', label: '(그룹 없음 - 미분류)' },
-                        ...groups.map((g) => ({ value: g.id, label: g.name })),
-                      ]}
-                      value={groupId}
-                      onChange={setGroupId}
-                      size="md"
-                      fullWidth
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  {/* 회사 */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">회사명</label>
-                    <input
-                      type="text"
-                      placeholder="예: 라인에지"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  {/* 부서 */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">부서</label>
-                    <input
-                      type="text"
-                      placeholder="개발팀"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  {/* 직책 */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">직책</label>
-                    <input
-                      type="text"
-                      placeholder="책임연구원"
-                      value={position}
-                      onChange={(e) => setPosition(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 추가 항목 (엑셀 양식 연동) 토글 아코디언 */}
-              <div className="pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAdditionalFields(!showAdditionalFields)}
-                  className="flex items-center justify-between gap-2 w-full py-2 text-xs font-bold text-slate-700 active:text-[#007AFF] transition group"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                      {showAdditionalFields ? (
-                        <ChevronUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <Plus className="h-3.5 w-3.5" />
-                      )}
-                    </span>
-                    <span className="truncate">추가 항목 (회사전화, 주소, 생일 등)</span>
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#007AFF] whitespace-nowrap shrink-0">
-                    {showAdditionalFields ? '접기' : '펼치기'}
-                  </span>
-                </button>
-
-                {showAdditionalFields && (
-                  <div className="mt-2.5 p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3.5">
-                    {/* 회사 유선 연락처 & 팩스 */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      <div>
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1.5">
-                          <Phone className="h-3.5 w-3.5 text-slate-400" />
-                          <span>회사 전화번호</span>
-                        </label>
-                        <input
-                          type="tel"
-                          placeholder="예: 02-1234-5678"
-                          value={companyPhone}
-                          onChange={(e) => setCompanyPhone(e.target.value)}
-                          className={inputClass}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1.5">
-                          <Printer className="h-3.5 w-3.5 text-slate-400" />
-                          <span>회사 팩스번호</span>
-                        </label>
-                        <input
-                          type="tel"
-                          placeholder="예: 02-1234-5679"
-                          value={companyFax}
-                          onChange={(e) => setCompanyFax(e.target.value)}
-                          className={inputClass}
-                        />
-                      </div>
-                    </div>
-
-                    {/* 생일 & 웹사이트 URL */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      <div>
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1.5">
-                          <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                          <span>생일 / 생년월일</span>
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="예: 1990-05-20"
-                          value={birthday}
-                          onChange={(e) => setBirthday(e.target.value)}
-                          className={inputClass}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1.5">
-                          <Globe className="h-3.5 w-3.5 text-slate-400" />
-                          <span>웹사이트 / URL</span>
-                        </label>
-                        <input
-                          type="url"
-                          placeholder="https://example.com"
-                          value={websiteUrl}
-                          onChange={(e) => setWebsiteUrl(e.target.value)}
-                          className={inputClass}
-                        />
-                      </div>
-                    </div>
-
-                    {/* 우편번호 & 기본 주소 & 상세 주소 */}
-                    <div className="space-y-3">
-                      <div>
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1.5">
-                          <span>우편번호</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            placeholder="12345"
-                            value={postalCode}
-                            onChange={(e) => setPostalCode(e.target.value)}
-                            className={`flex-1 max-w-[160px] ${inputClass}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIsPostcodeModalOpen(true)}
-                            className="shrink-0 flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-xs font-semibold text-[#007AFF] active:bg-sky-100 transition-colors whitespace-nowrap"
-                          >
-                            <Search className="h-3.5 w-3.5" />
-                            <span>주소 검색</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1.5">
-                          <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                          <span>기본 주소</span>
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="주소 검색 또는 도로명 주소 입력"
-                          value={address}
-                          onChange={(e) => setAddress(e.target.value)}
-                          className={inputClass}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 mb-1.5">
-                          <span>상세 주소</span>
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="상세 주소 입력 (동, 호수, 층수 등)"
-                          value={addressDetail}
-                          onChange={(e) => setAddressDetail(e.target.value)}
-                          className={inputClass}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 메모 */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">메모</label>
-                <textarea
-                  rows={2}
-                  placeholder="특이사항이나 비고를 입력하세요."
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  className={`${inputClass} resize-none`}
-                />
-              </div>
-
-              {/* 중요 연락처 체크 */}
-              <div className="flex items-center pt-1">
                 <button
                   type="button"
                   onClick={() => setIsStarred(!isStarred)}
-                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition self-start sm:self-end ${
                     isStarred
                       ? 'bg-amber-50 border-amber-300 text-amber-700'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 active:bg-slate-100'
+                      : 'bg-white border-slate-200 text-slate-600 active:bg-slate-100'
                   }`}
                 >
                   <Star
-                    className={`h-4 w-4 ${
+                    className={`h-3.5 w-3.5 ${
                       isStarred ? 'text-amber-500 fill-amber-500' : 'text-slate-400'
                     }`}
                   />
-                  <span>중요 연락처로 지정</span>
+                  <span>중요 연락처</span>
                 </button>
+              </div>
+
+              {/* Grouped Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Card 1: 연락처 정보 */}
+                <div className="rounded-2xl bg-white border border-slate-200/80 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+                    연락처 정보
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">이메일</span>
+                      <input
+                        type="email"
+                        placeholder="hong@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={inlineInputClass}
+                      />
+                    </div>
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">휴대전화</span>
+                      <div className="flex gap-1.5 flex-1 min-w-0">
+                        <input
+                          type="text"
+                          placeholder="+82"
+                          value={mobileCountryCode}
+                          onChange={(e) => setMobileCountryCode(e.target.value)}
+                          className="w-14 rounded-xl border border-slate-200 bg-white px-2 py-2 text-base sm:text-sm text-center text-slate-800 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/15 focus:outline-none transition shrink-0"
+                          title="국가번호"
+                        />
+                        <input
+                          type="tel"
+                          placeholder="010-0000-0000"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className={inlineInputClass}
+                        />
+                      </div>
+                    </div>
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">회사전화</span>
+                      <input
+                        type="tel"
+                        placeholder="예: 02-1234-5678"
+                        value={companyPhone}
+                        onChange={(e) => setCompanyPhone(e.target.value)}
+                        className={inlineInputClass}
+                      />
+                    </div>
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">팩스</span>
+                      <input
+                        type="tel"
+                        placeholder="예: 02-1234-5679"
+                        value={companyFax}
+                        onChange={(e) => setCompanyFax(e.target.value)}
+                        className={inlineInputClass}
+                      />
+                    </div>
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">웹사이트</span>
+                      <input
+                        type="url"
+                        placeholder="https://example.com"
+                        value={websiteUrl}
+                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                        className={inlineInputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: 소속 및 기타 정보 */}
+                <div className="rounded-2xl bg-white border border-slate-200/80 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+                    소속 및 기타 정보
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">회사명</span>
+                      <input
+                        type="text"
+                        placeholder="예: 라인에지"
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        className={inlineInputClass}
+                      />
+                    </div>
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">부서명</span>
+                      <input
+                        type="text"
+                        placeholder="개발팀"
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        className={inlineInputClass}
+                      />
+                    </div>
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">직책</span>
+                      <input
+                        type="text"
+                        placeholder="책임연구원"
+                        value={position}
+                        onChange={(e) => setPosition(e.target.value)}
+                        className={inlineInputClass}
+                      />
+                    </div>
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">그룹</span>
+                      <div className="flex-1 min-w-0">
+                        <SelectDropdown
+                          options={[
+                            { value: '', label: '(그룹 없음 - 미분류)' },
+                            ...groups.map((g) => ({ value: g.id, label: g.name })),
+                          ]}
+                          value={groupId}
+                          onChange={setGroupId}
+                          size="md"
+                          fullWidth
+                        />
+                      </div>
+                    </div>
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-slate-500 text-xs w-16 shrink-0">생일</span>
+                      <input
+                        type="date"
+                        value={birthday}
+                        onChange={(e) => setBirthday(e.target.value)}
+                        aria-label="생일"
+                        className={`${inlineInputClass} min-h-[42px] sm:min-h-[38px]`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: 주소 */}
+              <div className="rounded-2xl bg-white border border-slate-200/80 overflow-hidden">
+                <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+                  주소
+                </div>
+                <div className="divide-y divide-slate-100">
+                  <div className="px-4 py-2.5 flex items-center gap-3">
+                    <span className="text-slate-500 text-xs w-16 shrink-0">우편번호</span>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <input
+                        type="text"
+                        placeholder="12345"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        className="w-28 sm:w-32 rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/15 focus:outline-none transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsPostcodeModalOpen(true)}
+                        className="shrink-0 flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-[#007AFF] active:bg-sky-100 transition-colors whitespace-nowrap"
+                      >
+                        <Search className="h-3.5 w-3.5" />
+                        <span>주소 검색</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="px-4 py-2.5 flex items-center gap-3">
+                    <span className="text-slate-500 text-xs w-16 shrink-0">기본 주소</span>
+                    <input
+                      type="text"
+                      placeholder="주소 검색 또는 도로명 주소 입력"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className={inlineInputClass}
+                    />
+                  </div>
+                  <div className="px-4 py-2.5 flex items-center gap-3">
+                    <span className="text-slate-500 text-xs w-16 shrink-0">상세 주소</span>
+                    <input
+                      type="text"
+                      placeholder="상세 주소 입력 (동, 호수, 층수 등)"
+                      value={addressDetail}
+                      onChange={(e) => setAddressDetail(e.target.value)}
+                      className={inlineInputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: 메모 */}
+              <div className="rounded-2xl bg-white border border-slate-200/80 overflow-hidden">
+                <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+                  메모
+                </div>
+                <div className="p-3">
+                  <textarea
+                    rows={2}
+                    placeholder="특이사항이나 비고를 입력하세요."
+                    value={memo}
+                    onChange={(e) => setMemo(e.target.value)}
+                    className={`${inlineInputClass} resize-none`}
+                  />
+                </div>
               </div>
             </div>
 

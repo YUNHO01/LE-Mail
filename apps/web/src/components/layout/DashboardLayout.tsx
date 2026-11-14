@@ -32,9 +32,23 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     const isAdminRoute = pathname?.startsWith('/admin');
+    const isMailPaneRoute =
+        pathname === '/mail/inbox' ||
+        pathname === '/mail/sent' ||
+        pathname === '/mail/drafts' ||
+        pathname === '/mail/spam' ||
+        pathname === '/mail/trash' ||
+        pathname === '/mail/compose' ||
+        pathname === '/mail/contacts' ||
+        pathname === '/mail/calendar' ||
+        pathname?.startsWith('/mail/folder/');
 
     return (
-        <div className="flex h-screen overflow-hidden bg-slate-50 font-inter relative">
+        <div
+            className={`flex h-screen overflow-hidden relative ${
+                isAdminRoute ? 'bg-slate-50 font-inter' : 'bg-[#f5f5f7] text-[#1d1d1f]'
+            }`}
+        >
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
             <div className="relative flex flex-1 flex-col h-full overflow-hidden min-w-0">
@@ -42,16 +56,26 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
                 {/* 상단 씬(Slim) 로딩 프로그레스 인디케이터 (페이지 전환 중일 때 즉각 표시) */}
                 {isNavigating && (
-                    <div className="absolute top-16 left-0 right-0 h-1 bg-sky-100/60 z-50 overflow-hidden shadow-sm">
+                    <div
+                        className={`absolute ${
+                            isAdminRoute ? 'top-16' : 'top-12'
+                        } left-0 right-0 h-0.5 bg-black/5 z-50 overflow-hidden`}
+                    >
                         <div
                             className={`h-full animate-pulse w-full origin-left transition-all ${
-                                isAdminRoute ? 'bg-indigo-600' : 'bg-sky-600'
+                                isAdminRoute ? 'bg-indigo-600' : 'bg-[#0071e3]'
                             }`}
                         />
                     </div>
                 )}
 
-                <main className="flex-1 relative overflow-y-auto overflow-x-hidden min-h-0">
+                <main
+                    className={`flex-1 relative min-h-0 ${
+                        isMailPaneRoute
+                            ? 'overflow-hidden flex flex-col'
+                            : 'overflow-y-auto overflow-x-hidden'
+                    }`}
+                >
                     {/* 전환 중일 때 상단 전체를 덮는 0ms 즉각 오버레이 (배경 블러 + 스피너 + 스켈레톤 안내) */}
                     {isNavigating && (
                         <div className="absolute inset-0 bg-slate-50/90 backdrop-blur-xs z-40 transition-all duration-150">
@@ -103,9 +127,13 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
                     )}
 
                     {/* 기존 컨텐츠는 언마운트하지 않고 DOM 유지 -> 리렌더링 버벅임 방지 */}
-                    <div className="px-4 sm:px-6 lg:px-8 py-8 w-full">
-                        <div className="w-full space-y-6">{children}</div>
-                    </div>
+                    {isMailPaneRoute ? (
+                        <div className="flex-1 flex flex-col min-h-0 w-full">{children}</div>
+                    ) : (
+                        <div className="px-4 sm:px-6 lg:px-8 py-6 w-full">
+                            <div className="w-full space-y-6">{children}</div>
+                        </div>
+                    )}
                 </main>
             </div>
         </div>

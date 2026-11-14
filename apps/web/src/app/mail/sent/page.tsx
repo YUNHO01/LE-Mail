@@ -122,18 +122,8 @@ export default function MailSentPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="보낸편지함"
-        icon={<Send className="h-6 w-6 text-sky-600" />}
-        subtitle={
-          user?.name
-            ? `${user.name}님이 성공적으로 발송한 메일 목록입니다.`
-            : '발송된 메일 목록을 확인합니다.'
-        }
-      />
-
-      {/* Mail Data Table */}
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Mail 2-Pane Master-Detail */}
       <MailDataTable
         mails={mails}
         total={total}

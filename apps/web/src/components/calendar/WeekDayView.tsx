@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CalendarEventDto } from '@lemail/shared-types';
 import {
   WEEKDAY_LABELS,
@@ -29,11 +29,36 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
   onSelectEvent,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [now, setNow] = useState<Date>(() => new Date());
   const days = React.useMemo(
     () => (mode === 'week' ? getWeekDays(anchorDate) : [anchorDate]),
     [mode, anchorDate],
   );
-  const today = new Date();
+  const today = now;
+
+  // 현지 시간 분 단위 실시간 업데이트 (매 분 정각 동기화)
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const current = new Date();
+    const msUntilNextMinute =
+      (60 - current.getSeconds()) * 1000 - current.getMilliseconds() + 20;
+
+    const timeoutId = setTimeout(() => {
+      setNow(new Date());
+      intervalId = setInterval(() => {
+        setNow(new Date());
+      }, 60_000);
+    }, Math.max(50, msUntilNextMinute));
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowTopPx = (nowMinutes / 60) * 56;
+  const nowLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
   const allDayEvents = React.useMemo(
     () => events.filter((ev) => ev.isAllDay),
@@ -52,13 +77,16 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
   }, [mode]);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-      {/* 날짜 헤더 */}
-      <div
-        className="grid border-b border-slate-200 bg-slate-50/80"
-        style={{ gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` }}
-      >
-        <div className="py-3 text-center text-[11px] font-semibold text-slate-400 border-r border-slate-200">
+    <div className="flex-1 min-h-0 flex flex-col bg-white overflow-hidden">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
+        {/* 상단 고정 헤더(요일 + 종일): 스크롤 컨테이너 내부에 sticky로 배치해 스크롤바 너비로 인한 컬럼 단차 방지 */}
+        <div className="sticky top-0 z-30 bg-white">
+          {/* 날짜 헤더 */}
+          <div
+            className="grid border-b border-black/[0.08] bg-[#f5f5f7]/70"
+            style={{ gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` }}
+          >
+        <div className="py-3 text-center text-[11px] font-semibold text-[#86868b] border-r border-black/[0.08]">
           시간
         </div>
         {days.map((day) => {
@@ -67,24 +95,24 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
           return (
             <div
               key={day.toISOString()}
-              className={`py-2.5 px-2 text-center border-r last:border-r-0 border-slate-100 ${
-                isToday ? 'bg-sky-50/70' : ''
+              className={`py-2 px-2 text-center border-r last:border-r-0 border-black/[0.06] ${
+                isToday ? 'bg-[#0071e3]/[0.04]' : ''
               }`}
             >
               <div
                 className={`text-[11px] font-semibold ${
                   dow === 0
-                    ? 'text-rose-500'
+                    ? 'text-[#ff3b30]'
                     : dow === 6
-                    ? 'text-sky-600'
-                    : 'text-slate-500'
+                    ? 'text-[#0071e3]'
+                    : 'text-[#6e6e73]'
                 }`}
               >
                 {WEEKDAY_LABELS[dow]}
               </div>
               <div
-                className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
-                  isToday ? 'bg-sky-600 text-white' : 'text-slate-800'
+                className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${
+                  isToday ? 'bg-[#0071e3] text-white shadow-xs' : 'text-[#1d1d1f]'
                 }`}
               >
                 {day.getDate()}
@@ -96,23 +124,23 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
 
       {/* 종일 일정 행 (다일 연결 바 지원) */}
       <div
-        className="grid border-b border-slate-200 bg-slate-50/40"
+        className="grid border-b border-black/[0.08] bg-[#f5f5f7]/35 shrink-0"
         style={{ gridTemplateColumns: `64px minmax(0, 1fr)` }}
       >
-        <div className="py-2 px-1 text-center text-[10px] font-semibold text-slate-400 border-r border-slate-200 flex items-center justify-center">
+        <div className="py-2 px-1 text-center text-[10px] font-semibold text-[#86868b] border-r border-black/[0.08] flex items-center justify-center">
           종일
         </div>
         <div className="relative min-h-[38px]">
           {/* 배경 클릭 셀 */}
           <div
-            className="grid divide-x divide-slate-100 h-full min-h-[38px]"
+            className="grid h-full min-h-[38px]"
             style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
           >
             {days.map((day) => (
               <div
                 key={`allday-bg-${day.toISOString()}`}
                 onClick={() => onSelectSlot(day, true)}
-                className="cursor-pointer hover:bg-sky-50/40"
+                className="border-r last:border-r-0 border-black/[0.06] cursor-pointer hover:bg-[#0071e3]/[0.03] transition-colors"
               />
             ))}
           </div>
@@ -162,28 +190,46 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {/* 시간대 그리드 */}
-      <div ref={scrollRef} className="overflow-y-auto max-h-[600px]">
         <div
           className="grid relative"
           style={{ gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` }}
         >
           {/* 시간 라벨 열 */}
-          <div className="border-r border-slate-200 bg-slate-50/30">
-            {HOURS.map((h) => (
-              <div
-                key={h}
-                className="h-14 pr-2 text-right text-[11px] font-mono text-slate-400 pt-1 border-b border-slate-100"
-              >
-                {String(h).padStart(2, '0')}:00
-              </div>
-            ))}
+          <div className="border-r border-black/[0.08] bg-[#f5f5f7]/35">
+            {HOURS.map((h) => {
+              const isNearNow = Math.abs(h * 60 - nowMinutes) <= 14;
+              return (
+                <div
+                  key={h}
+                  className="h-14 pr-2 text-right text-[11px] font-mono text-[#86868b] pt-1 border-b border-black/[0.06]"
+                >
+                  <span className={isNearNow ? 'opacity-0' : ''}>
+                    {String(h).padStart(2, '0')}:00
+                  </span>
+                </div>
+              );
+            })}
           </div>
+
+          {/* 현재 시간 라벨 및 가로 기준선 (24시간제, 분 단위 업데이트) */}
+          <div
+            style={{ top: `${nowTopPx}px` }}
+            className="pointer-events-none absolute left-0 w-[64px] -translate-y-1/2 pr-2 text-right text-[11px] font-mono font-semibold text-[#ff3b30] z-20"
+          >
+            {nowLabel}
+          </div>
+          <div
+            style={{ top: `${nowTopPx}px` }}
+            className="pointer-events-none absolute left-[64px] right-0 h-[1.5px] bg-[#ff3b30] -translate-y-1/2 z-20"
+          />
 
           {/* 요일별 시간 슬롯 */}
           {days.map((day) => {
+            const isTodayCol = isSameDay(day, today);
             const timedEvents = events.filter(
               (ev) => !ev.isAllDay && doesEventOverlapDay(ev.startAt, ev.endAt, day),
             );
@@ -191,8 +237,16 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
             return (
               <div
                 key={`col-${day.toISOString()}`}
-                className="relative border-r last:border-r-0 border-slate-100"
+                className={`relative border-r last:border-r-0 border-black/[0.06] ${
+                  isTodayCol ? 'bg-[#0071e3]/[0.015]' : ''
+                }`}
               >
+                {isTodayCol && (
+                  <span
+                    style={{ top: `${nowTopPx}px` }}
+                    className="pointer-events-none absolute left-0 -translate-x-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full bg-[#ff3b30] ring-2 ring-white z-20"
+                  />
+                )}
                 {HOURS.map((h) => (
                   <div
                     key={h}
@@ -201,7 +255,7 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
                       slotDate.setHours(h, 0, 0, 0);
                       onSelectSlot(slotDate, false);
                     }}
-                    className="h-14 border-b border-slate-100 hover:bg-sky-50/40 cursor-pointer transition-colors"
+                    className="h-14 border-b border-black/[0.06] hover:bg-[#0071e3]/[0.03] cursor-pointer transition-colors"
                   />
                 ))}
 
@@ -243,10 +297,10 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
                       }}
                       className="absolute left-1 right-1 rounded-lg px-2 py-1 text-left overflow-hidden shadow-xs hover:shadow-md transition z-10"
                     >
-                      <div className="text-[11px] font-bold text-slate-900 truncate">
+                      <div className="text-[11px] font-semibold text-[#1d1d1f] truncate">
                         {ev.title}
                       </div>
-                      <div className="text-[10px] font-mono text-slate-600 truncate">
+                      <div className="text-[10px] font-mono text-[#6e6e73] truncate">
                         {formatTimeShort(ev.startAt)} - {formatTimeShort(ev.endAt)}
                       </div>
                     </button>

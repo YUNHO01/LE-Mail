@@ -23,7 +23,7 @@ import {
 } from '@lemail/shared-types';
 import { contactsApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { DatePicker, TimePicker, SelectDropdown, ToggleSwitch } from '../common';
+import { SelectDropdown, ToggleSwitch } from '../common';
 import { formatDateInputValue, formatTimeInputValue } from './dateUtils';
 
 export interface EventDraftInitial {
@@ -210,6 +210,10 @@ export const EventModal: React.FC<EventModalProps> = ({
             setError('일정 제목을 입력해 주세요.');
             return;
         }
+        if (!startDate || !endDate || (!isAllDay && (!startTime || !endTime))) {
+            setError('시작 및 종료 일시를 입력해 주세요.');
+            return;
+        }
 
         const startIso = isAllDay
             ? new Date(`${startDate}T00:00:00`).toISOString()
@@ -273,6 +277,12 @@ export const EventModal: React.FC<EventModalProps> = ({
         isReadOnly
             ? 'bg-slate-50 text-slate-600 cursor-default'
             : 'bg-white text-slate-900 placeholder:text-slate-400'
+    }`;
+
+    const dateTimeInputClass = `min-w-0 min-h-[42px] sm:min-h-[38px] rounded-xl border border-slate-200 px-2.5 py-1.5 text-base sm:text-sm focus:border-[#007AFF] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/15 transition ${
+        isReadOnly
+            ? 'bg-slate-50 text-slate-600 cursor-default'
+            : 'bg-white text-slate-900'
     }`;
 
     return (
@@ -371,24 +381,28 @@ export const EventModal: React.FC<EventModalProps> = ({
                                 <div className="min-w-0">
                                     <span className="block text-[11px] font-medium text-slate-500 mb-1">시작</span>
                                     <div className="flex gap-1.5 min-w-0">
-                                        <DatePicker
+                                        <input
+                                            type="date"
                                             value={startDate}
-                                            onChange={(val) => {
+                                            onChange={(e) => {
+                                                const val = e.target.value;
                                                 setStartDate(val);
-                                                if (val && val > endDate) setEndDate(val);
+                                                if (val && endDate && val > endDate) setEndDate(val);
                                             }}
                                             disabled={isReadOnly}
-                                            size="sm"
-                                            className="flex-1 min-w-0"
+                                            required
+                                            aria-label="시작 날짜"
+                                            className={`${dateTimeInputClass} flex-1`}
                                         />
                                         {!isAllDay && (
-                                            <TimePicker
+                                            <input
+                                                type="time"
                                                 value={startTime}
-                                                onChange={setStartTime}
-                                                minuteIncrement={10}
+                                                onChange={(e) => setStartTime(e.target.value)}
                                                 disabled={isReadOnly}
-                                                size="sm"
-                                                className="w-28 shrink-0"
+                                                required
+                                                aria-label="시작 시간"
+                                                className={`${dateTimeInputClass} w-32 sm:w-28 shrink-0`}
                                             />
                                         )}
                                     </div>
@@ -396,22 +410,25 @@ export const EventModal: React.FC<EventModalProps> = ({
                                 <div className="min-w-0">
                                     <span className="block text-[11px] font-medium text-slate-500 mb-1">종료</span>
                                     <div className="flex gap-1.5 min-w-0">
-                                        <DatePicker
+                                        <input
+                                            type="date"
                                             value={endDate}
-                                            onChange={setEndDate}
-                                            minDate={startDate}
+                                            min={startDate || undefined}
+                                            onChange={(e) => setEndDate(e.target.value)}
                                             disabled={isReadOnly}
-                                            size="sm"
-                                            className="flex-1 min-w-0"
+                                            required
+                                            aria-label="종료 날짜"
+                                            className={`${dateTimeInputClass} flex-1`}
                                         />
                                         {!isAllDay && (
-                                            <TimePicker
+                                            <input
+                                                type="time"
                                                 value={endTime}
-                                                onChange={setEndTime}
-                                                minuteIncrement={10}
+                                                onChange={(e) => setEndTime(e.target.value)}
                                                 disabled={isReadOnly}
-                                                size="sm"
-                                                className="w-28 shrink-0"
+                                                required
+                                                aria-label="종료 시간"
+                                                className={`${dateTimeInputClass} w-32 sm:w-28 shrink-0`}
                                             />
                                         )}
                                     </div>
@@ -437,15 +454,25 @@ export const EventModal: React.FC<EventModalProps> = ({
                                 {rrule && (
                                     <div className="mt-2 flex items-center gap-2">
                                         <span className="text-[11px] text-slate-500 shrink-0">종료일:</span>
-                                        <DatePicker
+                                        <input
+                                            type="date"
                                             value={recurrenceEndDate}
-                                            onChange={setRecurrenceEndDate}
-                                            minDate={startDate}
-                                            allowClear
+                                            min={startDate || undefined}
+                                            onChange={(e) => setRecurrenceEndDate(e.target.value)}
                                             disabled={isReadOnly}
-                                            size="xs"
-                                            className="flex-1 min-w-0"
+                                            aria-label="반복 종료일"
+                                            className={`${dateTimeInputClass} flex-1`}
                                         />
+                                        {recurrenceEndDate && !isReadOnly && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setRecurrenceEndDate('')}
+                                                aria-label="반복 종료일 지우기"
+                                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

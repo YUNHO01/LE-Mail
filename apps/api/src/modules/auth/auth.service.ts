@@ -41,6 +41,11 @@ export class AuthService {
       throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
 
+    return this.issueLoginResponse(user);
+  }
+
+  async issueLoginResponse(user: User): Promise<LoginResponseDto> {
+
     if (user.role !== UserRole.SYSTEM_ADMIN) {
       const licenseStatus = await this.licenseService.getLicenseStatus();
       if (!licenseStatus.isValid) {

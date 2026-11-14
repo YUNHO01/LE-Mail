@@ -4,18 +4,33 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { Mail, Lock, ArrowRight, AlertCircle, Info } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, Info, Fingerprint } from 'lucide-react';
+import { BIOMETRIC_HINT_EMAIL_KEY, isBiometricSupported } from '../../lib/webauthn';
 
 function MobileLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, loginWithBiometric, isAuthenticated, isLoading } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [isBiometricSubmitting, setIsBiometricSubmitting] = useState(false);
+
+  useEffect(() => {
+    isBiometricSupported().then((ok) => {
+      setBiometricAvailable(ok);
+    });
+    if (typeof window !== 'undefined') {
+      const hintEmail = localStorage.getItem(BIOMETRIC_HINT_EMAIL_KEY);
+      if (hintEmail) {
+        setEmail((prev) => prev || hintEmail);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -51,6 +66,23 @@ function MobileLoginForm() {
       setError(err.message || '네트워크 연결 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setError(null);
+    setIsBiometricSubmitting(true);
+    try {
+      const res = await loginWithBiometric(email);
+      if (res.success) {
+        router.push('/mail/inbox');
+      } else {
+        setError(res.message || '생체인식 로그인에 실패했습니다.');
+      }
+    } catch (err: any) {
+      setError(err.message || '생체인식 로그인 중 오류가 발생했습니다.');
+    } finally {
+      setIsBiometricSubmitting(false);
     }
   };
 
@@ -135,12 +167,24 @@ function MobileLoginForm() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isBiometricSubmitting}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-sky-600/25 transition hover:bg-sky-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span>{isSubmitting ? '로그인 중...' : '로그인'}</span>
             {!isSubmitting && <ArrowRight className="h-4 w-4" />}
           </button>
+
+          {biometricAvailable && (
+            <button
+              type="button"
+              onClick={handleBiometricLogin}
+              disabled={isSubmitting || isBiometricSubmitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Fingerprint className="h-4 w-4 text-[#007AFF]" />
+              <span>{isBiometricSubmitting ? '생체인식 확인 중...' : '생체인식으로 로그인'}</span>
+            </button>
+          )}
         </form>
       </div>
     </div>
@@ -148,6 +192,23 @@ function MobileLoginForm() {
 }
 
 export default function MobileLoginPage() {
+  const handleBiometricLogin = async () => {
+    setError(null);
+    setIsBiometricSubmitting(true);
+    try {
+      const res = await loginWithBiometric(email);
+      if (res.success) {
+        router.push('/mail/inbox');
+      } else {
+        setError(res.message || '생체인식 로그인에 실패했습니다.');
+      }
+    } catch (err: any) {
+      setError(err.message || '생체인식 로그인 중 오류가 발생했습니다.');
+    } finally {
+      setIsBiometricSubmitting(false);
+    }
+  };
+
   return (
     <Suspense fallback={null}>
       <MobileLoginForm />

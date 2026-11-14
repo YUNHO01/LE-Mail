@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Calendar as CalendarIcon,
   Plus,
   ChevronLeft,
   ChevronRight,
@@ -24,7 +23,6 @@ import {
   UpdateCalendarEventDto,
 } from '@lemail/shared-types';
 import { calendarApi } from '../../../lib/api';
-import { PageHeader } from '../../../components/common/PageHeader';
 import { MonthView } from '../../../components/calendar/MonthView';
 import { WeekDayView } from '../../../components/calendar/WeekDayView';
 import { AgendaView } from '../../../components/calendar/AgendaView';
@@ -272,7 +270,7 @@ function CalendarPageContent() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-1 flex-col min-h-0 bg-white overflow-hidden">
       <input
         ref={icsInputRef}
         type="file"
@@ -280,54 +278,112 @@ function CalendarPageContent() {
         onChange={handleImportIcsFile}
         className="hidden"
       />
-      <PageHeader
-        title="캘린더"
-        icon={<CalendarIcon className="h-6 w-6 text-violet-600" />}
-        subtitle="개인 및 업무 일정을 월간·주간·일간·목록 보기로 관리합니다."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
+
+      {/* 상단 통합 툴바 */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.08] bg-white px-5 py-2.5 shrink-0">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => handleNavigate(0)}
+            className="rounded-lg border border-black/[0.12] bg-white px-3 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-colors"
+          >
+            오늘
+          </button>
+          <div className="flex items-center rounded-lg border border-black/[0.12] bg-white overflow-hidden">
             <button
               type="button"
-              onClick={() => icsInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition"
-              title="iCalendar(.ics) 파일 가져오기"
+              onClick={() => handleNavigate(-1)}
+              className="p-1.5 text-[#6e6e73] hover:bg-black/[0.04] hover:text-[#1d1d1f] transition-colors"
+              aria-label="이전 기간"
             >
-              <Upload className="h-3.5 w-3.5 text-slate-500" />
-              <span className="hidden sm:inline">.ics 가져오기</span>
+              <ChevronLeft className="h-4 w-4" />
             </button>
             <button
               type="button"
-              onClick={handleExportIcs}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition"
-              title="현재 기간 일정을 .ics 파일로 내보내기"
+              onClick={() => handleNavigate(1)}
+              className="p-1.5 text-[#6e6e73] hover:bg-black/[0.04] hover:text-[#1d1d1f] border-l border-black/[0.08] transition-colors"
+              aria-label="다음 기간"
             >
-              <Download className="h-3.5 w-3.5 text-slate-500" />
-              <span className="hidden sm:inline">.ics 내보내기</span>
+              <ChevronRight className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEditingCalendar(null);
-                setCalModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition"
-            >
-              <Plus className="h-3.5 w-3.5 text-slate-500" />
-              <span>캘린더 추가</span>
-            </button>
-            {!isReadOnlyCalendar && (
-              <button
-                type="button"
-                onClick={() => handleOpenCreateEvent()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 shadow-sm transition"
-              >
-                <Plus className="h-4 w-4" />
-                <span>새 일정</span>
-              </button>
-            )}
           </div>
-        }
-      />
+          <h2 className="ml-1.5 text-[15px] font-semibold text-[#1d1d1f] tracking-tight">
+            {formatPeriodTitle(anchorDate, view)}
+          </h2>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="h-3.5 w-3.5 text-[#86868b] absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="일정 검색..."
+              className="w-40 sm:w-48 rounded-lg border border-black/[0.12] bg-white pl-8 pr-3 py-1.5 text-xs text-[#1d1d1f] placeholder:text-[#86868b] focus:border-[#0071e3] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20"
+            />
+          </div>
+
+          <div className="inline-flex rounded-lg bg-black/[0.05] p-0.5">
+            {VIEW_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setView(tab.key)}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                  view === tab.key
+                    ? 'bg-white text-[#1d1d1f] shadow-xs font-semibold'
+                    : 'text-[#6e6e73] hover:text-[#1d1d1f]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-4 w-px bg-black/[0.08] hidden sm:block mx-0.5" />
+
+          <button
+            type="button"
+            onClick={() => icsInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-colors"
+            title="iCalendar(.ics) 파일 가져오기"
+          >
+            <Upload className="h-3.5 w-3.5 text-[#6e6e73]" />
+            <span className="hidden lg:inline">.ics 가져오기</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleExportIcs}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-colors"
+            title="현재 기간 일정을 .ics 파일로 내보내기"
+          >
+            <Download className="h-3.5 w-3.5 text-[#6e6e73]" />
+            <span className="hidden lg:inline">.ics 내보내기</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingCalendar(null);
+              setCalModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1 rounded-lg border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5 text-[#6e6e73]" />
+            <span>캘린더</span>
+          </button>
+          {!isReadOnlyCalendar && (
+            <button
+              type="button"
+              onClick={() => handleOpenCreateEvent()}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#0071e3] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0077ed] shadow-xs transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>새 일정</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* 내 캘린더 필터 바 */}
       {(() => {
@@ -338,8 +394,8 @@ function CalendarPageContent() {
         if (displayedCalendars.length === 0) return null;
 
         return (
-          <div className="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-xs">
-            <span className="text-xs font-semibold text-slate-500 mr-1">내 캘린더:</span>
+          <div className="flex flex-wrap items-center gap-1.5 bg-[#f5f5f7]/60 border-b border-black/[0.08] px-5 py-2 shrink-0">
+            <span className="text-[11px] font-semibold text-[#6e6e73] mr-1">내 캘린더</span>
             {displayedCalendars.map((cal) => {
               const isActive = filterCalendarId ? true : cal.isVisible;
               const labelContent = (
@@ -350,12 +406,12 @@ function CalendarPageContent() {
                   />
                   <span>{cal.name}</span>
                   {cal.type === 'SHARED' && (
-                    <span className="rounded bg-indigo-50 px-1 py-0.5 text-[10px] font-semibold text-indigo-600">
+                    <span className="rounded bg-[#0071e3]/10 px-1 py-0.5 text-[10px] font-semibold text-[#0071e3]">
                       공유
                     </span>
                   )}
                   {cal.type === 'HOLIDAY' && (
-                    <span className="rounded bg-rose-50 px-1 py-0.5 text-[10px] font-semibold text-rose-600">
+                    <span className="rounded bg-[#ff3b30]/10 px-1 py-0.5 text-[10px] font-semibold text-[#d70015]">
                       공휴일
                     </span>
                   )}
@@ -365,10 +421,10 @@ function CalendarPageContent() {
               return (
                 <div
                   key={cal.id}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
                     isActive
-                      ? 'border-slate-200 bg-slate-50 text-slate-800'
-                      : 'border-slate-100 bg-white text-slate-400 opacity-60'
+                      ? 'border-black/[0.10] bg-white text-[#1d1d1f] shadow-2xs'
+                      : 'border-black/[0.06] bg-transparent text-[#86868b] opacity-70'
                   }`}
                 >
                   {filterCalendarId ? (
@@ -382,11 +438,11 @@ function CalendarPageContent() {
                     >
                       {labelContent}
                       {cal.isVisible ? (
-                        <Eye className="h-3 w-3 text-slate-400" />
+                        <Eye className="h-3 w-3 text-[#86868b]" />
                       ) : (
                         <>
-                          <EyeOff className="h-3 w-3 text-slate-300" />
-                          <span className="text-[10px] text-slate-400">숨김</span>
+                          <EyeOff className="h-3 w-3 text-[#86868b]/70" />
+                          <span className="text-[10px] text-[#86868b]">숨김</span>
                         </>
                       )}
                     </button>
@@ -398,7 +454,7 @@ function CalendarPageContent() {
                         setEditingCalendar(cal);
                         setCalModalOpen(true);
                       }}
-                      className="ml-0.5 text-slate-400 hover:text-slate-700"
+                      className="ml-0.5 text-[#86868b] hover:text-[#1d1d1f] transition-colors"
                       title="캘린더 설정"
                     >
                       <Settings2 className="h-3 w-3" />
@@ -411,93 +467,31 @@ function CalendarPageContent() {
         );
       })()}
 
-      {/* 툴바: 날짜 이동, 검색, 뷰 전환 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-xs">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => handleNavigate(0)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-          >
-            오늘
-          </button>
-          <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => handleNavigate(-1)}
-              className="p-1.5 text-slate-600 hover:bg-slate-50 transition"
-              aria-label="이전 기간"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleNavigate(1)}
-              className="p-1.5 text-slate-600 hover:bg-slate-50 border-l border-slate-200 transition"
-              aria-label="다음 기간"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-          <h2 className="ml-2 text-base font-bold text-slate-900">
-            {formatPeriodTitle(anchorDate, view)}
-          </h2>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative">
-            <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="일정 검색..."
-              className="w-44 sm:w-52 rounded-lg border border-slate-200 pl-8 pr-3 py-1.5 text-xs text-slate-800 focus:border-sky-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="inline-flex rounded-xl bg-slate-100 p-1">
-            {VIEW_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setView(tab.key)}
-                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
-                  view === tab.key
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* 메인 캘린더 뷰 */}
-      {loading && events.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center text-xs text-slate-400 shadow-sm">
-          일정을 불러오는 중입니다...
-        </div>
-      ) : view === 'month' ? (
-        <MonthView
-          anchorDate={anchorDate}
-          events={events}
-          onSelectDate={(d) => handleOpenCreateEvent(d, false)}
-          onSelectEvent={handleOpenEditEvent}
-        />
-      ) : view === 'week' || view === 'day' ? (
-        <WeekDayView
-          mode={view}
-          anchorDate={anchorDate}
-          events={events}
-          onSelectSlot={(d, allDay) => handleOpenCreateEvent(d, Boolean(allDay))}
-          onSelectEvent={handleOpenEditEvent}
-        />
-      ) : (
-        <AgendaView events={events} onSelectEvent={handleOpenEditEvent} />
-      )}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-white">
+        {loading && events.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-xs text-[#86868b]">
+            일정을 불러오는 중입니다...
+          </div>
+        ) : view === 'month' ? (
+          <MonthView
+            anchorDate={anchorDate}
+            events={events}
+            onSelectDate={(d) => handleOpenCreateEvent(d, false)}
+            onSelectEvent={handleOpenEditEvent}
+          />
+        ) : view === 'week' || view === 'day' ? (
+          <WeekDayView
+            mode={view}
+            anchorDate={anchorDate}
+            events={events}
+            onSelectSlot={(d, allDay) => handleOpenCreateEvent(d, Boolean(allDay))}
+            onSelectEvent={handleOpenEditEvent}
+          />
+        ) : (
+          <AgendaView events={events} onSelectEvent={handleOpenEditEvent} />
+        )}
+      </div>
 
       {/* 일정 등록/수정 모달 */}
       <EventModal

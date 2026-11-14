@@ -161,14 +161,8 @@ export default function MailSpamPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="스팸메일함"
-        icon={<ShieldAlert className="h-6 w-6 text-amber-500" />}
-        subtitle="보안 인증(SPF/DKIM/DMARC) 실패 또는 스팸으로 분류된 메일 목록입니다."
-      />
-
-      {/* Mail Data Table */}
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Mail 2-Pane Master-Detail */}
       <MailDataTable
         mails={mails}
         total={total}

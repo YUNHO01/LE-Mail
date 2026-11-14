@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { fetchApi } from '@/lib/api';
 import { SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
+import { MailReadingPane } from '@/components/mail/MailReadingPane';
 import { exportTableToExcel } from '@/lib/excel';
 import {
   Search,
@@ -84,9 +85,11 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
 }) => {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedMailId, setSelectedMailId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 20;
   const [internalStatusFilter, setInternalStatusFilter] = useState('all');
   const activeStatusFilter =
     propsStatusFilter !== undefined ? propsStatusFilter : internalStatusFilter;
@@ -514,20 +517,25 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     );
   };
 
-  // Row navigation & Auto Read
+  // Row navigation / 3-Pane Selection & Auto Read
   const handleRowClick = (mail: MailMessageDto) => {
     if (isDraft) {
       router.push(`/mail/compose?draftId=${mail.id}`);
       return;
     }
     if (!mail.isRead) {
+      setReadOverrides((prev) => ({ ...prev, [mail.id]: true }));
       fetchApi(`/mails/${mail.id}/read`, {
         method: 'PATCH',
         body: JSON.stringify({ isRead: true }),
       }).catch((err) => console.error('Auto mark read error:', err));
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
     }
-    router.push(`/mail/${mail.id}`);
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      setSelectedMailId(mail.id);
+    } else {
+      router.push(`/mail/${mail.id}`);
+    }
   };
 
   // Copy Action
@@ -704,118 +712,166 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     statusFilterOptions.find((opt) => opt.value === activeStatusFilter) ||
     statusFilterOptions[0];
 
+  const folderTitle =
+    folderName ||
+    (isSent
+      ? '보낸편지함'
+      : isTrash
+      ? '휴지통'
+      : isSpam
+      ? '스팸메일함'
+      : isDraft
+      ? '임시보관함'
+      : '받은편지함');
+
+  const unreadInList = useMemo(
+    () => mails.filter((m) => !getMailStatusFlags(m).isRead).length,
+    [mails, readOverrides],
+  );
+
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedIds([]);
+      }
+      return next;
+    });
+  };
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
-      {/* 인쇄 전용 타이틀 헤더 (화면에서는 숨김, 인쇄 시 상단에만 노출) */}
+    <div className="flex-1 flex min-h-0 bg-white overflow-hidden printable-area">
+      {/* 인쇄 전용 타이틀 헤더 */}
       <div className="hidden print:block p-4 border-b-2 border-slate-800">
-        <h2 className="text-base font-bold text-slate-900">
-          [LEMail] {isSent ? '보낸편지함' : isTrash ? '휴지통' : isSpam ? '스팸메일함' : isDraft ? '임시보관함' : '받은편지함'} 목록
-        </h2>
+        <h2 className="text-base font-bold text-slate-900">[LEMail] {folderTitle} 목록</h2>
         <div className="text-xs text-slate-600 mt-1">
           출력일시: {new Date().toLocaleString('ko-KR')} | 목록 {paginatedMails.length}건
         </div>
       </div>
 
-      {/* 1. 상단 툴바: 상태 필터 + 검색창 (좌) + 다중선택 액션군 + Copy / Excel / Print 버튼 (우) */}
-      <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
-        {/* 필터 + 검색창 */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* 상태 필터 드롭다운 */}
-          <div className="shrink-0">
-            <SelectDropdown
-              options={statusFilterOptions}
-              value={activeStatusFilter}
-              onChange={handleStatusFilterChange}
-              headerLabel="메일 상태 필터"
-              size="sm"
-              menuWidthClass="w-44"
-              title="메일 상태 필터 선택"
-            />
-          </div>
+      {/* PANE 2: iCloud Style Mail List Column */}
+      <section className="w-full lg:w-[360px] xl:w-[395px] shrink-0 border-r border-black/[0.08] flex flex-col min-h-0 bg-white print:w-full print:border-none">
+        {/* Sticky List Header */}
+        <div className="px-4 pt-4 pb-2.5 border-b border-black/[0.06] space-y-2.5 bg-white/95 backdrop-blur-md print:hidden">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="text-[19px] font-bold tracking-tight text-[#1d1d1f] truncate">
+                {folderTitle}
+              </h1>
+              <p className="text-[11px] text-[#86868b] mt-0.5 tabular-nums">
+                전체 {filteredMails.length}통 · 읽지 않음 {unreadInList}통
+              </p>
+            </div>
 
-          {/* 검색창 */}
-          <div className="w-full sm:w-64">
-            <SearchInput
-              value={search}
-              onChange={onSearchChange}
-              placeholder={effectivePlaceholder}
-              size="md"
-            />
-          </div>
-        </div>
-
-        {/* 우측 유틸리티 버튼군 */}
-        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap sm:flex-nowrap">
-          {/* 다중 선택 일괄 액션 (선택되었을 때만 표시) */}
-          {selectedIds.length > 0 && (
-            <div className="flex items-center gap-1.5 mr-1 pr-2 border-r border-slate-200">
-              <span className="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
-                {selectedIds.length}개 선택
-              </span>
-
-              {/* 동시 열람 버튼 (임시보관함 제외, 최대 5건) */}
-              {!isDraft && (
-                <button
-                  type="button"
-                  onClick={handleBulkOpen}
-                  title={
-                    selectedIds.length > MAX_MULTI_OPEN_COUNT
-                      ? `동시 열람은 최대 ${MAX_MULTI_OPEN_COUNT}건까지 가능합니다.`
-                      : '선택한 메일 열람'
-                  }
-                  className={`btn btn-sm text-xs font-medium inline-flex items-center gap-1 ${
-                    selectedIds.length > MAX_MULTI_OPEN_COUNT
-                      ? 'btn-secondary opacity-60'
-                      : 'btn-secondary text-sky-700 border-sky-200 bg-sky-50/60 hover:bg-sky-100/70'
-                  }`}
-                >
-                  <MailOpen className="w-3.5 h-3.5" />
-                  <span>
-                    열람
-                    {selectedIds.length > MAX_MULTI_OPEN_COUNT
-                      ? ` (최대 ${MAX_MULTI_OPEN_COUNT}건)`
-                      : ''}
-                  </span>
-                </button>
-              )}
-
-              {/* 읽음 버튼 */}
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
-                onClick={handleBulkReadAction}
-                className="btn btn-sm btn-secondary text-xs font-medium"
+                onClick={toggleSelectMode}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+                  selectMode || selectedIds.length > 0
+                    ? 'bg-[#0071e3] text-white'
+                    : 'text-[#0071e3] hover:bg-[#007aff]/10'
+                }`}
               >
-                읽음
+                {selectMode ? '완료' : '선택'}
               </button>
-
-              {/* 이동 버튼 + 드롭다운 */}
-              <div className="relative" ref={moveMenuRef}>
+              {onRefresh && (
                 <button
                   type="button"
-                  onClick={() => setIsMoveOpen((prev) => !prev)}
-                  className="btn btn-sm btn-secondary text-xs font-medium inline-flex items-center gap-1"
-                  title="선택한 메일을 다른 편지함으로 이동"
+                  onClick={() => onRefresh()}
+                  className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
+                  title="새로고침"
                 >
-                  <FolderInput className="w-3.5 h-3.5 text-slate-500" />
-                  <span>이동</span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-[#0071e3]' : ''}`} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search + Filter + Utility Row */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <SearchInput
+                value={search}
+                onChange={onSearchChange}
+                placeholder={effectivePlaceholder}
+                size="sm"
+              />
+            </div>
+            <div className="shrink-0">
+              <SelectDropdown
+                options={statusFilterOptions}
+                value={activeStatusFilter}
+                onChange={handleStatusFilterChange}
+                headerLabel="메일 상태 필터"
+                size="sm"
+                menuWidthClass="w-40"
+                title="메일 상태 필터 선택"
+              />
+            </div>
+          </div>
+
+          {/* Select All (Only in Select Mode) */}
+          {(selectMode || selectedIds.length > 0) && (
+            <div className="pt-0.5">
+              <label className="inline-flex items-center gap-1.5 text-[11px] text-[#6e6e73] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allCurrentSelected}
+                  onChange={handleSelectAll}
+                  className="h-3.5 w-3.5 rounded border-black/20 accent-[#0071e3] cursor-pointer"
+                />
+                <span>현재 페이지 전체 선택</span>
+              </label>
+            </div>
+          )}
+
+          {/* Bulk Action Bar (when items are selected) */}
+          {selectedIds.length > 0 && (
+            <div className="pt-2 border-t border-black/[0.06] flex flex-wrap items-center justify-between gap-1.5">
+              <span className="text-[11px] font-semibold text-[#0071e3]">
+                {selectedIds.length}개 선택됨
+              </span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {!isDraft && (
+                  <button
+                    type="button"
+                    onClick={handleBulkOpen}
+                    title={
+                      selectedIds.length > MAX_MULTI_OPEN_COUNT
+                        ? `동시 열람은 최대 ${MAX_MULTI_OPEN_COUNT}건까지 가능합니다.`
+                        : '선택한 메일 열람'
+                    }
+                    className="px-2 py-1 rounded-md text-[11px] font-medium bg-[#007aff]/10 text-[#0071e3] hover:bg-[#007aff]/20 transition"
+                  >
+                    열람
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleBulkReadAction}
+                  className="px-2 py-1 rounded-md text-[11px] font-medium bg-black/[0.05] text-[#1d1d1f] hover:bg-black/[0.09] transition"
+                >
+                  읽음
                 </button>
 
-                {isMoveOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 w-60 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] font-semibold text-slate-400 flex items-center justify-between">
-                      <span>이동할 편지함 선택</span>
-                      <span className="text-[10px] text-slate-400 font-normal">
-                        {flattenedFolders.length}개 폴더
-                      </span>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto py-1 divide-y divide-slate-50">
-                      {flattenedFolders.length === 0 ? (
-                        <div className="px-4 py-3 text-center text-xs text-slate-400">
-                          편지함을 불러오는 중...
-                        </div>
-                      ) : (
-                        flattenedFolders.map((f) => {
+                {/* 이동 드롭다운 */}
+                <div className="relative" ref={moveMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsMoveOpen((prev) => !prev)}
+                    className="px-2 py-1 rounded-md text-[11px] font-medium bg-black/[0.05] text-[#1d1d1f] hover:bg-black/[0.09] inline-flex items-center gap-1 transition"
+                  >
+                    <FolderInput className="w-3 h-3" />
+                    <span>이동</span>
+                  </button>
+                  {isMoveOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 w-56 rounded-xl border border-black/[0.08] bg-white py-1.5 shadow-xl z-50">
+                      <div className="px-3 py-1 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                        이동할 편지함 선택
+                      </div>
+                      <div className="max-h-56 overflow-y-auto py-1">
+                        {flattenedFolders.map((f) => {
                           const isCurrent = isCurrentFolder(f);
                           return (
                             <button
@@ -826,427 +882,274 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                               style={{ paddingLeft: `${f.depth * 14 + 12}px` }}
                               className={`w-full pr-3 py-1.5 text-left text-xs flex items-center justify-between transition ${
                                 isCurrent
-                                  ? 'text-slate-300 cursor-not-allowed bg-slate-50/50'
-                                  : 'text-slate-700 hover:bg-sky-50 hover:text-sky-800'
+                                  ? 'text-[#86868b] cursor-not-allowed'
+                                  : 'text-[#1d1d1f] hover:bg-[#007aff]/10 hover:text-[#0071e3]'
                               }`}
                             >
                               <span className="flex items-center gap-2 truncate">
                                 {getFolderIcon(f.type)}
-                                <span className={`truncate ${isCurrent ? 'text-slate-400' : ''}`}>
-                                  {f.name}
-                                </span>
+                                <span className="truncate">{f.name}</span>
                               </span>
-                              {isCurrent && (
-                                <span className="text-[10px] text-slate-400 font-normal shrink-0 ml-1">
-                                  (현재)
-                                </span>
-                              )}
+                              {isCurrent && <span className="text-[10px] text-[#86868b]">(현재)</span>}
                             </button>
                           );
-                        })
-                      )}
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
+                </div>
+
+                {isSpam && (
+                  <button
+                    type="button"
+                    onClick={handleBulkUnreportSpam}
+                    className="px-2 py-1 rounded-md text-[11px] font-medium bg-[#34c759]/12 text-[#248a3d] hover:bg-[#34c759]/20 transition"
+                  >
+                    스팸해제
+                  </button>
                 )}
+                {!isSpam && !isTrash && !isDraft && !isSent && (
+                  <button
+                    type="button"
+                    onClick={handleBulkReportSpam}
+                    className="px-2 py-1 rounded-md text-[11px] font-medium bg-[#ff9500]/12 text-[#b25000] hover:bg-[#ff9500]/20 transition"
+                  >
+                    스팸신고
+                  </button>
+                )}
+                {!isTrash && (
+                  <button
+                    type="button"
+                    onClick={handleBulkDeleteAction}
+                    className="px-2 py-1 rounded-md text-[11px] font-medium bg-[#ff3b30]/10 text-[#ff3b30] hover:bg-[#ff3b30]/20 transition"
+                  >
+                    삭제
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleBulkPermanentDelete}
+                  className="px-2 py-1 rounded-md text-[11px] font-medium bg-[#ff3b30] text-white hover:bg-[#d70015] transition"
+                >
+                  완전삭제
+                </button>
               </div>
-
-              {/* 스팸 해제 버튼 (스팸함일 때 노출) */}
-              {isSpam && (
-                <button
-                  type="button"
-                  onClick={handleBulkUnreportSpam}
-                  className="btn btn-sm btn-secondary text-xs font-semibold text-emerald-700 hover:text-emerald-800 border-emerald-200 hover:border-emerald-300 bg-emerald-50 inline-flex items-center gap-1"
-                  title="선택한 메일을 받은편지함으로 복원하고 발신자 차단을 해제합니다."
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>스팸 해제</span>
-                </button>
-              )}
-
-              {/* 스팸 신고 버튼 (일반 편지함일 때 노출) */}
-              {!isSpam && !isTrash && !isDraft && !isSent && (
-                <button
-                  type="button"
-                  onClick={handleBulkReportSpam}
-                  className="btn btn-sm btn-secondary text-xs font-medium text-amber-700 hover:text-amber-800 border-amber-200 hover:border-amber-300 bg-amber-50 inline-flex items-center gap-1"
-                  title="선택한 메일을 스팸으로 신고하고 발신자를 차단합니다."
-                >
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-                  <span>스팸 신고</span>
-                </button>
-              )}
-
-              {/* 삭제 버튼 (기본: 휴지통 이동, 휴지통에서는 미노출) */}
-              {!isTrash && (
-                <button
-                  type="button"
-                  onClick={handleBulkDeleteAction}
-                  className="btn btn-sm btn-secondary text-xs font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
-                  title="휴지통으로 이동"
-                >
-                  삭제
-                </button>
-              )}
-
-              {/* 완전삭제 버튼 (휴지통으로 이동하지 않고 바로 삭제) */}
-              <button
-                type="button"
-                onClick={handleBulkPermanentDelete}
-                className="btn btn-sm btn-danger text-xs font-medium inline-flex items-center gap-1"
-                title="휴지통으로 이동하지 않고 즉시 영구 삭제"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>완전삭제</span>
-              </button>
             </div>
           )}
-
-          {/* Table Utility 3종 버튼 (Copy, Excel, Print) */}
-          <TableUtilityButtons
-            onCopy={handleCopy}
-            onExcel={handleExcelExport}
-            onPrint={handlePrint}
-            copied={copied}
-          />
         </div>
-      </div>
 
-      {/* 2. 데이터 테이블 영역 */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left text-xs">
-          {/* 테이블 헤더 */}
-          <thead>
-            <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
-              <th className="w-10 px-4 py-3 text-center print:hidden">
-                <input
-                  type="checkbox"
-                  checked={allCurrentSelected}
-                  onChange={handleSelectAll}
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                  title="전체 선택"
-                />
-              </th>
-              <th
-                className="w-32 px-3 py-3 text-center whitespace-nowrap"
-                title="신규 / 안읽음 / 읽음 / 보안 / 중요 / 답장 / 전달"
-              >
-                상태
-              </th>
-              <th className="w-56 px-4 py-3 whitespace-nowrap">
-                {isSent ? '수신 정보' : '사원 정보'}
-              </th>
-              <th className="px-4 py-3 whitespace-nowrap">제목</th>
-              <th className="w-40 px-4 py-3 whitespace-nowrap text-center">
-                {isSent ? '발송일시' : '수신일시'}
-              </th>
-              <th className="w-20 px-4 py-3 text-right whitespace-nowrap print:hidden">관리</th>
-            </tr>
-          </thead>
+        {/* Scrollable Mail Card List */}
+        <div className="flex-1 overflow-y-auto py-1.5 divide-y divide-black/[0.04]">
+          {loading ? (
+            <div className="py-20 text-center text-[#86868b]">
+              <div className="flex flex-col items-center gap-2">
+                <RefreshCw className="h-5 w-5 animate-spin text-[#0071e3]" />
+                <span className="text-xs font-medium">메일 목록을 불러오는 중...</span>
+              </div>
+            </div>
+          ) : paginatedMails.length === 0 ? (
+            <div className="py-20 px-6 text-center text-[#86868b]">
+              <Mail className="h-10 w-10 text-[#d2d2d7] mx-auto mb-2 stroke-[1.5]" />
+              <p className="font-medium text-[#1d1d1f] text-sm">{emptyMessage}</p>
+              {emptySubMessage && (
+                <p className="text-xs text-[#86868b] mt-1">{emptySubMessage}</p>
+              )}
+            </div>
+          ) : (
+            paginatedMails.map((mail) => {
+              const { dateStr, timeStr } = formatDateParts(mail.createdAt);
+              const { isRead, isStarred, isNew, isSecure, isAnswered, isForwarded } =
+                getMailStatusFlags(mail);
+              const isChecked = selectedIds.includes(mail.id);
+              const isActiveRow = selectedMailId === mail.id;
 
-          {/* 테이블 본문 */}
-          <tbody className="divide-y divide-slate-100 text-slate-700">
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="py-16 text-center text-slate-400">
-                  <div className="flex items-center justify-center gap-2">
-                    <RefreshCw className="h-5 w-5 animate-spin text-sky-600" />
-                    <span className="font-medium">메일 목록을 불러오는 중...</span>
-                  </div>
-                </td>
-              </tr>
-            ) : paginatedMails.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-16 text-center text-slate-400">
-                  <div className="flex flex-col items-center justify-center">
-                    <Mail className="h-10 w-10 text-slate-300 mb-2 stroke-1" />
-                    <p className="font-semibold text-slate-600 text-sm">{emptyMessage}</p>
-                    {emptySubMessage && (
-                      <p className="text-xs text-slate-400 mt-1">{emptySubMessage}</p>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              paginatedMails.map((mail) => {
-                const { dateStr, timeStr } = formatDateParts(mail.createdAt);
-                const {
-                  isRead,
-                  isStarred,
-                  isNew,
-                  isSecure,
-                  isAnswered,
-                  isForwarded,
-                  statusText,
-                } = getMailStatusFlags(mail);
-                const isSelected = selectedIds.includes(mail.id);
+              const personRaw = isSent
+                ? mail.recipients && mail.recipients.length > 0
+                  ? mail.recipients.map((r) => r.address).join(', ')
+                  : '(수신자 없음)'
+                : mail.sender;
+              const { name, address } = extractPersonInfo(personRaw);
 
-                const personRaw = isSent
-                  ? mail.recipients && mail.recipients.length > 0
-                    ? mail.recipients.map((r) => r.address).join(', ')
-                    : '(수신자 없음)'
-                  : mail.sender;
-                const { name, address } = extractPersonInfo(personRaw);
-
-                return (
-                  <tr
-                    key={mail.id}
-                    onClick={() => handleRowClick(mail)}
-                    className={`cursor-pointer transition-colors duration-100 hover:bg-slate-50/80 ${
-                      isSelected ? 'bg-sky-50/40' : !isRead ? 'bg-white font-medium' : 'bg-slate-50/20'
-                    }`}
-                  >
-                    {/* 선택 체크박스 */}
-                    <td
-                      className="px-4 py-3.5 text-center print:hidden"
-                      onClick={(e) => handleToggleSelect(mail.id, e)}
+              return (
+                <div
+                  key={mail.id}
+                  onClick={() => handleRowClick(mail)}
+                  className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition ${
+                    isActiveRow
+                      ? 'bg-[#007aff]/12'
+                      : isChecked
+                      ? 'bg-[#007aff]/5'
+                      : 'hover:bg-black/[0.03]'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    {/* Left: Unread Dot or Selection Checkbox */}
+                    <div
+                      className="pt-1.5 w-4 shrink-0 flex justify-center print:hidden"
+                      onClick={(e) => {
+                        if (selectMode || selectedIds.length > 0) {
+                          handleToggleSelect(mail.id, e);
+                        } else {
+                          handleStatusToggleRead(e, mail, isRead);
+                        }
+                      }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                      />
-                    </td>
+                      {selectMode || selectedIds.length > 0 ? (
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="h-3.5 w-3.5 rounded border-black/20 accent-[#0071e3] cursor-pointer"
+                        />
+                      ) : !isRead ? (
+                        <span
+                          title="읽지 않음 (클릭하여 읽음 처리)"
+                          className="w-2 h-2 rounded-full bg-[#007aff]"
+                        />
+                      ) : (
+                        <span className="w-2 h-2 rounded-full opacity-0 group-hover:opacity-40 bg-[#86868b] transition" />
+                      )}
+                    </div>
 
-                    {/* 1. 첫번째 자리: 메일상태 (화면: 아이콘, 인쇄: 텍스트) */}
-                    <td
-                      className="px-3 py-3.5 whitespace-nowrap text-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <span className="hidden print:inline-block font-semibold text-slate-800 text-[10px]">
-                        {statusText || '-'}
-                      </span>
-                      <div className="flex items-center justify-center gap-1.5 print:hidden">
-                        {/* 중요 상태 아이콘 */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleToggleStar(e, mail, isStarred)}
-                          title={isStarred ? '중요 (클릭하여 해제)' : '중요 표시'}
-                          aria-label={isStarred ? '중요' : '중요 표시'}
-                          className="p-0.5 rounded hover:bg-amber-50 transition shrink-0"
-                        >
-                          <Star
-                            className={`h-4 w-4 ${
-                              isStarred
-                                ? 'fill-amber-400 text-amber-400'
-                                : 'text-slate-300 hover:text-amber-400'
+                    {/* Right: Sender, Time, Subject, Snippet */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            className={`text-[13.5px] truncate ${
+                              !isRead ? 'font-bold text-[#1d1d1f]' : 'font-medium text-[#1d1d1f]'
                             }`}
-                          />
-                        </button>
-
-                        {/* 읽음 / 안읽음 + 신규 상태 아이콘 */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleStatusToggleRead(e, mail, isRead)}
-                          title={isNew ? '신규 / 안읽음 (클릭하여 읽음 처리)' : isRead ? '읽음 (클릭하여 안읽음 처리)' : '안읽음 (클릭하여 읽음 처리)'}
-                          aria-label={isNew ? '신규 안읽음' : isRead ? '읽음' : '안읽음'}
-                          className="relative p-0.5 rounded hover:bg-sky-50 transition shrink-0 inline-flex items-center"
-                        >
-                          {isRead ? (
-                            <MailOpen className="h-4 w-4 text-slate-400" />
-                          ) : (
-                            <Mail className="h-4 w-4 text-sky-600" />
-                          )}
+                          >
+                            {name || address || '(발신자 없음)'}
+                          </span>
                           {isNew && (
-                            <span
-                              title="신규"
-                              className="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-extrabold text-white shadow-2xs"
-                            >
+                            <span className="inline-flex h-3.5 px-1 items-center justify-center rounded-full bg-[#007aff] text-[9px] font-bold text-white shrink-0">
                               N
                             </span>
                           )}
-                        </button>
-
-                        {/* 보안 상태 아이콘 */}
-                        {isSecure && (
-                          <span
-                            title="보안"
-                            aria-label="보안"
-                            className="inline-flex h-5 w-5 items-center justify-center rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0"
-                          >
-                            <Lock className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-
-                        {/* 답장 상태 아이콘 */}
-                        {isAnswered && (
-                          <span
-                            title="답장"
-                            aria-label="답장"
-                            className="inline-flex h-5 w-5 items-center justify-center rounded bg-indigo-50 text-indigo-600 border border-indigo-200 shrink-0"
-                          >
-                            <Reply className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-
-                        {/* 전달 상태 아이콘 */}
-                        {isForwarded && (
-                          <span
-                            title="전달"
-                            aria-label="전달"
-                            className="inline-flex h-5 w-5 items-center justify-center rounded bg-violet-50 text-violet-600 border border-violet-200 shrink-0"
-                          >
-                            <Forward className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* 2. 사원 정보 (발신자 / 수신자 아바타 + 이름 + 주소) */}
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                            !isRead
-                              ? 'bg-sky-100 text-sky-700 ring-1 ring-sky-200'
-                              : 'bg-slate-100 text-slate-500'
-                          }`}
-                        >
-                          {name ? name.slice(0, 1).toUpperCase() : <User className="h-3.5 w-3.5" />}
                         </div>
-                        <div className="min-w-0">
-                          <div
-                            className={`truncate max-w-[180px] ${
-                              !isRead ? 'font-bold text-slate-900' : 'font-medium text-slate-700'
-                            }`}
-                          >
-                            {name}
-                          </div>
-                          {address && (
-                            <div className="text-[11px] text-slate-400 truncate max-w-[180px]">
-                              {address}
-                            </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {isSecure && (
+                            <Lock className="w-3 h-3 text-[#34c759]" aria-label="보안메일" />
                           )}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* 3. 제목 */}
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className={`truncate max-w-md ${
-                            !isRead ? 'font-bold text-slate-950' : 'font-normal text-slate-700'
-                          }`}
-                        >
-                          {mail.subject || '(제목 없음)'}
-                        </span>
-                        {mail.attachments && mail.attachments.length > 0 && (
-                          <span
-                            className="inline-flex items-center gap-0.5 text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0"
-                            title={`첨부파일 ${mail.attachments.length}개`}
-                          >
-                            <Paperclip className="h-3 w-3" />
-                            <span>{mail.attachments.length}</span>
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* 4. 수신일시 / 발송일시 (날짜 + 시간 함께 출력) */}
-                    <td className="px-4 py-3.5 text-center whitespace-nowrap text-slate-600 font-mono">
-                      {dateStr} {timeStr}
-                    </td>
-
-                    {/* 5. 관리 액션 버튼 */}
-                    <td
-                      className="px-4 py-3.5 text-right whitespace-nowrap print:hidden"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex items-center justify-end gap-1">
-                        {onToggleRead && (
+                          {isAnswered && (
+                            <Reply className="w-3 h-3 text-[#0071e3]" aria-label="답장함" />
+                          )}
+                          {isForwarded && (
+                            <Forward className="w-3 h-3 text-violet-500" aria-label="전달함" />
+                          )}
+                          {mail.attachments && mail.attachments.length > 0 && (
+                            <Paperclip className="w-3 h-3 text-[#86868b]" aria-label="첨부파일" />
+                          )}
                           <button
                             type="button"
-                            onClick={(e) => onToggleRead(e, mail.id, isRead)}
-                            title={isRead ? '안읽음으로 표시' : '읽음으로 표시'}
-                            className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-sky-600 transition"
+                            onClick={(e) => handleToggleStar(e, mail, isStarred)}
+                            className={`p-0.5 rounded transition ${
+                              isStarred
+                                ? 'text-[#ff9500]'
+                                : 'text-[#d2d2d7] opacity-0 group-hover:opacity-100 hover:text-[#ff9500]'
+                            }`}
+                            title={isStarred ? '중요 해제' : '중요 표시'}
                           >
-                            {isRead ? (
-                              <Mail className="h-3.5 w-3.5" />
-                            ) : (
-                              <MailCheck className="h-3.5 w-3.5 text-sky-600" />
-                            )}
+                            <Star
+                              className={`h-3.5 w-3.5 ${isStarred ? 'fill-[#ff9500]' : ''}`}
+                            />
                           </button>
-                        )}
+                          <span
+                            className={`text-[11px] tabular-nums ${
+                              !isRead ? 'text-[#0071e3] font-medium' : 'text-[#86868b]'
+                            }`}
+                          >
+                            {dateStr} {timeStr}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`text-[13px] truncate mt-0.5 ${
+                          !isRead ? 'font-semibold text-[#1d1d1f]' : 'text-[#1d1d1f]/85'
+                        }`}
+                      >
+                        {mail.subject || '(제목 없음)'}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <span className="text-[11.5px] text-[#86868b] truncate">
+                          {mail.body?.text
+                            ? mail.body.text.replace(/\s+/g, ' ').trim()
+                            : address || ''}
+                        </span>
+                        {/* Hover Quick Delete */}
                         {onDelete && (
                           <button
                             type="button"
                             onClick={(e) => onDelete(e, mail.id)}
                             title="삭제"
-                            className="p-1 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                            className="hidden group-hover:inline-flex p-1 rounded-md text-[#86868b] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition shrink-0 print:hidden"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           </button>
                         )}
                       </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* 3. 하단 페이징 및 카운트 바 */}
-      <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 print:hidden">
-        <div>
-          총 <span className="font-semibold text-slate-800">{filteredMails.length}</span>건
-          {activeStatusFilter !== 'all' && (
-            <span className="text-slate-400"> (전체 {mails.length}건)</span>
-          )}{' '}
-          중{' '}
-          <span className="font-semibold text-slate-800">
-            {displayStart} - {displayEnd}
-          </span>
-          건 표시
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
-        {paginatedMails.length > 0 && (
-          <div className="flex items-center gap-1 self-end sm:self-auto">
-            {/* 이전 버튼 */}
-            <button
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
-              title="이전 페이지"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
+        {/* Compact Pagination Footer */}
+        <div className="px-4 py-2.5 border-t border-black/[0.06] bg-white flex items-center justify-between text-[11px] text-[#86868b] print:hidden">
+          <span className="tabular-nums">
+            {displayStart}-{displayEnd} / {filteredMails.length}건
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="p-1 rounded-md hover:bg-black/[0.05] disabled:opacity-30 transition"
+                title="이전 페이지"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <span className="px-1.5 font-medium text-[#1d1d1f] tabular-nums">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="p-1 rounded-md hover:bg-black/[0.05] disabled:opacity-30 transition"
+                title="다음 페이지"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
-            {/* 번호형 페이지 버튼 */}
-            {Array.from({ length: totalPages }).map((_, i) => {
-              const p = i + 1;
-              const isActive = p === currentPage;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPage(p)}
-                  className={`h-7 w-7 rounded-lg text-xs font-semibold transition ${
-                    isActive
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {p}
-                </button>
-              );
-            })}
-
-            {/* 다음 버튼 */}
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
-              title="다음 페이지"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
+      {/* PANE 3: Reading Pane (Desktop lg+) */}
+      <div className="hidden lg:flex flex-1 min-w-0 min-h-0 flex-col bg-white print:hidden">
+        <MailReadingPane
+          mailId={selectedMailId}
+          onRefreshList={onRefresh}
+          onDeleted={(deletedId) => {
+            if (selectedMailId === deletedId) {
+              setSelectedMailId(null);
+            }
+          }}
+          onReadChanged={(id, nextRead) => {
+            setReadOverrides((prev) => ({ ...prev, [id]: nextRead }));
+          }}
+          onStarChanged={(id, nextStar) => {
+            setStarredOverrides((prev) => ({ ...prev, [id]: nextStar }));
+          }}
+        />
       </div>
     </div>
   );
