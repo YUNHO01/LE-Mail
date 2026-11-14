@@ -14,15 +14,15 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     const { isNavigating } = useNavigation();
     const { isAuthenticated, isLoading } = useAuth();
 
-    // /login 경로가 아닐 때 세션 또는 미인증 상태 감지 시 로그인 페이지로 즉시 이동
+    // /login, /offline 경로가 아닐 때 세션 또는 미인증 상태 감지 시 로그인 페이지로 즉시 이동
     useEffect(() => {
-        if (!isLoading && !isAuthenticated && pathname !== '/login') {
+        if (!isLoading && !isAuthenticated && pathname !== '/login' && pathname !== '/offline') {
             router.replace('/login');
         }
     }, [isLoading, isAuthenticated, pathname, router]);
 
-    // /login 경로에서는 로그인 페이지 전체화면 렌더링
-    if (pathname === '/login') {
+    // /login, /offline 경로에서는 전체화면 렌더링
+    if (pathname === '/login' || pathname === '/offline') {
         return <>{children}</>;
     }
 

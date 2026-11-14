@@ -248,6 +248,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     localStorage.removeItem('lemail_token');
     localStorage.removeItem('lemail_user');
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.controller?.postMessage({ type: 'CLEAR_CACHE' });
+    }
     router.push('/login');
   };
 

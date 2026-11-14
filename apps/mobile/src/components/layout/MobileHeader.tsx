@@ -39,8 +39,8 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ onOpenDrawer }) => {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-[#F2F2F7]/90 px-3 backdrop-blur-xl">
-      <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between bg-[#F2F2F7]/90 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+      <div className="flex h-14 items-center gap-2">
         <button
           type="button"
           onClick={onOpenDrawer}

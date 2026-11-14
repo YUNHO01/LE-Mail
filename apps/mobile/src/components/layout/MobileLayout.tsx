@@ -16,12 +16,12 @@ export const MobileLayout: React.FC<{ children: React.ReactNode }> = ({ children
   const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && pathname !== '/login') {
+    if (!isLoading && !isAuthenticated && pathname !== '/login' && pathname !== '/offline') {
       router.replace('/login');
     }
   }, [isLoading, isAuthenticated, pathname, router]);
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname === '/offline') {
     return <>{children}</>;
   }
 

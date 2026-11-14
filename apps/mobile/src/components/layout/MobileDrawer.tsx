@@ -15,9 +15,11 @@ import {
   Mail,
   PenSquare,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '../../contexts/NavigationContext';
+import { usePwa } from '../../contexts/PwaContext';
 import { MailFolderTree } from '../mail/MailFolderTree';
 
 interface MobileDrawerProps {
@@ -28,6 +30,7 @@ interface MobileDrawerProps {
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({ open, onClose }) => {
   const pathname = usePathname();
   const { user, logout, refreshStorageUsage } = useAuth();
+  const { canInstall, isStandalone, promptInstall } = usePwa();
   const { startNavigation } = useNavigation();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -341,6 +344,20 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ open, onClose }) => 
               </button>
             </div>
           </div>
+
+          {canInstall && !isStandalone && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                promptInstall();
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF]/10 border border-[#007AFF]/20 py-2.5 text-xs font-semibold text-[#007AFF] active:scale-[0.98] transition"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>홈 화면에 앱 설치</span>
+            </button>
+          )}
 
           <button
             type="button"
