@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { SystemLicenseInfo, UserDto } from '@lemail/shared-types';
+import { formatBrandName, SystemLicenseInfo, UserDto } from '@lemail/shared-types';
 import { authenticateWithBiometric, BIOMETRIC_HINT_EMAIL_KEY } from '../lib/webauthn';
 
 interface AuthResult {
@@ -54,6 +54,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLicenseLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    const brandName = formatBrandName(licenseStatus);
+    if (typeof document !== 'undefined') {
+      document.title = brandName;
+      const appleTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (appleTitleMeta) {
+        appleTitleMeta.setAttribute('content', brandName);
+      }
+    }
+  }, [licenseStatus]);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('lemail_token');

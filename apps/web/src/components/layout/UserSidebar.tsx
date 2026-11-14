@@ -24,7 +24,7 @@ import {
   CalendarClock,
 } from 'lucide-react';
 import { contactsApi, calendarApi } from '../../lib/api';
-import { ContactGroupDto, CalendarDto } from '@lemail/shared-types';
+import { ContactGroupDto, CalendarDto, formatBrandName } from '@lemail/shared-types';
 
 interface UserSidebarProps {
   sidebarOpen: boolean;
@@ -36,7 +36,8 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   setSidebarOpen,
 }) => {
   const pathname = usePathname();
-  const { user, isAdmin, refreshStorageUsage } = useAuth();
+  const { user, isAdmin, refreshStorageUsage, licenseStatus } = useAuth();
+  const brandName = formatBrandName(licenseStatus);
   const { startNavigation } = useNavigation();
   const isCompose = pathname === '/mail/compose';
   const isContacts = pathname?.startsWith('/mail/contacts');
@@ -157,13 +158,18 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
     >
       {/* Brand Header */}
       <div className="flex h-12 items-center justify-between border-b border-black/[0.08] px-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-b from-[#2997ff] to-[#0071e3] text-white shadow-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-b from-[#2997ff] to-[#0071e3] text-white shadow-xs">
             <Mail className="h-4 w-4" />
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[15px] font-semibold tracking-tight text-[#1d1d1f]">LEMail</span>
-            <span className="rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-[#6e6e73]">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span
+              className="text-[15px] font-semibold tracking-tight text-[#1d1d1f] truncate"
+              title={brandName}
+            >
+              {brandName}
+            </span>
+            <span className="shrink-0 rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-[#6e6e73]">
               Webmail
             </span>
           </div>

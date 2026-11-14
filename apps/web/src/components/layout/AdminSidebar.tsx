@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useNavigation } from '../../contexts/NavigationContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { formatBrandName } from '@lemail/shared-types';
 import {
   Activity,
   UserCog,
@@ -32,6 +34,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const { startNavigation } = useNavigation();
+  const { licenseStatus } = useAuth();
+  const brandName = formatBrandName(licenseStatus);
 
   const isLinkActive = (path: string) => {
     return pathname === path || pathname?.startsWith(`${path}/`);
@@ -103,13 +107,18 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     >
       {/* Brand Header */}
       <div className="flex h-16 items-center justify-between border-b border-slate-800/80 px-5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
             <ShieldCheck className="h-5 w-5" />
           </div>
-          <div>
-            <span className="text-base font-bold tracking-tight text-white">LEMail</span>
-            <span className="ml-1.5 rounded bg-indigo-950 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400 border border-indigo-800">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span
+              className="text-base font-bold tracking-tight text-white truncate"
+              title={brandName}
+            >
+              {brandName}
+            </span>
+            <span className="shrink-0 rounded bg-indigo-950 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400 border border-indigo-800">
               Admin
             </span>
           </div>

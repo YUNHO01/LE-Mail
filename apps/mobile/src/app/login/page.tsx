@@ -4,13 +4,15 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatBrandName } from '@lemail/shared-types';
 import { Mail, Lock, ArrowRight, AlertCircle, Info, Fingerprint } from 'lucide-react';
 import { BIOMETRIC_HINT_EMAIL_KEY, isBiometricSupported } from '../../lib/webauthn';
 
 function MobileLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, loginWithBiometric, isAuthenticated, isLoading } = useAuth();
+  const { login, loginWithBiometric, isAuthenticated, isLoading, licenseStatus } = useAuth();
+  const brandName = formatBrandName(licenseStatus);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -105,7 +107,7 @@ function MobileLoginForm() {
           <Mail className="h-7 w-7" />
         </div>
         <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white drop-shadow-md">
-          LEMail 모바일
+          {brandName}
         </h1>
         <p className="mt-1 text-xs font-medium text-slate-200 drop-shadow-sm">
           언제 어디서나 안전하게 접속하는 기업용 웹메일

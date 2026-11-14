@@ -3,13 +3,15 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
+import { formatBrandName } from '@lemail/shared-types';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface MobileHeaderProps {
   onOpenDrawer: () => void;
 }
 
-function getHeaderTitle(pathname: string | null): string {
-  if (!pathname) return 'LEMail';
+function getHeaderTitle(pathname: string | null, brandName: string): string {
+  if (!pathname) return brandName;
   if (pathname.startsWith('/mail/inbox')) return '받은메일함';
   if (pathname.startsWith('/mail/sent')) return '보낸메일함';
   if (pathname.startsWith('/mail/drafts')) return '임시보관함';
@@ -21,12 +23,13 @@ function getHeaderTitle(pathname: string | null): string {
   if (pathname.startsWith('/mail/settings')) return '환경설정';
   if (pathname.startsWith('/mail/folder')) return '개인 폴더';
   if (pathname.startsWith('/mail/')) return '메일 상세';
-  return 'LEMail';
+  return brandName;
 }
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ onOpenDrawer }) => {
   const pathname = usePathname();
-  const title = getHeaderTitle(pathname);
+  const { licenseStatus } = useAuth();
+  const title = getHeaderTitle(pathname, formatBrandName(licenseStatus));
 
   const isMailDetail =
     /^\/mail\/(?!inbox|sent|drafts|spam|trash|compose|contacts|calendar|settings|folder|view)[^/]+$/.test(

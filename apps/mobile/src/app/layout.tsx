@@ -4,30 +4,34 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { NavigationProvider } from '../contexts/NavigationContext';
 import { PwaProvider } from '../contexts/PwaContext';
 import { MobileLayout } from '../components/layout/MobileLayout';
+import { getServerBrandName } from '../lib/brand';
 
-export const metadata: Metadata = {
-  title: 'LEMail 모바일 웹메일',
-  description: 'LEMail 외부 접속용 모바일 웹메일 서비스',
-  manifest: '/manifest.webmanifest',
-  icons: {
-    icon: [
-      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
-    ],
-    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'LEMail',
-  },
-  formatDetection: {
-    telephone: false,
-    date: false,
-    email: false,
-    address: false,
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brandName = await getServerBrandName();
+  return {
+    title: brandName,
+    description: `${brandName} 외부 접속용 모바일 웹메일 서비스`,
+    manifest: '/manifest.webmanifest',
+    icons: {
+      icon: [
+        { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+        { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+      ],
+      apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: brandName,
+    },
+    formatDetection: {
+      telephone: false,
+      date: false,
+      email: false,
+      address: false,
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -45,13 +49,13 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <body className="antialiased bg-slate-50 text-slate-900 selection:bg-sky-100" suppressHydrationWarning>
-        <PwaProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <PwaProvider>
             <NavigationProvider>
               <MobileLayout>{children}</MobileLayout>
             </NavigationProvider>
-          </AuthProvider>
-        </PwaProvider>
+          </PwaProvider>
+        </AuthProvider>
       </body>
     </html>
   );

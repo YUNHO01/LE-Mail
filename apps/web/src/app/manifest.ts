@@ -1,10 +1,15 @@
 import type { MetadataRoute } from 'next';
+import { getServerBrandName } from '../lib/brand';
 
-export default function manifest(): MetadataRoute.Manifest {
+export const dynamic = 'force-dynamic';
+
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const brandName = await getServerBrandName();
+
   return {
-    name: 'LEMail Enterprise Mail Console',
-    short_name: 'LEMail Web',
-    description: 'LEMail 엔터프라이즈 웹메일 및 관리자 콘솔',
+    name: brandName,
+    short_name: brandName,
+    description: `${brandName} 엔터프라이즈 웹메일 및 관리자 콘솔`,
     start_url: '/mail/inbox',
     scope: '/',
     display: 'standalone',

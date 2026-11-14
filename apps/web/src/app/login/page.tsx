@@ -4,12 +4,14 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatBrandName } from '@lemail/shared-types';
 import { Mail, Lock, ArrowRight, AlertCircle, Info } from 'lucide-react';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login, licenseStatus } = useAuth();
+  const brandName = formatBrandName(licenseStatus);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -76,7 +78,7 @@ function LoginForm() {
           <Mail className="h-8 w-8" />
         </div>
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white drop-shadow-md">
-          가장자리 메일 시스템
+          {brandName}
         </h1>
         <p className="mt-1.5 text-xs font-medium text-slate-200 drop-shadow-sm sm:text-sm">
           안전하고 효율적인 기업용 웹메일 서비스

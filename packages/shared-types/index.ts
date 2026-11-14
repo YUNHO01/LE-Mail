@@ -627,6 +627,18 @@ export interface RegisterLicenseDto {
   licenseContent: string;
 }
 
+export const DEFAULT_BRAND_NAME = '가장자리 LEMail';
+
+export function formatBrandName(
+  license?: Pick<SystemLicenseInfo, 'isValid' | 'organizationName'> | null,
+): string {
+  const orgName = license?.organizationName?.trim();
+  if (license?.isValid && orgName) {
+    return `${orgName} LEMail`;
+  }
+  return DEFAULT_BRAND_NAME;
+}
+
 // ==========================================
 // User Preferences & Signature Types
 // ==========================================

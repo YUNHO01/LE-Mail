@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Download, RefreshCw, Share, X } from 'lucide-react';
+import { formatBrandName } from '@lemail/shared-types';
+import { useAuth } from './AuthContext';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -32,6 +34,8 @@ const IOS_PROMPT_DISMISSED_KEY = 'lemail_mobile_ios_a2hs_dismissed';
 const ANDROID_BANNER_DISMISSED_KEY = 'lemail_mobile_a2hs_dismissed';
 
 export function PwaProvider({ children }: { children: React.ReactNode }) {
+  const { licenseStatus } = useAuth();
+  const brandName = formatBrandName(licenseStatus);
   const [isStandalone, setIsStandalone] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showAndroidBanner, setShowAndroidBanner] = useState(false);
@@ -196,7 +200,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
                 <Download className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-900">LEMail 앱 설치</p>
+                <p className="text-xs font-bold text-slate-900">{brandName} 앱 설치</p>
                 <p className="truncate text-[11px] text-slate-500">홈 화면에서 앱처럼 빠르게 실행하세요.</p>
               </div>
             </div>
@@ -230,7 +234,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
                 <Share className="h-4 w-4" />
               </div>
               <div className="text-xs text-slate-700 leading-relaxed">
-                <p className="font-bold text-slate-900">홈 화면에 LEMail 추가</p>
+                <p className="font-bold text-slate-900">홈 화면에 {brandName} 추가</p>
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   하단 <span className="font-semibold text-slate-700">공유</span> 버튼을 누른 뒤{' '}
                   <span className="font-semibold text-slate-700">홈 화면에 추가</span>를 선택하세요.
