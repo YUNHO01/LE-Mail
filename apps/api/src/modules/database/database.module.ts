@@ -27,6 +27,7 @@ import {
   OrgSyncLog,
   UserPasskey,
   UserAiSetting,
+  IntegrationApiKey,
 } from './entities';
 
 @Module({
@@ -67,6 +68,7 @@ import {
             OrgSyncLog,
             UserPasskey,
             UserAiSetting,
+            IntegrationApiKey,
           ],
           synchronize: false,
           timezone: 'Z',

@@ -82,8 +82,16 @@ export function AiSettingsTab() {
         ]);
         setPolicy(pol);
         setIsEnabled(userSet.isEnabled);
-        setProvider(userSet.provider);
-        setModel(userSet.model || PROVIDER_META[userSet.provider].defaultModel);
+        const effectiveProvider =
+          pol.allowedProviders.length > 0 && !pol.allowedProviders.includes(userSet.provider)
+            ? pol.allowedProviders[0]
+            : userSet.provider;
+        setProvider(effectiveProvider);
+        setModel(
+          effectiveProvider !== userSet.provider
+            ? PROVIDER_META[effectiveProvider].defaultModel
+            : userSet.model || PROVIDER_META[effectiveProvider].defaultModel,
+        );
         setHasApiKey(userSet.hasApiKey);
         setMaskedApiKey(userSet.maskedApiKey);
         setCustomBaseUrl(userSet.customBaseUrl || '');
@@ -176,12 +184,18 @@ export function AiSettingsTab() {
           <Sparkles className="h-4 w-4 text-violet-600" />
           <span className="text-sm font-bold text-slate-900">개인 AI 활성화</span>
         </div>
-        <input
-          type="checkbox"
-          checked={isEnabled}
-          onChange={(e) => setIsEnabled(e.target.checked)}
-          className="h-5 w-5 accent-violet-600"
-        />
+        <label className="relative inline-flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isEnabled}
+            onChange={(e) => setIsEnabled(e.target.checked)}
+            className="peer sr-only"
+          />
+          <span className="h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-violet-600 relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
+          <span className="text-xs font-semibold text-slate-700">
+            {isEnabled ? '사용 중' : '비활성'}
+          </span>
+        </label>
       </div>
 
       {feedback && (

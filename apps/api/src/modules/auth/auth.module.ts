@@ -3,17 +3,19 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { User, UserPasskey } from '../database/entities';
+import { User, UserPasskey, IntegrationApiKey } from '../database/entities';
 import { AuthService } from './auth.service';
+import { ApiKeyService } from './api-key.service';
 import { WebAuthnService } from './webauthn.service';
 import { AuthController } from './auth.controller';
+import { ApiKeyController } from './api-key.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
 import { LicenseModule } from '../license/license.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserPasskey]),
+    TypeOrmModule.forFeature([User, UserPasskey, IntegrationApiKey]),
     LicenseModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -29,8 +31,8 @@ import { LicenseModule } from '../license/license.module';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, WebAuthnService, JwtStrategy, RolesGuard],
-  exports: [AuthService, WebAuthnService, JwtModule, PassportModule, RolesGuard],
+  controllers: [AuthController, ApiKeyController],
+  providers: [AuthService, ApiKeyService, WebAuthnService, JwtStrategy, RolesGuard],
+  exports: [AuthService, ApiKeyService, WebAuthnService, JwtModule, PassportModule, RolesGuard],
 })
 export class AuthModule {}

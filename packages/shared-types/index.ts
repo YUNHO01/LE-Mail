@@ -1048,9 +1048,33 @@ export interface AiImageAnalysisResultDto {
   detectedContact?: AiParsedContactDto | null;
 }
 
+export enum McpApiKeyScope {
+  MCP_READ = 'mcp:read',
+  MCP_WRITE = 'mcp:write',
+}
 
+export interface IntegrationApiKeyItem {
+  id: string;
+  userId: string;
+  name: string;
+  description: string | null;
+  keyPrefix: string;
+  scopes: McpApiKeyScope[];
+  isActive: boolean;
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
+export interface CreateIntegrationApiKeyRequest {
+  name: string;
+  description?: string;
+  scopes: McpApiKeyScope[];
+  expiresAt?: string;
+}
 
-
-
+export interface CreateIntegrationApiKeyResponse extends IntegrationApiKeyItem {
+  rawKey: string;
+}
 

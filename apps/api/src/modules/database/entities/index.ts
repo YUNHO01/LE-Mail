@@ -21,5 +21,7 @@ export * from './department.entity';
 export * from './org-sync-log.entity';
 export * from './user-passkey.entity';
 export * from './user-ai-setting.entity';
+export * from './integration-api-key.entity';
+
 
 

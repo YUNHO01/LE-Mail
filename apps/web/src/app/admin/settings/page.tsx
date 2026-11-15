@@ -327,6 +327,16 @@ const FIELD_HELP: Record<
     desc: '메일 본문이나 서명을 외부 AI로 전송할 때 잘라내는 최대 문자 수입니다. 과도한 토큰 소모 및 대용량 데이터 유출을 방지합니다.',
     recommended: '15000 (약 1.5만 자)',
   },
+  MCP_SERVER_ENABLED: {
+    title: '원격 MCP(Model Context Protocol) 서버 허용',
+    desc: '사용자가 개인 API Key를 발급하여 Claude Desktop, Cursor, 사내 AI 에이전트 등과 LEMail을 MCP 표준 프로토콜로 연동할 수 있도록 허용합니다.',
+    recommended: 'true',
+  },
+  MCP_ALLOW_DIRECT_SEND: {
+    title: 'MCP 에이전트 메일 직접 발송 허용',
+    desc: 'AI 에이전트가 send_mail 도구를 통해 사용자 확인 없이 메일을 즉시 발송할 수 있도록 허용합니다. false로 두면 임시보관함 저장(create_draft)만 허용됩니다.',
+    recommended: 'false (보안상 임시저장 후 웹메일에서 직접 발송 권장)',
+  },
 };
 
 export default function SettingsPage() {
@@ -963,16 +973,20 @@ export default function SettingsPage() {
                           </button>
                         </div>
                       ) : key === 'AI_ALLOWED_PROVIDERS' ? (
-                        <div className="flex flex-wrap gap-2 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                           {(Object.values(AiProvider) as AiProvider[]).map((prov) => {
                             const selectedList: string[] = Array.isArray(value)
                               ? value
                               : typeof value === 'string'
                               ? (() => {
                                   try {
-                                    return JSON.parse(value);
+                                    const parsed = JSON.parse(value);
+                                    return Array.isArray(parsed) ? parsed : [];
                                   } catch {
-                                    return [];
+                                    return value
+                                      .split(',')
+                                      .map((s) => s.trim())
+                                      .filter(Boolean);
                                   }
                                 })()
                               : [];
@@ -980,24 +994,27 @@ export default function SettingsPage() {
                             return (
                               <label
                                 key={prov}
-                                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium cursor-pointer transition ${
+                                className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs font-medium cursor-pointer transition ${
                                   checked
-                                    ? 'border-indigo-500 bg-indigo-500/20 text-indigo-200'
+                                    ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-200'
                                     : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600'
                                 }`}
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={(e) => {
-                                    const next = e.target.checked
-                                      ? Array.from(new Set([...selectedList, prov]))
-                                      : selectedList.filter((p) => p !== prov);
-                                    handleInputChange(key, next);
-                                  }}
-                                  className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500"
-                                />
-                                <span>{prov}</span>
+                                <span className="font-semibold">{prov}</span>
+                                <span className="relative inline-flex shrink-0 items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      const next = e.target.checked
+                                        ? Array.from(new Set([...selectedList, prov]))
+                                        : selectedList.filter((p) => p !== prov);
+                                      handleInputChange(key, next);
+                                    }}
+                                    className="peer sr-only"
+                                  />
+                                  <span className="peer h-5 w-9 rounded-full bg-slate-800 after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-4 peer-focus:outline-none"></span>
+                                </span>
                               </label>
                             );
                           })}

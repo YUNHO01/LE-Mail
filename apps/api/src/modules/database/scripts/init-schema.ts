@@ -374,6 +374,24 @@ const schemaStatements = [
     UNIQUE INDEX \`uq_up_credential_id\` (\`credential_id\`),
     CONSTRAINT \`fk_up_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`integration_api_key\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`name\` VARCHAR(120) NOT NULL,
+    \`description\` VARCHAR(500) NULL,
+    \`key_prefix\` VARCHAR(24) NOT NULL,
+    \`key_hash\` VARCHAR(64) NOT NULL,
+    \`scopes\` JSON NOT NULL,
+    \`is_active\` BOOLEAN NOT NULL DEFAULT TRUE,
+    \`expires_at\` TIMESTAMP NULL,
+    \`last_used_at\` TIMESTAMP NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_iak_user\` (\`user_id\`, \`is_active\`),
+    UNIQUE INDEX \`uq_iak_key_hash\` (\`key_hash\`),
+    CONSTRAINT \`fk_iak_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 export interface SchemaLogger {

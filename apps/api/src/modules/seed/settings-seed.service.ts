@@ -469,6 +469,30 @@ export class SettingsSeedService {
       targetModule: TargetModule.NONE,
       description: '외부 AI로 전송할 메일 본문 최대 글자 수 (DLP 및 토큰 보호)',
     },
+    {
+      category: SettingCategory.AI,
+      key: 'MCP_SERVER_ENABLED',
+      envKey: 'MCP_SERVER_ENABLED',
+      defaultValue: 'true',
+      valueType: 'boolean',
+      isEncrypted: false,
+      isSecret: false,
+      restartRequired: RestartLevel.NONE,
+      targetModule: TargetModule.NONE,
+      description: '원격 MCP(Model Context Protocol) 서버 연동 허용 여부',
+    },
+    {
+      category: SettingCategory.AI,
+      key: 'MCP_ALLOW_DIRECT_SEND',
+      envKey: 'MCP_ALLOW_DIRECT_SEND',
+      defaultValue: 'false',
+      valueType: 'boolean',
+      isEncrypted: false,
+      isSecret: false,
+      restartRequired: RestartLevel.NONE,
+      targetModule: TargetModule.NONE,
+      description: 'MCP 에이전트의 메일 직접 발송(send_mail) 허용 여부 (false 시 임시저장만 가능)',
+    },
   ];
 
   constructor(

@@ -12,6 +12,7 @@ import {
   HardDrive,
   Fingerprint,
   Sparkles,
+  PlugZap,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SignatureSettingsTab } from '@/components/settings/SignatureSettingsTab';
@@ -20,10 +21,11 @@ import { MailboxBackupTab } from '@/components/settings/MailboxBackupTab';
 import { PasswordChangeTab } from '@/components/settings/PasswordChangeTab';
 import { BiometricSettingsTab } from '@/components/settings/BiometricSettingsTab';
 import { AiSettingsTab } from '@/components/settings/AiSettingsTab';
+import { McpApiKeySettingsTab } from '@/components/settings/McpApiKeySettingsTab';
 import { fetchApi } from '@/lib/api';
 import { AiPolicyDto } from '@lemail/shared-types';
 
-type SettingsSection = 'menu' | 'signature' | 'spam' | 'backup' | 'password' | 'biometric' | 'ai';
+type SettingsSection = 'menu' | 'signature' | 'spam' | 'backup' | 'password' | 'biometric' | 'ai' | 'mcp';
 
 const SECTION_META: Record<Exclude<SettingsSection, 'menu'>, string> = {
   signature: '서명 관리',
@@ -32,6 +34,7 @@ const SECTION_META: Record<Exclude<SettingsSection, 'menu'>, string> = {
   password: '비밀번호 변경',
   biometric: '생체인식 로그인',
   ai: 'AI 어시스턴트',
+  mcp: 'MCP 연동 (API Key)',
 };
 
 function SettingsContent() {
@@ -72,6 +75,7 @@ function SettingsContent() {
           {section === 'password' && <PasswordChangeTab />}
           {section === 'biometric' && <BiometricSettingsTab />}
           {section === 'ai' && <AiSettingsTab />}
+          {section === 'mcp' && <McpApiKeySettingsTab />}
         </div>
       </div>
     );
@@ -204,6 +208,20 @@ function SettingsContent() {
                 <Archive className="h-4 w-4" />
               </span>
               <span className="text-sm font-semibold text-slate-900">메일함 백업</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-slate-300" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSection('mcp')}
+            className="flex w-full items-center justify-between px-4 py-3.5 text-left active:bg-slate-50"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500 text-white">
+                <PlugZap className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-semibold text-slate-900">MCP 연동 (API Key)</span>
             </div>
             <ChevronRight className="h-4 w-4 text-slate-300" />
           </button>

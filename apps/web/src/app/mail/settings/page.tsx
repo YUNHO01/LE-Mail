@@ -2,23 +2,24 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { PenTool, ShieldBan, Archive, Settings, KeyRound, Sparkles } from 'lucide-react';
+import { PenTool, ShieldBan, Archive, Settings, KeyRound, Sparkles, PlugZap } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SignatureSettingsTab } from '@/components/settings/SignatureSettingsTab';
 import { SpamBlockSettingsTab } from '@/components/settings/SpamBlockSettingsTab';
 import { MailboxBackupTab } from '@/components/settings/MailboxBackupTab';
 import { PasswordChangeTab } from '@/components/settings/PasswordChangeTab';
 import { AiSettingsTab } from '@/components/settings/AiSettingsTab';
+import { McpApiKeySettingsTab } from '@/components/settings/McpApiKeySettingsTab';
 import { fetchApi } from '@/lib/api';
 import { AiPolicyDto } from '@lemail/shared-types';
 
-type SettingsTab = 'signature' | 'spam' | 'backup' | 'password' | 'ai';
+type SettingsTab = 'signature' | 'spam' | 'backup' | 'password' | 'ai' | 'mcp';
 
 function SettingsContent() {
   const searchParams = useSearchParams();
 
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'signature';
-  const validTabs: SettingsTab[] = ['signature', 'spam', 'backup', 'password', 'ai'];
+  const validTabs: SettingsTab[] = ['signature', 'spam', 'backup', 'password', 'ai', 'mcp'];
   const [activeTab, setActiveTab] = useState<SettingsTab>(
     validTabs.includes(initialTab) ? initialTab : 'signature',
   );
@@ -131,6 +132,19 @@ function SettingsContent() {
             <span>AI 어시스턴트</span>
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={() => handleTabChange('mcp')}
+          className={`flex items-center gap-2 pb-3.5 px-4 text-sm font-semibold border-b-2 transition ${
+            activeTab === 'mcp'
+              ? 'border-sky-600 text-sky-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <PlugZap className="h-4 w-4" />
+          <span>MCP 연동</span>
+        </button>
       </div>
 
       {/* 탭 본문 영역 (메일함 목록과 동일한 w-full 전폭 레이아웃) */}
@@ -140,6 +154,7 @@ function SettingsContent() {
         {activeTab === 'backup' && <MailboxBackupTab />}
         {activeTab === 'password' && <PasswordChangeTab />}
         {activeTab === 'ai' && <AiSettingsTab />}
+        {activeTab === 'mcp' && <McpApiKeySettingsTab />}
       </div>
     </div>
   );

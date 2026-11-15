@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Headers, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { ApiKeyService } from './api-key.service';
 import { WebAuthnService } from './webauthn.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -11,8 +12,23 @@ import { CurrentUser } from './decorators/current-user.decorator';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly apiKeyService: ApiKeyService,
     private readonly webAuthnService: WebAuthnService,
   ) {}
+
+  @Post('exchange-api-key')
+  @ApiOperation({
+    summary: 'API Key를 JWT 액세스 토큰으로 교환',
+    description: 'MCP 클라이언트 등 외부 연동 시 개인 API Key로 단기 JWT 토큰과 허용 스코프를 발급받습니다.',
+  })
+  @ApiResponse({ status: 200, description: '교환 성공' })
+  @ApiResponse({ status: 401, description: '유효하지 않거나 만료된 API Key' })
+  async exchangeApiKey(
+    @Body() body: { apiKey?: string },
+    @Headers('x-api-key') headerApiKey?: string,
+  ) {
+    return this.apiKeyService.exchangeApiKey(body?.apiKey || headerApiKey || '');
+  }
 
   @Post('login')
   @ApiOperation({

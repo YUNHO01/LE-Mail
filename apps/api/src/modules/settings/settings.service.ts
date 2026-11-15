@@ -170,6 +170,12 @@ export class SettingsService {
 
       if (inputRawVal === null || inputRawVal === undefined) {
         finalStringVal = '';
+      } else if (item.valueType === 'json') {
+        if (typeof inputRawVal === 'string') {
+          finalStringVal = inputRawVal.trim();
+        } else {
+          finalStringVal = JSON.stringify(inputRawVal);
+        }
       } else if (typeof inputRawVal === 'boolean') {
         finalStringVal = inputRawVal ? 'true' : 'false';
       } else {
@@ -436,6 +442,16 @@ export class SettingsService {
     try {
       return JSON.parse(item.value) as T;
     } catch {
+      // 이전 버전에서 배열이 쉼표 구분 문자열(예: "OPENAI,GEMINI")로 저장된 경우 호환 처리
+      if (Array.isArray(defaultValue)) {
+        const trimmed = item.value.trim();
+        if (trimmed && !trimmed.startsWith('[')) {
+          return trimmed
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean) as unknown as T;
+        }
+      }
       return defaultValue;
     }
   }

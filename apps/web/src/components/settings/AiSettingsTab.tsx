@@ -90,8 +90,16 @@ export function AiSettingsTab() {
         ]);
         setPolicy(pol);
         setIsEnabled(userSet.isEnabled);
-        setProvider(userSet.provider);
-        setModel(userSet.model || PROVIDER_META[userSet.provider].defaultModel);
+        const effectiveProvider =
+          pol.allowedProviders.length > 0 && !pol.allowedProviders.includes(userSet.provider)
+            ? pol.allowedProviders[0]
+            : userSet.provider;
+        setProvider(effectiveProvider);
+        setModel(
+          effectiveProvider !== userSet.provider
+            ? PROVIDER_META[effectiveProvider].defaultModel
+            : userSet.model || PROVIDER_META[effectiveProvider].defaultModel,
+        );
         setHasApiKey(userSet.hasApiKey);
         setMaskedApiKey(userSet.maskedApiKey);
         setCustomBaseUrl(userSet.customBaseUrl || '');

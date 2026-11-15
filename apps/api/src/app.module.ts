@@ -22,6 +22,7 @@ import { ContactsModule } from './modules/contacts/contacts.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { OrgModule } from './modules/org/org.module';
 import { AiModule } from './modules/ai/ai.module';
+import { McpModule } from './modules/mcp/mcp.module';
 import { LicenseGuard } from './modules/license/guards/license.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -56,6 +57,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
     CalendarModule,
     OrgModule,
     AiModule,
+    McpModule,
     SeedModule,
   ],
   controllers: [AppController],
