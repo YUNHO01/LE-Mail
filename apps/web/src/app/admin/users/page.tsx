@@ -93,6 +93,7 @@ export default function UsersManagementPage() {
     position: string;
     jobTitle: string;
     phone: string;
+    sendWelcomeMail: boolean;
   }>({
     localPart: '',
     selectedDomain: '',
@@ -107,6 +108,7 @@ export default function UsersManagementPage() {
     position: '',
     jobTitle: '',
     phone: '',
+    sendWelcomeMail: true,
   });
 
   // 수정 폼 상태
@@ -348,6 +350,7 @@ export default function UsersManagementPage() {
       position: '',
       jobTitle: '',
       phone: '',
+      sendWelcomeMail: true,
     });
     setIsCreateModalOpen(true);
   };
@@ -394,6 +397,7 @@ export default function UsersManagementPage() {
           position: createForm.position.trim() || null,
           jobTitle: createForm.jobTitle.trim() || null,
           phone: createForm.phone.trim() || null,
+          sendWelcomeMail: createForm.sendWelcomeMail,
         }),
       });
 
@@ -402,10 +406,19 @@ export default function UsersManagementPage() {
         throw new Error(data.message || '사용자 등록 실패');
       }
 
-      setMessage({
-        type: 'success',
-        text: `사용자 '${data.name} (${data.email})' 등록 완료! 전용 사서함이 함께 생성되었습니다.`,
-      });
+      if (createForm.sendWelcomeMail && data.welcomeMailSent === false) {
+        setMessage({
+          type: 'error',
+          text: `사용자 '${data.name} (${data.email})' 등록 및 사서함 생성은 완료되었으나, 환영 메일 발송에 실패했습니다.${data.welcomeMailError ? ` (${data.welcomeMailError})` : ''}`,
+        });
+      } else {
+        setMessage({
+          type: 'success',
+          text: data.welcomeMailSent
+            ? `사용자 '${data.name} (${data.email})' 등록 완료! 전용 사서함 생성 및 환영 메일이 발송되었습니다.`
+            : `사용자 '${data.name} (${data.email})' 등록 완료! 전용 사서함이 함께 생성되었습니다.`,
+        });
+      }
       setIsCreateModalOpen(false);
       fetchUsers();
     } catch (err: any) {
@@ -1288,6 +1301,23 @@ export default function UsersManagementPage() {
                     />
                   </div>
                 </div>
+
+                <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={createForm.sendWelcomeMail}
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        sendWelcomeMail: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                  />
+                  <span className="text-xs font-medium text-slate-700">
+                    등록 완료 시 신규 사용자 메일함으로 환영 메일 자동 발송
+                  </span>
+                </label>
 
                 <div className="mt-6 flex justify-end gap-2 pt-2 border-t border-slate-100">
                   <button

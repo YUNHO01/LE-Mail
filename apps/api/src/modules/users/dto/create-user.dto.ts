@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -84,4 +85,14 @@ export class CreateUserDto {
   @IsEnum(['ACTIVE', 'ON_LEAVE', 'RESIGNED'])
   @IsOptional()
   employmentStatus?: EmploymentStatus;
+
+  @ApiProperty({
+    example: true,
+    required: false,
+    default: true,
+    description: '계정 및 메일함 생성 후 환영 메일 자동 발송 여부',
+  })
+  @IsBoolean()
+  @IsOptional()
+  sendWelcomeMail?: boolean;
 }

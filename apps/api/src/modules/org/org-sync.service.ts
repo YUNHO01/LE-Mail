@@ -1,10 +1,12 @@
 import * as crypto from 'crypto';
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -26,6 +28,7 @@ import {
 import { LicenseService } from '../license/license.service';
 import { MailFolderService } from '../mail-folder/mail-folder.service';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
+import { MailService } from '../mail/mail.service';
 import {
   AmsDepartmentPayloadDto,
   AmsEmployeePayloadDto,
@@ -41,6 +44,7 @@ export interface AmsSyncSettingsDto {
   hasApiToken: boolean;
   intervalMinutes: number;
   autoProvisionMailbox: boolean;
+  sendWelcomeMail: boolean;
 }
 
 const AMS_SETTING_KEYS = {
@@ -51,6 +55,7 @@ const AMS_SETTING_KEYS = {
   API_TOKEN: 'ams.api.token',
   INTERVAL_MINUTES: 'ams.sync.interval_minutes',
   AUTO_PROVISION: 'ams.sync.auto_provision_mailbox',
+  SEND_WELCOME_MAIL: 'ams.sync.send_welcome_mail',
 } as const;
 
 @Injectable()
@@ -75,6 +80,8 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     private readonly licenseService: LicenseService,
     private readonly mailFolderService: MailFolderService,
     private readonly mailboxCacheService: MailboxCacheService,
+    @Inject(forwardRef(() => MailService))
+    private readonly mailService: MailService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -107,6 +114,7 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
       hasApiToken: Boolean(map.get(AMS_SETTING_KEYS.API_TOKEN)),
       intervalMinutes: Number.isFinite(intervalRaw) && intervalRaw >= 5 ? intervalRaw : 60,
       autoProvisionMailbox: map.get(AMS_SETTING_KEYS.AUTO_PROVISION) !== 'false',
+      sendWelcomeMail: map.get(AMS_SETTING_KEYS.SEND_WELCOME_MAIL) !== 'false',
     };
   }
 
@@ -173,6 +181,15 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
         'boolean',
         false,
         '신규 입사자 LEMail 사서함 자동 생성 여부',
+      );
+    }
+    if (dto.sendWelcomeMail !== undefined) {
+      await this.upsertSetting(
+        AMS_SETTING_KEYS.SEND_WELCOME_MAIL,
+        String(dto.sendWelcomeMail),
+        'boolean',
+        false,
+        '신규 사용자 생성 시 환영 메일 자동 발송 여부',
       );
     }
 
@@ -308,6 +325,7 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
         headers,
         settings.autoProvisionMailbox,
       );
+      payload.sendWelcomeMail = payload.sendWelcomeMail ?? settings.sendWelcomeMail;
       return await this.syncFromAmsPayload(payload);
     } finally {
       this.isSyncRunning = false;
@@ -432,6 +450,7 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     );
 
     const errors: string[] = [];
+    const createdUsers: User[] = [];
     let createdCount = 0;
     let updatedCount = 0;
     let deactivatedCount = 0;
@@ -480,6 +499,9 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
             createdCount++;
             remainingSeats = Math.max(0, remainingSeats - 1);
             mailboxCacheDirty = true;
+            if (result.createdUser) {
+              createdUsers.push(result.createdUser);
+            }
           } else if (result.action === 'UPDATED') {
             updatedCount++;
             if (result.mailboxChanged) mailboxCacheDirty = true;
@@ -498,6 +520,16 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
 
       if (mailboxCacheDirty) {
         await this.mailboxCacheService.invalidate();
+      }
+
+      if (createdUsers.length > 0) {
+        const shouldSendWelcome =
+          dto.sendWelcomeMail !== undefined
+            ? dto.sendWelcomeMail
+            : (await this.getSyncSettings()).sendWelcomeMail;
+        if (shouldSendWelcome) {
+          void this.dispatchWelcomeMails(createdUsers);
+        }
       }
 
       syncLog.totalCount = departments.length + employees.length;
@@ -601,7 +633,7 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     remainingSeats: number,
     deptByAmsId: Map<string, Department>,
     deptByCode: Map<string, Department>,
-  ): Promise<{ action: 'CREATED' | 'UPDATED' | 'DEACTIVATED' | 'SKIPPED'; mailboxChanged?: boolean; reason?: string }> {
+  ): Promise<{ action: 'CREATED' | 'UPDATED' | 'DEACTIVATED' | 'SKIPPED'; mailboxChanged?: boolean; reason?: string; createdUser?: User }> {
     const empNo = emp.employeeNumber.trim();
     const targetDept =
       (emp.amsDeptId ? deptByAmsId.get(emp.amsDeptId) : undefined) ||
@@ -728,12 +760,24 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
 
       await this.mailFolderService.initDefaultFolders(savedUser.id, queryRunner.manager);
       await queryRunner.commitTransaction();
-      return { action: 'CREATED', mailboxChanged: true };
+      return { action: 'CREATED', mailboxChanged: true, createdUser: savedUser };
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  private async dispatchWelcomeMails(users: User[]): Promise<void> {
+    for (const user of users) {
+      try {
+        await this.mailService.sendWelcomeMail(user);
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed to send welcome mail during org sync to ${user.email}: ${err?.message || err}`,
+        );
+      }
     }
   }
 }

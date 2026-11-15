@@ -3,8 +3,11 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
@@ -17,9 +20,12 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserDto, UserRole, UserStorageUsageDto, UserSignatureDto, UpdateUserSignatureDto } from '@lemail/shared-types';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
 import { MailFolderService } from '../mail-folder/mail-folder.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -31,6 +37,8 @@ export class UsersService {
     private readonly departmentRepository: Repository<Department>,
     private readonly mailboxCacheService: MailboxCacheService,
     private readonly mailFolderService: MailFolderService,
+    @Inject(forwardRef(() => MailService))
+    private readonly mailService: MailService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -237,7 +245,9 @@ export class UsersService {
     );
   }
 
-  async create(createUserDto: CreateUserDto): Promise<UserDto> {
+  async create(
+    createUserDto: CreateUserDto,
+  ): Promise<UserDto & { welcomeMailSent?: boolean; welcomeMailError?: string }> {
     const normalizedEmail = createUserDto.email.toLowerCase().trim();
 
     // Check duplicate
@@ -345,7 +355,26 @@ export class UsersService {
     // Invalidate/refresh mailbox cache for instant SMTP reception
     await this.mailboxCacheService.invalidate();
 
-    return this.toDto(savedUser);
+    // 트랜잭션 커밋 후 환영 메일 발송 (실패해도 사용자 등록은 성공 유지)
+    let welcomeMailSent = false;
+    let welcomeMailError: string | undefined;
+    if (createUserDto.sendWelcomeMail !== false) {
+      try {
+        await this.mailService.sendWelcomeMail(savedUser);
+        welcomeMailSent = true;
+      } catch (err: any) {
+        welcomeMailError = err?.message || String(err);
+        this.logger.warn(
+          `Failed to send welcome mail to ${savedUser.email}: ${welcomeMailError}`,
+        );
+      }
+    }
+
+    return {
+      ...this.toDto(savedUser),
+      welcomeMailSent,
+      ...(welcomeMailError ? { welcomeMailError } : {}),
+    };
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<UserDto> {

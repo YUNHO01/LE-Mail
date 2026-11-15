@@ -4704,6 +4704,12 @@
               "RESIGNED"
             ],
             "description": "재직 상태"
+          },
+          "sendWelcomeMail": {
+            "type": "boolean",
+            "example": true,
+            "default": true,
+            "description": "계정 및 메일함 생성 후 환영 메일 자동 발송 여부"
           }
         },
         "required": [
@@ -5659,6 +5665,12 @@
             "example": true,
             "default": true,
             "description": "미등록 신규 임직원에 대한 LEMail 사서함 자동 생성 여부 (라이선스 한도 내)"
+          },
+          "sendWelcomeMail": {
+            "type": "boolean",
+            "example": true,
+            "default": true,
+            "description": "신규 사용자 생성 시 환영 메일 자동 발송 여부"
           }
         }
       },
@@ -5699,6 +5711,11 @@
             "type": "boolean",
             "example": true,
             "description": "신규 입사자 사서함 자동 생성 여부"
+          },
+          "sendWelcomeMail": {
+            "type": "boolean",
+            "example": true,
+            "description": "신규 사용자 생성 시 환영 메일 자동 발송 여부"
           }
         }
       },

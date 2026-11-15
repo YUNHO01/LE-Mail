@@ -1592,4 +1592,230 @@ export class MailService {
       draftId: mailId,
     };
   }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private buildWelcomeMailContent(
+    targetUser: User,
+    aiEnabled: boolean,
+  ): { subject: string; text: string; html: string } {
+    const safeName = this.escapeHtml(targetUser.name || targetUser.email);
+    const safeEmail = this.escapeHtml(targetUser.email);
+    const quotaMb = targetUser.mailboxQuotaMb ?? 512;
+
+    const subject = `[LEMail] ${targetUser.name || targetUser.email}님, 사내 메일 계정 생성을 환영합니다.`;
+
+    const textLines = [
+      `${targetUser.name || targetUser.email}님, 안녕하세요.`,
+      `LEMail 사내 메일 계정이 생성되어 바로 사용하실 수 있습니다.`,
+      ``,
+      `[계정 및 메일함 안내]`,
+      `- 이메일 주소: ${targetUser.email}`,
+      `- 할당 사서함 용량: ${quotaMb} MB`,
+      `- 기본 제공 편지함: 받은편지함, 보낸편지함, 임시보관함, 스팸메일함, 휴지통, 개인편지함`,
+      `- 보안 안내: 최초 로그인 후 '환경설정'에서 비밀번호 변경 및 개인 서명을 설정해 주세요.`,
+      `- 접속 환경: 데스크톱 웹메일, 모바일 PWA 및 표준 IMAP/SMTP 클라이언트 연동 지원`,
+      ``,
+      `[주소록 기능 요약]`,
+      `- 개인 연락처·그룹 관리 및 중요 연락처 즐겨찾기`,
+      `- 부서별 사내 임직원 주소록 실시간 조회`,
+      `- Excel(.xlsx), Outlook 호환 CSV, vCard(.vcf) 가져오기/내보내기 지원`,
+      ``,
+      `[캘린더 기능 요약]`,
+      `- 개인 캘린더 및 사내 공유 캘린더 일정 관리·메일 알림`,
+      `- 공휴일 자동 표시 및 iCalendar(.ics) 일정 가져오기/내보내기 지원`,
+    ];
+
+    if (aiEnabled) {
+      textLines.push(
+        ``,
+        `[AI 도우미 기능 요약]`,
+        `- 개인 설정 > AI 설정에서 본인 API Key(OpenAI, Gemini, Claude 등) 연동 후 사용 가능`,
+        `- 메일 본문 AI 요약 및 핵심 할 일·주요 일정 추출`,
+        `- 메일 AI 초안 작성, 답장 생성, 문체 다듬기 및 번역`,
+        `- 인라인 이미지/명함 AI 해석(OCR) 및 서명·자연어 기반 연락처/일정 자동 추출`,
+      );
+    }
+
+    textLines.push(``, `감사합니다.`, `LEMail 시스템 드림`);
+
+    const aiHtmlSection = aiEnabled
+      ? `
+      <div style="margin-top: 20px; padding: 16px 18px; background-color: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #5b21b6;">AI 도우미 기능 안내</h3>
+        <p style="margin: 0 0 8px 0; font-size: 13px; color: #4c1d95;">
+          개인 설정 &gt; AI 설정에서 본인의 외부 AI API Key(OpenAI, Gemini, Claude 등)를 등록하면 아래 기능을 사용할 수 있습니다. (API Key는 암호화되어 안전하게 보관됩니다.)
+        </p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: #334155;">
+          <li><strong>메일 AI 요약 및 할 일 추출</strong>: 긴 메일의 핵심 내용과 액션 아이템·주요 일정을 자동 정리</li>
+          <li><strong>메일 AI 초안 작성·답장·다듬기·번역</strong>: 키워드나 원문을 바탕으로 메일 초안 생성 및 문체 교정</li>
+          <li><strong>이미지/서명 AI 추출</strong>: 인라인 이미지(OCR) 해석, 명함·서명에서 연락처 추출 및 자연어 일정 자동 등록</li>
+        </ul>
+      </div>`
+      : '';
+
+    const html = `<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8" /></head>
+<body style="margin: 0; padding: 24px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: #1e293b;">
+  <div style="max-width: 640px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden;">
+    <div style="padding: 24px 28px; background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff;">
+      <h1 style="margin: 0; font-size: 20px; font-weight: 700;">LEMail 계정 생성을 환영합니다</h1>
+      <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.92;">${safeName}님의 사내 메일함이 성공적으로 준비되었습니다.</p>
+    </div>
+    <div style="padding: 24px 28px;">
+      <div style="padding: 16px 18px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #0369a1;">계정 및 메일함 안내</h3>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: #334155;">
+          <li><strong>이메일 주소</strong>: ${safeEmail}</li>
+          <li><strong>할당 사서함 용량</strong>: ${quotaMb} MB</li>
+          <li><strong>기본 편지함</strong>: 받은편지함, 보낸편지함, 임시보관함, 스팸메일함, 휴지통, 개인편지함</li>
+          <li><strong>접속 및 보안</strong>: 데스크톱 웹메일·모바일 PWA·IMAP/SMTP 클라이언트를 지원하며, 최초 로그인 후 <strong>환경설정</strong>에서 비밀번호 변경 및 서명을 설정해 주세요.</li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 20px; padding: 16px 18px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #0f172a;">주소록 기능 요약</h3>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: #334155;">
+          <li>개인 연락처·그룹 관리 및 중요 연락처 즐겨찾기</li>
+          <li>부서별 <strong>사내 임직원 주소록</strong> 실시간 조회</li>
+          <li>Excel(.xlsx), Outlook 호환 CSV, vCard(.vcf) 가져오기 및 내보내기 지원</li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 20px; padding: 16px 18px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #0f172a;">캘린더 기능 요약</h3>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: #334155;">
+          <li>개인 캘린더 및 <strong>사내 공유 캘린더</strong> 일정 등록·수정 및 메일 알림</li>
+          <li>공휴일 자동 표시 및 iCalendar(.ics) 일정 가져오기·내보내기 지원</li>
+        </ul>
+      </div>
+      ${aiHtmlSection}
+      <p style="margin: 24px 0 0 0; font-size: 12px; color: #64748b;">
+        본 메일은 신규 계정 생성 시 시스템에서 자동으로 발송되는 안내 메일입니다.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    return {
+      subject,
+      text: textLines.join('\n'),
+      html,
+    };
+  }
+
+  /**
+   * 신규 사용자 등록 시 시스템 환영 메일을 수신자 받은편지함(INBOX)으로 직접 배달합니다.
+   */
+  async sendWelcomeMail(targetUser: User): Promise<void> {
+    const aiEnabled = await this.settingsService.getBooleanSetting(
+      'AI_PERSONAL_EXTERNAL_ENABLED',
+      false,
+    );
+    const { subject, text, html } = this.buildWelcomeMailContent(targetUser, aiEnabled);
+
+    const domain = targetUser.email.includes('@')
+      ? targetUser.email.split('@')[1].toLowerCase().trim()
+      : 'lemail.local';
+    const systemSender = `noreply@${domain}`;
+    const mailId = randomUUID();
+    const now = new Date();
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const archiveBaseDir = resolve(
+      process.cwd(),
+      process.env.MAIL_ARCHIVE_DIR || process.env.ARCHIVE_DIR || 'mail-archive',
+    );
+    const archiveDir = join(archiveBaseDir, year, month, day);
+    if (!existsSync(archiveDir)) {
+      mkdirSync(archiveDir, { recursive: true });
+    }
+    const emlPath = join(archiveDir, `${mailId}.eml`);
+
+    const transporter = nodemailer.createTransport({
+      streamTransport: true,
+      buffer: true,
+      newline: 'windows',
+    });
+
+    const info = await transporter.sendMail({
+      from: `"LEMail 시스템" <${systemSender}>`,
+      to: targetUser.email,
+      subject,
+      text,
+      html,
+    });
+    const emlBuffer = info.message as Buffer;
+    writeFileSync(emlPath, emlBuffer);
+
+    const message = this.messageRepo.create({
+      id: mailId,
+      direction: Direction.INBOUND,
+      messageId: info.messageId || `<welcome-${mailId}@${domain}>`,
+      sender: systemSender,
+      subject,
+      rawFilePath: emlPath,
+      spfResult: SpfResult.PASS,
+      dkimResult: DkimResult.NONE,
+      dmarcResult: DmarcResult.PASS,
+      status: MailStatus.PROCESSED,
+      spamScore: 0,
+      isSecure: false,
+      isImportant: false,
+      recipients: [
+        this.recipientRepo.create({
+          type: RecipientType.TO,
+          address: targetUser.email,
+        }),
+      ],
+    });
+    await this.messageRepo.save(message);
+
+    let inbox = await this.folderRepo.findOne({
+      where: { userId: targetUser.id, type: FolderType.INBOX },
+    });
+    if (!inbox) {
+      inbox = await this.folderRepo.save(
+        this.folderRepo.create({
+          id: randomUUID(),
+          userId: targetUser.id,
+          name: '받은편지함',
+          type: FolderType.INBOX,
+          isSystem: true,
+          sortOrder: 1,
+        }),
+      );
+    }
+
+    const inboxUid = inbox.uidnext || 1;
+    inbox.uidnext = inboxUid + 1;
+    await this.folderRepo.save(inbox);
+
+    await this.userMailRepo.save(
+      this.userMailRepo.create({
+        userId: targetUser.id,
+        messageId: mailId,
+        folderId: inbox.id,
+        uid: inboxUid,
+        isRead: false,
+        isStarred: false,
+        isDeleted: false,
+        isAnswered: false,
+        isForwarded: false,
+        isDraft: false,
+      }),
+    );
+
+    this.logger.log(`Welcome mail delivered to ${targetUser.email} (mailId: ${mailId}, aiEnabled: ${aiEnabled})`);
+  }
 }

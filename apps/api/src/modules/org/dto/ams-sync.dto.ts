@@ -152,6 +152,11 @@ export class UpdateAmsSyncSettingsDto {
   @IsBoolean()
   @IsOptional()
   autoProvisionMailbox?: boolean;
+
+  @ApiProperty({ example: true, required: false, description: '신규 사용자 생성 시 환영 메일 자동 발송 여부' })
+  @IsBoolean()
+  @IsOptional()
+  sendWelcomeMail?: boolean;
 }
 
 export class SyncAmsOrgDto {
@@ -188,4 +193,14 @@ export class SyncAmsOrgDto {
   @IsBoolean()
   @IsOptional()
   autoProvisionMailbox?: boolean;
+
+  @ApiProperty({
+    example: true,
+    required: false,
+    default: true,
+    description: '신규 사용자 생성 시 환영 메일 자동 발송 여부',
+  })
+  @IsBoolean()
+  @IsOptional()
+  sendWelcomeMail?: boolean;
 }

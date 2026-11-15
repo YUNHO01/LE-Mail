@@ -86,6 +86,7 @@ export default function AdminOrgPage() {
     hasApiToken: false,
     intervalMinutes: 60,
     autoProvisionMailbox: true,
+    sendWelcomeMail: true,
   });
   const [savingSettings, setSavingSettings] = useState(false);
   const [pulling, setPulling] = useState(false);
@@ -111,6 +112,7 @@ export default function AdminOrgPage() {
         hasApiToken: settingsRes.hasApiToken,
         intervalMinutes: settingsRes.intervalMinutes,
         autoProvisionMailbox: settingsRes.autoProvisionMailbox,
+        sendWelcomeMail: settingsRes.sendWelcomeMail ?? true,
         apiToken: '',
       }));
       setExpandedIds((prev) => {
@@ -237,6 +239,7 @@ export default function AdminOrgPage() {
         apiToken: syncSettings.apiToken.trim() || undefined,
         intervalMinutes: Number(syncSettings.intervalMinutes) || 60,
         autoProvisionMailbox: syncSettings.autoProvisionMailbox,
+        sendWelcomeMail: syncSettings.sendWelcomeMail,
       });
       setSyncSettings((prev) => ({
         ...prev,
@@ -247,6 +250,7 @@ export default function AdminOrgPage() {
         hasApiToken: updated.hasApiToken,
         intervalMinutes: updated.intervalMinutes,
         autoProvisionMailbox: updated.autoProvisionMailbox,
+        sendWelcomeMail: updated.sendWelcomeMail ?? true,
         apiToken: '',
       }));
       setMessage({
@@ -548,6 +552,12 @@ export default function AdminOrgPage() {
               checked={syncSettings.autoProvisionMailbox}
               onChange={(val) => setSyncSettings((p) => ({ ...p, autoProvisionMailbox: val }))}
               label="신규 입사자 LEMail 계정 및 사서함 자동 생성 (라이선스 정원 내)"
+              color="indigo"
+            />
+            <ToggleSwitch
+              checked={syncSettings.sendWelcomeMail}
+              onChange={(val) => setSyncSettings((p) => ({ ...p, sendWelcomeMail: val }))}
+              label="신규 사용자 생성 시 환영 메일 자동 발송"
               color="indigo"
             />
           </div>

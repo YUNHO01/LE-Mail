@@ -363,6 +363,7 @@ export const orgApi = {
   syncAms: (payload: {
     syncType?: OrgSyncType;
     autoProvisionMailbox?: boolean;
+    sendWelcomeMail?: boolean;
     departments?: Array<{
       amsDeptId: string;
       code?: string | null;
@@ -404,6 +405,7 @@ export const orgApi = {
       hasApiToken: boolean;
       intervalMinutes: number;
       autoProvisionMailbox: boolean;
+      sendWelcomeMail: boolean;
     }>('/org/sync/settings'),
 
   updateSyncSettings: (dto: {
@@ -414,6 +416,7 @@ export const orgApi = {
     apiToken?: string;
     intervalMinutes?: number;
     autoProvisionMailbox?: boolean;
+    sendWelcomeMail?: boolean;
   }) =>
     fetchApi<{
       enabled: boolean;
@@ -423,6 +426,7 @@ export const orgApi = {
       hasApiToken: boolean;
       intervalMinutes: number;
       autoProvisionMailbox: boolean;
+      sendWelcomeMail: boolean;
     }>('/org/sync/settings', {
       method: 'PATCH',
       body: JSON.stringify(dto),
