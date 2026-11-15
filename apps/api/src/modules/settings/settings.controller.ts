@@ -46,7 +46,7 @@ export class SettingsController {
     summary: '환경설정 단계(Step)별 설정 조회 (마스킹 포함)',
     description: '지정된 단계의 설정을 조회합니다. 비밀번호 및 시크릿 키는 마스킹 처리되어 반환됩니다.',
   })
-  @ApiParam({ name: 'step', description: '단계 번호 (1: 서버, 2: 수신, 3: 발송/릴레이, 4: 보안/인증, 5: 인프라)' })
+  @ApiParam({ name: 'step', description: '단계 번호 (1: 서버, 2: 수신, 3: 발송/릴레이, 4: 보안/인증, 5: 인프라, 6: AI 지원)' })
   getStepSettings(@Param('step', ParseIntPipe) step: number) {
     return this.settingsService.getSettingsByStep(step);
   }
@@ -56,7 +56,7 @@ export class SettingsController {
     summary: '환경설정 단계(Step)별 설정 저장 및 재시작 필요 여부 확인',
     description: '지정된 단계의 설정을 저장하고, 변경 사항에 따른 모듈 재시작 필요 여부와 대상 모듈 목록을 반환합니다.',
   })
-  @ApiParam({ name: 'step', description: '단계 번호 (1~5)' })
+  @ApiParam({ name: 'step', description: '단계 번호 (1~6)' })
   saveStepSettings(
     @Param('step', ParseIntPipe) step: number,
     @Body() dto: UpdateStepSettingsDto,

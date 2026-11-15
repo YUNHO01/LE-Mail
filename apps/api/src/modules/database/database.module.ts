@@ -26,6 +26,7 @@ import {
   Department,
   OrgSyncLog,
   UserPasskey,
+  UserAiSetting,
 } from './entities';
 
 @Module({
@@ -65,6 +66,7 @@ import {
             Department,
             OrgSyncLog,
             UserPasskey,
+            UserAiSetting,
           ],
           synchronize: false,
           timezone: 'Z',
@@ -95,6 +97,7 @@ import {
       SystemHoliday,
       Department,
       OrgSyncLog,
+      UserAiSetting,
     ]),
   ],
   exports: [TypeOrmModule],

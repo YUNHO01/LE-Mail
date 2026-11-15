@@ -28,6 +28,7 @@ export const STEP_CATEGORY_MAP: Record<number, SettingCategory> = {
   3: SettingCategory.SMTP_OUTBOUND,
   4: SettingCategory.AUTH,
   5: SettingCategory.INFRA,
+  6: SettingCategory.AI,
 };
 
 export const CATEGORY_LABEL_MAP: Record<SettingCategory, string> = {
@@ -36,6 +37,7 @@ export const CATEGORY_LABEL_MAP: Record<SettingCategory, string> = {
   [SettingCategory.SMTP_OUTBOUND]: '메일 발송 & 스마트호스트 릴레이',
   [SettingCategory.AUTH]: '보안 및 JWT 인증',
   [SettingCategory.INFRA]: '데이터베이스 & Redis 인프라',
+  [SettingCategory.AI]: '개인용 외부 AI 지원 정책',
 };
 
 // .env 파일에만 유지되어야 하는 최소한의 부트스트랩/초기 설치 인프라 키 목록
@@ -403,6 +405,38 @@ export class SettingsService {
         success: false,
         message: `Redis 연결 실패: ${err.message}`,
       };
+    }
+  }
+
+  /**
+   * 단건 시스템 설정 값 조회 헬퍼 (타 모듈 연동용)
+   */
+  async getBooleanSetting(key: string, defaultValue = false): Promise<boolean> {
+    const item = await this.settingsRepo.findOne({ where: { key } });
+    if (!item || item.value === null || item.value === undefined) {
+      return defaultValue;
+    }
+    return item.value === 'true' || item.value === '1';
+  }
+
+  async getNumberSetting(key: string, defaultValue = 0): Promise<number> {
+    const item = await this.settingsRepo.findOne({ where: { key } });
+    if (!item || item.value === null || item.value === undefined) {
+      return defaultValue;
+    }
+    const parsed = Number(item.value);
+    return Number.isFinite(parsed) ? parsed : defaultValue;
+  }
+
+  async getJsonSetting<T>(key: string, defaultValue: T): Promise<T> {
+    const item = await this.settingsRepo.findOne({ where: { key } });
+    if (!item || !item.value) {
+      return defaultValue;
+    }
+    try {
+      return JSON.parse(item.value) as T;
+    } catch {
+      return defaultValue;
     }
   }
 

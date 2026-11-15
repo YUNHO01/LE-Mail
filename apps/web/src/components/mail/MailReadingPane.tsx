@@ -13,6 +13,7 @@ import {
   UpdateCalendarEventDto,
 } from '@lemail/shared-types';
 import { EventModal } from '@/components/calendar/EventModal';
+import { MailAiAssistantPanel } from '@/components/ai/MailAiAssistantPanel';
 import {
   ArrowLeft,
   Download,
@@ -413,32 +414,23 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             </div>
           </div>
 
-          {/* Security Verification Badges (Compact) */}
-          {(mail.spfResult || mail.dkimResult || mail.dmarcResult) && (
-            <div className="flex flex-wrap items-center gap-1.5 py-2.5 border-b border-black/[0.06] text-[11px]">
-              <span className="text-[#86868b] font-medium mr-1">보안 인증:</span>
-              {[
-                { label: 'SPF', val: mail.spfResult },
-                { label: 'DKIM', val: mail.dkimResult },
-                { label: 'DMARC', val: mail.dmarcResult },
-              ].map(({ label, val }) => {
-                const res = val || 'NONE';
-                let badgeColor = 'bg-black/[0.04] text-[#6e6e73]';
-                if (res === 'PASS') {
-                  badgeColor = 'bg-[#34c759]/12 text-[#248a3d] font-medium';
-                } else if (res === 'FAIL') {
-                  badgeColor = 'bg-[#ff3b30]/12 text-[#ff3b30] font-medium';
-                } else if (res === 'SOFTFAIL' || res === 'NEUTRAL') {
-                  badgeColor = 'bg-[#ff9500]/12 text-[#b25000]';
+          {/* AI Assistant Panel */}
+          <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
+            <MailAiAssistantPanel
+              mailId={mail.id}
+              subject={mail.subject || ''}
+              senderEmail={mail.sender}
+              bodyHtml={mail.body?.html || undefined}
+              bodyText={mail.body?.text || undefined}
+              attachments={mail.attachments as any}
+              onReplyWithDraft={(draftBody) => {
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('ai_reply_draft', draftBody);
                 }
-                return (
-                  <span key={label} className={`rounded-full px-2 py-0.5 ${badgeColor}`}>
-                    {label}: {res}
-                  </span>
-                );
-              })}
-            </div>
-          )}
+                router.push(`/mail/compose?mode=reply&replyId=${mail.id}`);
+              }}
+            />
+          </div>
 
           {/* Attachments */}
           {mail.attachments && mail.attachments.length > 0 && (

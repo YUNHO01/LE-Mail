@@ -465,6 +465,7 @@ export const SettingCategory = {
   SMTP_OUTBOUND: 'SMTP_OUTBOUND',
   AUTH: 'AUTH',
   INFRA: 'INFRA',
+  AI: 'AI',
 } as const;
 export type SettingCategory = (typeof SettingCategory)[keyof typeof SettingCategory];
 
@@ -946,6 +947,107 @@ export interface UpdateCalendarEventDto {
   reminderMinutesBefore?: number | null;
   attendees?: CreateCalendarAttendeeDto[];
 }
+
+// ----------------------------------------------------
+// AI Support Types
+// ----------------------------------------------------
+
+export const AiProvider = {
+  OPENAI: 'OPENAI',
+  GEMINI: 'GEMINI',
+  ANTHROPIC: 'ANTHROPIC',
+  CUSTOM: 'CUSTOM',
+} as const;
+export type AiProvider = (typeof AiProvider)[keyof typeof AiProvider];
+
+export const AiResponseTone = {
+  PROFESSIONAL: 'PROFESSIONAL',
+  FRIENDLY: 'FRIENDLY',
+  CONCISE: 'CONCISE',
+} as const;
+export type AiResponseTone = (typeof AiResponseTone)[keyof typeof AiResponseTone];
+
+export interface AiPolicyDto {
+  personalExternalAiEnabled: boolean;
+  imageAnalysisEnabled: boolean;
+  allowedProviders: AiProvider[];
+  maxContextChars: number;
+}
+
+export interface UserAiSettingsDto {
+  isEnabled: boolean;
+  provider: AiProvider;
+  model: string;
+  hasApiKey: boolean;
+  maskedApiKey: string | null;
+  customBaseUrl: string | null;
+  responseTone: AiResponseTone;
+  preferredLanguage: string;
+}
+
+export interface UpdateUserAiSettingsDto {
+  isEnabled: boolean;
+  provider: AiProvider;
+  model: string;
+  apiKey?: string;
+  clearApiKey?: boolean;
+  customBaseUrl?: string | null;
+  responseTone?: AiResponseTone;
+  preferredLanguage?: string;
+}
+
+export interface TestAiConnectionDto {
+  provider: AiProvider;
+  model: string;
+  apiKey?: string;
+  customBaseUrl?: string | null;
+}
+
+export interface TestAiConnectionResultDto {
+  success: boolean;
+  message: string;
+  latencyMs?: number;
+}
+
+export interface AiMailSummaryResultDto {
+  summary: string;
+  actionItems: string[];
+  keyDates?: string[];
+}
+
+export interface AiMailDraftResultDto {
+  subject?: string;
+  body: string;
+}
+
+export interface AiParsedContactDto {
+  name?: string | null;
+  email?: string | null;
+  company?: string | null;
+  department?: string | null;
+  jobTitle?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  address?: string | null;
+  websiteUrl?: string | null;
+  memo?: string | null;
+}
+
+export interface AiParsedCalendarEventDto {
+  title: string;
+  description?: string | null;
+  location?: string | null;
+  startAt: string;
+  endAt: string;
+  isAllDay?: boolean;
+}
+
+export interface AiImageAnalysisResultDto {
+  description: string;
+  extractedText?: string | null;
+  detectedContact?: AiParsedContactDto | null;
+}
+
 
 
 

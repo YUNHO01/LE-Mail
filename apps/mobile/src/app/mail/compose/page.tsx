@@ -14,6 +14,7 @@ import {
 } from '@/components/mail/ComposeAddressBookPanel';
 import { AttachmentUploader, LocalAttachment } from '@/components/mail/AttachmentUploader';
 import { MailEditor } from '@/components/mail/MailEditor';
+import { MailComposeAiBar } from '@/components/ai/MailComposeAiBar';
 import { ToggleSwitch } from '@/components/common';
 import { MailMessageDto } from '@lemail/shared-types';
 import {
@@ -52,6 +53,7 @@ function ComposeMailContent() {
     const [subject, setSubject] = useState('');
     const [bodyHtml, setBodyHtml] = useState('');
     const [bodyText, setBodyText] = useState('');
+    const [aiGenerating, setAiGenerating] = useState(false);
     const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
     const [draftId, setDraftId] = useState<string | null>(null);
 
@@ -213,10 +215,22 @@ function ComposeMailContent() {
 
             if (mode === 'reply') {
                 // 보낸사람에게 답장
+                let aiDraftHtml = '<p></p>';
+                if (typeof window !== 'undefined') {
+                    const savedDraft = sessionStorage.getItem('ai_reply_draft');
+                    if (savedDraft) {
+                        setTimeout(() => sessionStorage.removeItem('ai_reply_draft'), 1500);
+                        aiDraftHtml = savedDraft
+                            .split('\n')
+                            .map((line) => `<p>${line || '<br/>'}</p>`)
+                            .join('');
+                        setBodyText(savedDraft);
+                    }
+                }
                 setTo([mail.sender]);
                 setSubject(mail.subject?.startsWith('Re:') ? mail.subject : `Re: ${mail.subject || ''}`);
                 setBodyHtml(
-                    `<p></p>${userSigHtml}<br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
+                    `${aiDraftHtml}${userSigHtml}<br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
                     `----- Original Message -----<br/>` +
                     `<b>From:</b> ${mail.sender}<br/>` +
                     `<b>Date:</b> ${formattedDate}<br/>` +
@@ -678,8 +692,33 @@ function ComposeMailContent() {
                     <AttachmentUploader attachments={attachments} onChange={setAttachments} />
                 </div>
 
+                {/* AI 작성 도우미 */}
+                <div className="px-3 pb-2">
+                    <MailComposeAiBar
+                        subject={subject}
+                        bodyText={bodyText}
+                        bodyHtml={bodyHtml}
+                        onLoadingChange={setAiGenerating}
+                        onApply={(res) => {
+                            if (res.subject && !subject.trim()) {
+                                setSubject(res.subject);
+                            }
+                            setBodyHtml(res.bodyHtml);
+                            setBodyText(res.bodyText);
+                        }}
+                    />
+                </div>
+
                 {/* 본문 에디터 */}
-                <div className="flex-1 px-1 pb-24">
+                <div className="relative flex-1 px-1 pb-24">
+                    {aiGenerating && (
+                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-xl bg-white/80 backdrop-blur-[2px]">
+                            <div className="h-7 w-7 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
+                            <p className="text-xs font-semibold text-violet-700">
+                                AI가 본문을 작성하고 있습니다...
+                            </p>
+                        </div>
+                    )}
                     <MailEditor
                         value={bodyHtml}
                         onChange={(html, text) => {

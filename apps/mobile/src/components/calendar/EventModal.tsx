@@ -25,6 +25,7 @@ import { contactsApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { SelectDropdown, ToggleSwitch } from '../common';
 import { formatDateInputValue, formatTimeInputValue } from './dateUtils';
+import { CalendarAiParseBar } from '../ai/CalendarAiParseBar';
 
 export interface EventDraftInitial {
     title?: string;
@@ -321,6 +322,31 @@ export const EventModal: React.FC<EventModalProps> = ({
                             <div className="rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs font-medium text-rose-700">
                                 {error}
                             </div>
+                        )}
+
+                        {!isReadOnly && (
+                            <CalendarAiParseBar
+                                onParsed={(parsed) => {
+                                    if (parsed.title) setTitle(parsed.title);
+                                    if (parsed.location) setLocation(parsed.location);
+                                    if (parsed.description) setDescription(parsed.description);
+                                    if (typeof parsed.isAllDay === 'boolean') setIsAllDay(parsed.isAllDay);
+                                    if (parsed.startAt) {
+                                        const s = new Date(parsed.startAt);
+                                        if (!Number.isNaN(s.getTime())) {
+                                            setStartDate(formatDateInputValue(s));
+                                            setStartTime(formatTimeInputValue(s));
+                                        }
+                                    }
+                                    if (parsed.endAt) {
+                                        const e = new Date(parsed.endAt);
+                                        if (!Number.isNaN(e.getTime())) {
+                                            setEndDate(formatDateInputValue(e));
+                                            setEndTime(formatTimeInputValue(e));
+                                        }
+                                    }
+                                }}
+                            />
                         )}
 
                         <div>

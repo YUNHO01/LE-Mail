@@ -14,6 +14,7 @@ import {
   UpdateCalendarEventDto,
 } from '@lemail/shared-types';
 import { EventModal } from '@/components/calendar/EventModal';
+import { MailAiAssistantPanel } from '@/components/ai/MailAiAssistantPanel';
 import {
   ArrowLeft,
   Download,
@@ -580,37 +581,23 @@ function MailMultiViewContent() {
                           : '지정되지 않음'}
                       </span>
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                      <span className="text-slate-500 font-semibold">보안 인증:</span>
-                      {[
-                        { label: 'SPF', val: mail.spfResult },
-                        { label: 'DKIM', val: mail.dkimResult },
-                        { label: 'DMARC', val: mail.dmarcResult },
-                      ].map(({ label, val }) => {
-                        const res = val || 'NONE';
-                        let badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
-                        if (res === 'PASS') {
-                          badgeColor =
-                            'bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold';
-                        } else if (res === 'FAIL') {
-                          badgeColor =
-                            'bg-rose-50 text-rose-700 border-rose-300 font-semibold';
-                        } else if (res === 'SOFTFAIL' || res === 'NEUTRAL') {
-                          badgeColor =
-                            'bg-amber-50 text-amber-700 border-amber-300';
-                        }
-                        return (
-                          <span
-                            key={label}
-                            className={`rounded border px-2 py-0.5 text-[11px] ${badgeColor}`}
-                          >
-                            {label}: {res}
-                          </span>
-                        );
-                      })}
-                    </div>
                   </div>
+
+                  {/* AI Assistant Panel */}
+                  <MailAiAssistantPanel
+                    mailId={mail.id}
+                    subject={mail.subject || ''}
+                    senderEmail={mail.sender}
+                    bodyHtml={mail.body?.html || undefined}
+                    bodyText={mail.body?.text || undefined}
+                    attachments={mail.attachments as any}
+                    onReplyWithDraft={(draftBody) => {
+                      if (typeof window !== 'undefined') {
+                        sessionStorage.setItem('ai_reply_draft', draftBody);
+                      }
+                      router.push(`/mail/compose?mode=reply&replyId=${mail.id}`);
+                    }}
+                  />
 
                   {/* Attachments */}
                   {mail.attachments && mail.attachments.length > 0 && (

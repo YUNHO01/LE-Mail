@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   PenTool,
   ShieldBan,
@@ -11,6 +11,7 @@ import {
   LogOut,
   HardDrive,
   Fingerprint,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SignatureSettingsTab } from '@/components/settings/SignatureSettingsTab';
@@ -18,8 +19,11 @@ import { SpamBlockSettingsTab } from '@/components/settings/SpamBlockSettingsTab
 import { MailboxBackupTab } from '@/components/settings/MailboxBackupTab';
 import { PasswordChangeTab } from '@/components/settings/PasswordChangeTab';
 import { BiometricSettingsTab } from '@/components/settings/BiometricSettingsTab';
+import { AiSettingsTab } from '@/components/settings/AiSettingsTab';
+import { fetchApi } from '@/lib/api';
+import { AiPolicyDto } from '@lemail/shared-types';
 
-type SettingsSection = 'menu' | 'signature' | 'spam' | 'backup' | 'password' | 'biometric';
+type SettingsSection = 'menu' | 'signature' | 'spam' | 'backup' | 'password' | 'biometric' | 'ai';
 
 const SECTION_META: Record<Exclude<SettingsSection, 'menu'>, string> = {
   signature: '서명 관리',
@@ -27,11 +31,19 @@ const SECTION_META: Record<Exclude<SettingsSection, 'menu'>, string> = {
   backup: '메일함 백업',
   password: '비밀번호 변경',
   biometric: '생체인식 로그인',
+  ai: 'AI 어시스턴트',
 };
 
 function SettingsContent() {
   const { user, logout } = useAuth();
   const [section, setSection] = useState<SettingsSection>('menu');
+  const [aiAllowed, setAiAllowed] = useState(false);
+
+  useEffect(() => {
+    fetchApi<AiPolicyDto>('/ai/policy')
+      .then((pol) => setAiAllowed(Boolean(pol?.personalExternalAiEnabled)))
+      .catch(() => setAiAllowed(false));
+  }, []);
 
   const quotaMb = user?.mailboxQuotaMb ?? 512;
   const usedMb = user?.usedMb ?? 0;
@@ -59,6 +71,7 @@ function SettingsContent() {
           {section === 'backup' && <MailboxBackupTab />}
           {section === 'password' && <PasswordChangeTab />}
           {section === 'biometric' && <BiometricSettingsTab />}
+          {section === 'ai' && <AiSettingsTab />}
         </div>
       </div>
     );
@@ -130,6 +143,22 @@ function SettingsContent() {
             </div>
             <ChevronRight className="h-4 w-4 text-slate-300" />
           </button>
+
+          {aiAllowed && (
+            <button
+              type="button"
+              onClick={() => setSection('ai')}
+              className="flex w-full items-center justify-between px-4 py-3.5 text-left active:bg-slate-50"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500 text-white">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-semibold text-slate-900">AI 어시스턴트</span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-300" />
+            </button>
+          )}
         </div>
       </div>
 

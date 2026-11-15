@@ -2,23 +2,33 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { PenTool, ShieldBan, Archive, Settings, KeyRound } from 'lucide-react';
+import { PenTool, ShieldBan, Archive, Settings, KeyRound, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SignatureSettingsTab } from '@/components/settings/SignatureSettingsTab';
 import { SpamBlockSettingsTab } from '@/components/settings/SpamBlockSettingsTab';
 import { MailboxBackupTab } from '@/components/settings/MailboxBackupTab';
 import { PasswordChangeTab } from '@/components/settings/PasswordChangeTab';
+import { AiSettingsTab } from '@/components/settings/AiSettingsTab';
+import { fetchApi } from '@/lib/api';
+import { AiPolicyDto } from '@lemail/shared-types';
 
-type SettingsTab = 'signature' | 'spam' | 'backup' | 'password';
+type SettingsTab = 'signature' | 'spam' | 'backup' | 'password' | 'ai';
 
 function SettingsContent() {
   const searchParams = useSearchParams();
 
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'signature';
-  const validTabs: SettingsTab[] = ['signature', 'spam', 'backup', 'password'];
+  const validTabs: SettingsTab[] = ['signature', 'spam', 'backup', 'password', 'ai'];
   const [activeTab, setActiveTab] = useState<SettingsTab>(
     validTabs.includes(initialTab) ? initialTab : 'signature',
   );
+  const [aiAllowed, setAiAllowed] = useState(false);
+
+  useEffect(() => {
+    fetchApi<AiPolicyDto>('/ai/policy')
+      .then((pol) => setAiAllowed(Boolean(pol?.personalExternalAiEnabled)))
+      .catch(() => setAiAllowed(false));
+  }, []);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as SettingsTab;
@@ -106,6 +116,21 @@ function SettingsContent() {
           <KeyRound className="h-4 w-4" />
           <span>비밀번호 변경</span>
         </button>
+
+        {aiAllowed && (
+          <button
+            type="button"
+            onClick={() => handleTabChange('ai')}
+            className={`flex items-center gap-2 pb-3.5 px-4 text-sm font-semibold border-b-2 transition ${
+              activeTab === 'ai'
+                ? 'border-violet-600 text-violet-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>AI 어시스턴트</span>
+          </button>
+        )}
       </div>
 
       {/* 탭 본문 영역 (메일함 목록과 동일한 w-full 전폭 레이아웃) */}
@@ -114,6 +139,7 @@ function SettingsContent() {
         {activeTab === 'spam' && <SpamBlockSettingsTab />}
         {activeTab === 'backup' && <MailboxBackupTab />}
         {activeTab === 'password' && <PasswordChangeTab />}
+        {activeTab === 'ai' && <AiSettingsTab />}
       </div>
     </div>
   );

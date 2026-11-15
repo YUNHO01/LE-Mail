@@ -7,6 +7,7 @@ import {
   RestartLevel,
   TargetModule,
   SaveStepSettingsResponseDto,
+  AiProvider,
 } from '@lemail/shared-types';
 import { PageHeader } from '@/components/common';
 import {
@@ -32,6 +33,7 @@ import {
   Eye,
   EyeOff,
   Zap,
+  Sparkles,
 } from 'lucide-react';
 
 interface SettingMetadata {
@@ -107,6 +109,13 @@ const STEPS = [
     label: '인프라 (DB & Redis)',
     icon: Database,
     summary: 'MySQL 데이터베이스 및 BullMQ 작업 큐, IMAP 실시간 Push에 사용되는 Redis 연결을 설정합니다.',
+  },
+  {
+    step: 6,
+    category: SettingCategory.AI,
+    label: 'AI 지원',
+    icon: Sparkles,
+    summary: '사용자가 개인 외부 AI(OpenAI, Gemini, Claude 등)를 메일·주소록·일정에 연동할 수 있는지 정책을 제어합니다.',
   },
 ];
 
@@ -295,6 +304,29 @@ const FIELD_HELP: Record<
     desc: 'Redis 서버 인증 비밀번호입니다. (없을 경우 비워둘 수 있습니다.)',
     recommended: '비밀번호를 변경할 때만 새로 입력하세요.',
   },
+
+  // Step 6: AI
+  AI_PERSONAL_EXTERNAL_ENABLED: {
+    title: '개인용 외부 AI 사용 허용',
+    desc: '사용자가 환경설정에서 본인의 외부 AI API Key(OpenAI, Gemini, Anthropic 등)를 등록해 메일·주소록·일정에서 AI 보조 기능을 사용할 수 있도록 허용합니다.',
+    recommended: 'false (사내 보안 정책 검토 후 활성화 권장)',
+    tip: '저장 즉시 런타임에 반영되며 비활성화 시 모든 사용자 AI 메뉴와 API가 차단됩니다.',
+  },
+  AI_IMAGE_ANALYSIS_ENABLED: {
+    title: '본문 이미지 외부 AI 해석(Vision) 허용',
+    desc: '메일 본문에 포함된 인라인 이미지(cid, Base64)를 외부 AI로 전송해 내용 요약, OCR 텍스트 추출, 명함 인식을 수행하도록 허용합니다.',
+    recommended: 'false (이미지 내 민감 문서 유출 우려 시 비활성화 유지)',
+  },
+  AI_ALLOWED_PROVIDERS: {
+    title: '허용할 외부 AI 제공자',
+    desc: '사용자가 선택할 수 있는 외부 AI 서비스 제공자 목록입니다. 사내 승인된 제공자만 허용할 수 있습니다.',
+    recommended: '["OPENAI","GEMINI","ANTHROPIC","CUSTOM"]',
+  },
+  AI_MAX_CONTEXT_CHARS: {
+    title: '외부 AI 전송 최대 본문 글자 수',
+    desc: '메일 본문이나 서명을 외부 AI로 전송할 때 잘라내는 최대 문자 수입니다. 과도한 토큰 소모 및 대용량 데이터 유출을 방지합니다.',
+    recommended: '15000 (약 1.5만 자)',
+  },
 };
 
 export default function SettingsPage() {
@@ -457,7 +489,7 @@ export default function SettingsPage() {
           restartLevel: res.restartLevel,
           targetModules: res.targetModules,
           message: res.message,
-          nextStepAfterRestart: currentStep < 5 ? currentStep + 1 : undefined,
+          nextStepAfterRestart: currentStep < 6 ? currentStep + 1 : undefined,
         });
       } else {
         setFeedback({
@@ -465,7 +497,7 @@ export default function SettingsPage() {
           message: `${res.message} (재시작 불필요: 런타임에 즉시 반영되었습니다)`,
         });
         // 재시작이 필요 없으면 잠시 후 다음 스텝으로 자연스럽게 안내
-        if (currentStep < 5) {
+        if (currentStep < 6) {
           setTimeout(() => {
             setCurrentStep((prev) => prev + 1);
           }, 1000);
@@ -930,6 +962,46 @@ export default function SettingsPage() {
                             )}
                           </button>
                         </div>
+                      ) : key === 'AI_ALLOWED_PROVIDERS' ? (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {(Object.values(AiProvider) as AiProvider[]).map((prov) => {
+                            const selectedList: string[] = Array.isArray(value)
+                              ? value
+                              : typeof value === 'string'
+                              ? (() => {
+                                  try {
+                                    return JSON.parse(value);
+                                  } catch {
+                                    return [];
+                                  }
+                                })()
+                              : [];
+                            const checked = selectedList.includes(prov);
+                            return (
+                              <label
+                                key={prov}
+                                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium cursor-pointer transition ${
+                                  checked
+                                    ? 'border-indigo-500 bg-indigo-500/20 text-indigo-200'
+                                    : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    const next = e.target.checked
+                                      ? Array.from(new Set([...selectedList, prov]))
+                                      : selectedList.filter((p) => p !== prov);
+                                    handleInputChange(key, next);
+                                  }}
+                                  className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500"
+                                />
+                                <span>{prov}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       ) : (
                         <input
                           type={meta?.valueType === 'number' ? 'number' : 'text'}
@@ -982,8 +1054,8 @@ export default function SettingsPage() {
               <span>
                 {saving
                   ? '설정 저장 중...'
-                  : currentStep === 5
-                  ? 'Step 5 저장 및 전체 완료'
+                  : currentStep === 6
+                  ? 'Step 6 저장 및 전체 완료'
                   : `Step ${currentStep} 저장 후 다음으로`}
               </span>
               <ChevronRight className="h-4 w-4 ml-1" />

@@ -23,6 +23,7 @@ import {
 import { contactsApi } from '@/lib/api';
 import { ContactDto, ContactGroupDto, CreateContactDto } from '@lemail/shared-types';
 import { SelectDropdown, DaumPostcodeModal, DaumPostcodeResult } from '@/components/common';
+import { ContactsAiParseBar } from '@/components/ai/ContactsAiParseBar';
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -230,6 +231,24 @@ export const ContactModal: React.FC<ContactModalProps> = ({
                   {error}
                 </div>
               )}
+
+              <ContactsAiParseBar
+                onParsed={(parsed) => {
+                  if (parsed.name) setName(parsed.name);
+                  if (parsed.email) setEmail(parsed.email);
+                  if (parsed.mobile || parsed.phone) setPhone(parsed.mobile || parsed.phone || '');
+                  if (parsed.company) setCompany(parsed.company);
+                  if (parsed.department) setDepartment(parsed.department);
+                  if (parsed.jobTitle) setPosition(parsed.jobTitle);
+                  if (parsed.phone) setCompanyPhone(parsed.phone);
+                  if (parsed.address) setAddress(parsed.address);
+                  if (parsed.websiteUrl) setWebsiteUrl(parsed.websiteUrl);
+                  if (parsed.memo) setMemo(parsed.memo);
+                  if (parsed.phone || parsed.address || parsed.websiteUrl) {
+                    setShowAdditionalFields(true);
+                  }
+                }}
+              />
 
               {/* 상단 프로필 헤더 (아바타 + 이름 + 중요 연락처 토글) */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-black/[0.06]">

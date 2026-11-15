@@ -184,7 +184,7 @@ const schemaStatements = [
 
   `CREATE TABLE IF NOT EXISTS \`system_settings\` (
     \`id\` VARCHAR(36) PRIMARY KEY,
-    \`category\` ENUM('SERVER', 'SMTP_INBOUND', 'SMTP_OUTBOUND', 'AUTH', 'INFRA') NOT NULL DEFAULT 'SERVER',
+    \`category\` ENUM('SERVER', 'SMTP_INBOUND', 'SMTP_OUTBOUND', 'AUTH', 'INFRA', 'AI') NOT NULL DEFAULT 'SERVER',
     \`key\` VARCHAR(100) NOT NULL UNIQUE,
     \`value\` TEXT NULL,
     \`value_type\` ENUM('string', 'number', 'boolean', 'json') NOT NULL DEFAULT 'string',
@@ -198,6 +198,21 @@ const schemaStatements = [
     \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX \`idx_settings_category\` (\`category\`),
     INDEX \`idx_settings_key\` (\`key\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`user_ai_settings\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL UNIQUE,
+    \`is_enabled\` BOOLEAN NOT NULL DEFAULT FALSE,
+    \`provider\` ENUM('OPENAI', 'GEMINI', 'ANTHROPIC', 'CUSTOM') NOT NULL DEFAULT 'OPENAI',
+    \`model\` VARCHAR(100) NOT NULL DEFAULT 'gpt-4o-mini',
+    \`api_key_encrypted\` TEXT NULL,
+    \`custom_base_url\` VARCHAR(500) NULL,
+    \`response_tone\` ENUM('PROFESSIONAL', 'FRIENDLY', 'CONCISE') NOT NULL DEFAULT 'PROFESSIONAL',
+    \`preferred_language\` VARCHAR(20) NOT NULL DEFAULT 'ko',
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE INDEX \`uq_user_ai_user_id\` (\`user_id\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
   `CREATE TABLE IF NOT EXISTS \`system_licenses\` (
@@ -642,6 +657,22 @@ export async function syncDatabaseSchema(
         logger.warn(`Column migration note for calendar_event.${col.name}: ${err.message}`);
       }
     }
+  }
+
+  // Migrate system_settings.category ENUM to include 'AI'
+  try {
+    await query(
+      "ALTER TABLE `system_settings` MODIFY COLUMN `category` ENUM('SERVER', 'SMTP_INBOUND', 'SMTP_OUTBOUND', 'AUTH', 'INFRA', 'AI') NOT NULL DEFAULT 'SERVER';",
+    );
+  } catch (err: any) {
+    logger.warn(`Enum migration note for system_settings.category: ${err.message}`);
+  }
+
+  // Clean up any malformed user_ai_settings rows created before CurrentUser('id') fix
+  try {
+    await query("DELETE FROM `user_ai_settings` WHERE `user_id` = '[object Object]';");
+  } catch (err: any) {
+    logger.warn(`Cleanup note for user_ai_settings: ${err.message}`);
   }
 }
 

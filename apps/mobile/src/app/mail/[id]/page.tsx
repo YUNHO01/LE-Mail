@@ -13,6 +13,7 @@ import {
   UpdateCalendarEventDto,
 } from '@lemail/shared-types';
 import { EventModal } from '@/components/calendar/EventModal';
+import { MailAiAssistantPanel } from '@/components/ai/MailAiAssistantPanel';
 import {
   Download,
   Paperclip,
@@ -294,6 +295,22 @@ export default function MailDetailPage() {
           </div>
 
         </div>
+
+        {/* AI Assistant Panel */}
+        <MailAiAssistantPanel
+          mailId={mail.id}
+          subject={mail.subject || ''}
+          senderEmail={mail.sender}
+          bodyHtml={mail.body?.html || undefined}
+          bodyText={mail.body?.text || undefined}
+          attachments={mail.attachments as any}
+          onReplyWithDraft={(draftBody) => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('ai_reply_draft', draftBody);
+            }
+            router.push(`/mail/compose?mode=reply&replyId=${mail.id}`);
+          }}
+        />
 
         {/* Attachments Section if any */}
         {mail.attachments && mail.attachments.length > 0 && (
