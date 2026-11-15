@@ -415,7 +415,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
           </div>
 
           {/* AI Assistant Panel */}
-          <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
+          <div className="mt-4 overflow-hidden rounded-xl border border-black/[0.06]">
             <MailAiAssistantPanel
               mailId={mail.id}
               subject={mail.subject || ''}

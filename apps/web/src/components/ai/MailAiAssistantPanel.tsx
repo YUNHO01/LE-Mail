@@ -278,10 +278,10 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
   const isBusy = busyAction !== null;
 
   return (
-    <div className="border-b border-violet-100 bg-violet-50/40 px-6 py-3 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 mr-1">
-          <Sparkles className="h-3.5 w-3.5" />
+    <div className="border-b border-black/[0.06] bg-[#f5f5f7]/75 px-4 py-2.5 space-y-2.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1d1d1f] mr-1">
+          <Sparkles className="h-3.5 w-3.5 text-[#0071e3]" />
           AI 도우미
         </span>
 
@@ -289,9 +289,9 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           type="button"
           disabled={isBusy}
           onClick={handleSummarize}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-violet-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
-          {busyAction === 'summarize' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3 text-violet-600" />}
+          {busyAction === 'summarize' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <FileText className="h-3 w-3 text-[#0071e3]" />}
           요약 / 할 일
         </button>
 
@@ -299,9 +299,9 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           type="button"
           disabled={isBusy}
           onClick={() => handleDraft('reply')}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-violet-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
-          {busyAction === 'reply' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Reply className="h-3 w-3 text-violet-600" />}
+          {busyAction === 'reply' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <Reply className="h-3 w-3 text-[#0071e3]" />}
           답장 초안
         </button>
 
@@ -309,9 +309,9 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           type="button"
           disabled={isBusy}
           onClick={() => handleDraft('translate')}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-violet-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
-          {busyAction === 'translate' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3 text-violet-600" />}
+          {busyAction === 'translate' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <Languages className="h-3 w-3 text-[#0071e3]" />}
           한국어 번역
         </button>
 
@@ -319,9 +319,9 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           type="button"
           disabled={isBusy}
           onClick={handleExtractContact}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-violet-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
-          {busyAction === 'contact' ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3 text-violet-600" />}
+          {busyAction === 'contact' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <UserPlus className="h-3 w-3 text-[#0071e3]" />}
           서명 → 주소록
         </button>
 
@@ -329,9 +329,9 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           type="button"
           disabled={isBusy}
           onClick={handleExtractCalendar}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-violet-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
-          {busyAction === 'calendar' ? <Loader2 className="h-3 w-3 animate-spin" /> : <CalendarPlus className="h-3 w-3 text-violet-600" />}
+          {busyAction === 'calendar' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <CalendarPlus className="h-3 w-3 text-[#0071e3]" />}
           일정 추출
         </button>
 
@@ -341,7 +341,7 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
               <select
                 value={selectedImageIdx}
                 onChange={(e) => setSelectedImageIdx(Number(e.target.value))}
-                className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-xs text-slate-700"
+                className="rounded-lg border border-black/[0.08] bg-white px-2 py-1 text-xs text-[#1d1d1f]"
               >
                 {imageCandidates.map((img, i) => (
                   <option key={i} value={i}>
@@ -354,9 +354,9 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
               type="button"
               disabled={isBusy}
               onClick={handleAnalyzeImage}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-violet-50 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
             >
-              {busyAction === 'image' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImageIcon className="h-3 w-3 text-violet-600" />}
+              {busyAction === 'image' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <ImageIcon className="h-3 w-3 text-[#0071e3]" />}
               이미지 해석
             </button>
           </div>
@@ -364,33 +364,33 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
       </div>
 
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+        <div className="rounded-lg border border-[#ff3b30]/20 bg-[#ff3b30]/[0.06] px-3 py-2 text-xs text-[#d70015]">
           {error}
         </div>
       )}
 
       {statusMsg && (
-        <div className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+        <div className="flex items-center gap-1.5 rounded-lg border border-[#34c759]/25 bg-[#34c759]/10 px-3 py-2 text-xs font-medium text-[#248a3d]">
           <CheckCircle2 className="h-3.5 w-3.5" />
           {statusMsg}
         </div>
       )}
 
       {summaryResult && (
-        <div className="relative rounded-xl border border-violet-200 bg-white p-4 text-xs space-y-2">
+        <div className="relative rounded-xl border border-black/[0.08] bg-white p-4 text-xs space-y-2">
           <button
             type="button"
             onClick={() => setSummaryResult(null)}
-            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
-          <p className="font-bold text-slate-800">메일 요약</p>
-          <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{summaryResult.summary}</p>
+          <p className="font-semibold text-[#1d1d1f]">메일 요약</p>
+          <p className="text-[#1d1d1f]/80 leading-relaxed whitespace-pre-wrap">{summaryResult.summary}</p>
           {summaryResult.actionItems.length > 0 && (
             <div>
-              <p className="font-semibold text-violet-700 mb-1">할 일 (Action Items)</p>
-              <ul className="list-disc pl-4 space-y-0.5 text-slate-600">
+              <p className="font-semibold text-[#0071e3] mb-1">할 일 (Action Items)</p>
+              <ul className="list-disc pl-4 space-y-0.5 text-[#6e6e73]">
                 {summaryResult.actionItems.map((item, idx) => (
                   <li key={idx}>{item}</li>
                 ))}
@@ -401,16 +401,16 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
       )}
 
       {draftResult && (
-        <div className="relative rounded-xl border border-violet-200 bg-white p-4 text-xs space-y-2">
+        <div className="relative rounded-xl border border-black/[0.08] bg-white p-4 text-xs space-y-2">
           <button
             type="button"
             onClick={() => setDraftResult(null)}
-            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
-          <p className="font-bold text-slate-800">AI 생성 결과</p>
-          <pre className="whitespace-pre-wrap font-sans text-slate-700 bg-slate-50 rounded-lg p-3 border border-slate-100">
+          <p className="font-semibold text-[#1d1d1f]">AI 생성 결과</p>
+          <pre className="whitespace-pre-wrap font-sans text-[#1d1d1f]/85 bg-[#f5f5f7] rounded-lg p-3 border border-black/[0.06]">
             {draftResult.body}
           </pre>
           <div className="flex items-center gap-2">
@@ -420,7 +420,7 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
                 navigator.clipboard?.writeText(draftResult.body);
                 setStatusMsg('클립보드에 복사되었습니다.');
               }}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-1 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03]"
             >
               <Copy className="h-3 w-3" />
               복사
@@ -429,7 +429,7 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
               <button
                 type="button"
                 onClick={() => onReplyWithDraft(draftResult.body)}
-                className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white hover:bg-violet-500"
+                className="inline-flex items-center gap-1 rounded-lg bg-[#0071e3] px-3 py-1 text-xs font-semibold text-white hover:bg-[#0062c4]"
               >
                 <Reply className="h-3 w-3" />
                 답장 화면으로 이동
@@ -440,58 +440,58 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
       )}
 
       {contactDraft && (
-        <div className="relative rounded-xl border border-violet-200 bg-white p-4 text-xs space-y-2.5">
+        <div className="relative rounded-xl border border-black/[0.08] bg-white p-4 text-xs space-y-2.5">
           <button
             type="button"
             onClick={() => setContactDraft(null)}
-            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
-          <p className="font-bold text-slate-800">추출된 연락처 확인</p>
+          <p className="font-semibold text-[#1d1d1f]">추출된 연락처 확인</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <input
               value={contactDraft.name || ''}
               onChange={(e) => setContactDraft({ ...contactDraft, name: e.target.value })}
               placeholder="이름"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 focus:border-[#0071e3] focus:outline-none"
             />
             <input
               value={contactDraft.email || ''}
               onChange={(e) => setContactDraft({ ...contactDraft, email: e.target.value })}
               placeholder="이메일"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 focus:border-[#0071e3] focus:outline-none"
             />
             <input
               value={contactDraft.company || ''}
               onChange={(e) => setContactDraft({ ...contactDraft, company: e.target.value })}
               placeholder="회사"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 focus:border-[#0071e3] focus:outline-none"
             />
             <input
               value={contactDraft.department || ''}
               onChange={(e) => setContactDraft({ ...contactDraft, department: e.target.value })}
               placeholder="부서"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 focus:border-[#0071e3] focus:outline-none"
             />
             <input
               value={contactDraft.jobTitle || ''}
               onChange={(e) => setContactDraft({ ...contactDraft, jobTitle: e.target.value })}
               placeholder="직책"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 focus:border-[#0071e3] focus:outline-none"
             />
             <input
               value={contactDraft.mobile || contactDraft.phone || ''}
               onChange={(e) => setContactDraft({ ...contactDraft, mobile: e.target.value })}
               placeholder="연락처"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 focus:border-[#0071e3] focus:outline-none"
             />
           </div>
           <button
             type="button"
             disabled={isBusy}
             onClick={handleSaveContact}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0062c4]"
           >
             <UserPlus className="h-3.5 w-3.5" />
             주소록에 저장
@@ -500,46 +500,46 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
       )}
 
       {calendarDraft && (
-        <div className="relative rounded-xl border border-violet-200 bg-white p-4 text-xs space-y-2.5">
+        <div className="relative rounded-xl border border-black/[0.08] bg-white p-4 text-xs space-y-2.5">
           <button
             type="button"
             onClick={() => setCalendarDraft(null)}
-            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
-          <p className="font-bold text-slate-800">추출된 일정 확인</p>
+          <p className="font-semibold text-[#1d1d1f]">추출된 일정 확인</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input
               value={calendarDraft.title}
               onChange={(e) => setCalendarDraft({ ...calendarDraft, title: e.target.value })}
               placeholder="일정 제목"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5 sm:col-span-2"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 sm:col-span-2 focus:border-[#0071e3] focus:outline-none"
             />
             <input
               value={calendarDraft.startAt}
               onChange={(e) => setCalendarDraft({ ...calendarDraft, startAt: e.target.value })}
               placeholder="시작 일시"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 focus:border-[#0071e3] focus:outline-none"
             />
             <input
               value={calendarDraft.endAt}
               onChange={(e) => setCalendarDraft({ ...calendarDraft, endAt: e.target.value })}
               placeholder="종료 일시"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 focus:border-[#0071e3] focus:outline-none"
             />
             <input
               value={calendarDraft.location || ''}
               onChange={(e) => setCalendarDraft({ ...calendarDraft, location: e.target.value })}
               placeholder="장소"
-              className="rounded-lg border border-slate-200 px-2.5 py-1.5 sm:col-span-2"
+              className="rounded-lg border border-black/[0.08] px-2.5 py-1.5 sm:col-span-2 focus:border-[#0071e3] focus:outline-none"
             />
           </div>
           <button
             type="button"
             disabled={isBusy}
             onClick={handleSaveCalendar}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0062c4]"
           >
             <CalendarPlus className="h-3.5 w-3.5" />
             일정에 저장
@@ -548,21 +548,21 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
       )}
 
       {imageResult && (
-        <div className="relative rounded-xl border border-violet-200 bg-white p-4 text-xs space-y-2">
+        <div className="relative rounded-xl border border-black/[0.08] bg-white p-4 text-xs space-y-2">
           <button
             type="button"
             onClick={() => setImageResult(null)}
-            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
-          <p className="font-bold text-slate-800">이미지 AI 해석 결과</p>
-          <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+          <p className="font-semibold text-[#1d1d1f]">이미지 AI 해석 결과</p>
+          <p className="text-[#1d1d1f]/80 leading-relaxed whitespace-pre-wrap">
             {imageResult.description}
           </p>
           {imageResult.extractedText && (
-            <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100 text-slate-600 whitespace-pre-wrap">
-              <span className="font-semibold text-slate-700">추출된 텍스트: </span>
+            <div className="rounded-lg bg-[#f5f5f7] p-2.5 border border-black/[0.06] text-[#6e6e73] whitespace-pre-wrap">
+              <span className="font-semibold text-[#1d1d1f]">추출된 텍스트: </span>
               {imageResult.extractedText}
             </div>
           )}
@@ -573,7 +573,7 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
                 setContactDraft(imageResult.detectedContact!);
                 setImageResult(null);
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0062c4]"
             >
               <UserPlus className="h-3.5 w-3.5" />
               감지된 명함 연락처 → 주소록 추가

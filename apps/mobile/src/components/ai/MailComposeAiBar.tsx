@@ -65,45 +65,55 @@ export const MailComposeAiBar: React.FC<MailComposeAiBarProps> = ({
   };
 
   return (
-    <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-violet-700">
-          <Sparkles className="h-3.5 w-3.5" />
+    <div className="rounded-xl border border-slate-200/80 bg-slate-50/90 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+          <Sparkles className="h-3.5 w-3.5 text-[#007AFF]" />
           AI 작성 도우미
         </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={loading || !(bodyText || bodyHtml).trim()}
+            onClick={() => runDraft('polish')}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200/80 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 active:bg-slate-100 disabled:opacity-40 transition"
+          >
+            <Wand2 className="h-3 w-3 text-[#007AFF]" />
+            문체 다듬기
+          </button>
+          <button
+            type="button"
+            disabled={loading || !(bodyText || bodyHtml).trim()}
+            onClick={() => runDraft('translate', 'en')}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200/80 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 active:bg-slate-100 disabled:opacity-40 transition"
+          >
+            <Languages className="h-3 w-3 text-[#007AFF]" />
+            영문 번역
+          </button>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
         <input
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="예: 내일 오전 회의 일정 안내 및 자료 요청 메일 작성"
-          className="flex-1 min-w-[200px] rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:border-violet-500 focus:outline-none"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && prompt.trim() && !loading) {
+              e.preventDefault();
+              runDraft('compose');
+            }
+          }}
+          placeholder="예: 내일 오전 회의 일정 안내 메일 작성"
+          className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF] focus:outline-none transition"
         />
         <button
           type="button"
           disabled={loading || !prompt.trim()}
           onClick={() => runDraft('compose')}
-          className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-3 py-2 text-xs font-semibold text-white active:bg-[#0062cc] disabled:opacity-40 transition shrink-0"
         >
-          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
           초안 생성
-        </button>
-        <button
-          type="button"
-          disabled={loading || !(bodyText || bodyHtml).trim()}
-          onClick={() => runDraft('polish')}
-          className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-violet-50 disabled:opacity-50"
-        >
-          <Wand2 className="h-3 w-3 text-violet-600" />
-          문체 다듬기
-        </button>
-        <button
-          type="button"
-          disabled={loading || !(bodyText || bodyHtml).trim()}
-          onClick={() => runDraft('translate', 'en')}
-          className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-violet-50 disabled:opacity-50"
-        >
-          <Languages className="h-3 w-3 text-violet-600" />
-          영문 번역
         </button>
       </div>
       {error && <p className="text-xs text-rose-600">{error}</p>}

@@ -713,8 +713,8 @@ function ComposeMailContent() {
                 <div className="relative flex-1 px-1 pb-24">
                     {aiGenerating && (
                         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-xl bg-white/80 backdrop-blur-[2px]">
-                            <div className="h-7 w-7 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
-                            <p className="text-xs font-semibold text-violet-700">
+                            <div className="h-7 w-7 animate-spin rounded-full border-2 border-[#007AFF]/20 border-t-[#007AFF]" />
+                            <p className="text-xs font-semibold text-[#007AFF]">
                                 AI가 본문을 작성하고 있습니다...
                             </p>
                         </div>
