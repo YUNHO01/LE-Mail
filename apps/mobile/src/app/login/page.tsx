@@ -194,23 +194,6 @@ function MobileLoginForm() {
 }
 
 export default function MobileLoginPage() {
-  const handleBiometricLogin = async () => {
-    setError(null);
-    setIsBiometricSubmitting(true);
-    try {
-      const res = await loginWithBiometric(email);
-      if (res.success) {
-        router.push('/mail/inbox');
-      } else {
-        setError(res.message || '생체인식 로그인에 실패했습니다.');
-      }
-    } catch (err: any) {
-      setError(err.message || '생체인식 로그인 중 오류가 발생했습니다.');
-    } finally {
-      setIsBiometricSubmitting(false);
-    }
-  };
-
   return (
     <Suspense fallback={null}>
       <MobileLoginForm />
