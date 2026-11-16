@@ -454,9 +454,10 @@ bin/
 운영 서버에서는 소스코드 빌드 과정(`yarn build`) 없이 압축 해제 후 운영 의존성만 설치하여 즉시 기동합니다:
 
 ```bash
-# 1. 배포 패키지 압축 해제
+# 1. 배포 패키지 압축 해제 (최상위 버전 폴더 없이 지정 디렉터리에 직접 해제됨)
+mkdir -p /opt/lemail
 unzip lemail_v1.2.2_20261114_obfuscated.zip -d /opt/lemail
-cd /opt/lemail/lemail_v1.2.2
+cd /opt/lemail
 
 # 2. 운영 전용 의존성 설치 (devDependencies 제외로 신속한 설치)
 yarn install --production

@@ -339,7 +339,7 @@ async function runPackaging() {
     archive.on('error', (err) => reject(err));
 
     archive.pipe(output);
-    archive.directory(stagingDir, `lemail_v${version}`);
+    archive.directory(stagingDir, false);
     archive.finalize();
   });
 

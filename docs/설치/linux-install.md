@@ -218,12 +218,10 @@ EXIT;
 sudo mkdir -p /opt/lemail
 sudo chown -R $USER:$USER /opt/lemail
 
-# 2. 배포 패키지 압축 해제
-# (고객사 서버에 업로드한 lemail_vX.Y.Z_obfuscated.zip 파일 경로 지정)
+# 2. 배포 패키지 압축 해제 (버전 폴더 없이 /opt/lemail 하위에 직접 해제)
+# (고객사 서버에 업로드한 lemail_vX.Y.Z_*_obfuscated.zip 파일 경로 지정)
 unzip lemail_v1.2.0_*_obfuscated.zip -d /opt/lemail/
-
-# ※ ZIP 파일 내부의 최상위 버전 디렉터리(예: lemail_v1.2.0)로 진입합니다:
-cd /opt/lemail/lemail_v*
+cd /opt/lemail
 
 # 3. 런타임 공용 저장소 및 인증서 디렉터리 준비
 mkdir -p /opt/lemail/mail-spool /opt/lemail/mail-archive /opt/lemail/mail-attachments /opt/lemail/license /opt/lemail/certs
@@ -373,7 +371,7 @@ chmod 600 /opt/lemail/certs/privkey.pem
 2. **Haraka SMTP 아웃바운드 릴레이 (`services/haraka`)**:
    * 발신 메일의 TLS 암호화를 위해 Haraka 설정 디렉터리에 인증서를 복사합니다:
      ```bash
-     # 배포 패키지 디렉터리(/opt/lemail/lemail_v*)에서 실행:
+     # 배포 패키지 디렉터리(/opt/lemail)에서 실행:
      mkdir -p services/haraka/config
      cp /opt/lemail/certs/fullchain.pem services/haraka/config/tls_cert.pem
      cp /opt/lemail/certs/privkey.pem services/haraka/config/tls_key.pem
@@ -399,9 +397,9 @@ if [ -d "$LEMAIL_CERTS" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" 
     chmod 644 "$LEMAIL_CERTS/fullchain.pem"
     chmod 600 "$LEMAIL_CERTS/privkey.pem"
     
-    # Haraka 인증서 동기화 (배포 버전 경로)
-    cp "$LEMAIL_CERTS/fullchain.pem" /opt/lemail/lemail_v*/services/haraka/config/tls_cert.pem 2>/dev/null || true
-    cp "$LEMAIL_CERTS/privkey.pem" /opt/lemail/lemail_v*/services/haraka/config/tls_key.pem 2>/dev/null || true
+    # Haraka 인증서 동기화
+    cp "$LEMAIL_CERTS/fullchain.pem" /opt/lemail/services/haraka/config/tls_cert.pem 2>/dev/null || true
+    cp "$LEMAIL_CERTS/privkey.pem" /opt/lemail/services/haraka/config/tls_key.pem 2>/dev/null || true
     
     # 웹 서버 및 메일 서비스 리로드
     systemctl reload nginx 2>/dev/null || true
