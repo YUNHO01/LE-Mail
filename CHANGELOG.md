@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/YUNHO01/LE-Mail/compare/v1.2.2...v1.3.0) (2026-11-16)
+
+
+### 📝 Documentation (문서 변경)
+
+* add project architecture standards and update README ([3e58b56](https://github.com/YUNHO01/LE-Mail/commit/3e58b56e1af7086bcbe71dea4318b24773b0813d))
+
+
+### ✨ Features (기능 추가)
+
+* 메일 서비스 회사 정보 정리 ([25bc62b](https://github.com/YUNHO01/LE-Mail/commit/25bc62b1250ce8077bdacb79ef06f2c364888495))
+* 메일쓰기 주소록 UI 추가 및 UI 수정 ([492bfa6](https://github.com/YUNHO01/LE-Mail/commit/492bfa65e8161709b2eaa425f59a59fc1665f71c))
+* 모바일 서비스 추가 ([5a25ecf](https://github.com/YUNHO01/LE-Mail/commit/5a25ecf88058dcf3fe3251c6dc37e1ee7d8d5f8d))
+* 모바일, 웹메일 PWA 기능 추가 ([428a3bb](https://github.com/YUNHO01/LE-Mail/commit/428a3bb12091725b8ad46e4d2af5f2d348cb1454))
+* 모바일,웹메일 화면 UI 수정 ([0fc82a5](https://github.com/YUNHO01/LE-Mail/commit/0fc82a54520b9f4e852ee52e37aecce1c669df36))
+* 사용자 등록 시 환경 메일 발송 기능 추가 ([61b7c5d](https://github.com/YUNHO01/LE-Mail/commit/61b7c5d1e6e87a512e40560485e0d289301e679c))
+* 사용자별 외부 AI 설정 기능 추가 ([3c54034](https://github.com/YUNHO01/LE-Mail/commit/3c540341ad2c8bb8d1471e86e4b301ceb744b445))
+* 캘린더 기능 추가 ([de0a114](https://github.com/YUNHO01/LE-Mail/commit/de0a114e86355857c7aeec5a4652c3b4099006e8))
+* ams 조직도 연동 기능 및 체크박스 onoff 스위치로 변경 ([8563aa9](https://github.com/YUNHO01/LE-Mail/commit/8563aa9d43e556a5b2adaf2bb573d038fcf7063f))
+* MCP 기능 추가 ([a001a07](https://github.com/YUNHO01/LE-Mail/commit/a001a07362ba733109e4de9da0f2cfeb7b1be929))
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 데이터베이스 동기화 로직 수정 ([5ce5db6](https://github.com/YUNHO01/LE-Mail/commit/5ce5db6c0e184a64e8dc9ae631fb3ab4f4c2cc95))
+* 모바일 UI 오류 수정 ([83d441c](https://github.com/YUNHO01/LE-Mail/commit/83d441c49680769cdad8069d67551c099419f6f9))
+* 보안 메일 이미지 처리 오류 수정 및 다중 열럼 기능 추가 ([ebcf842](https://github.com/YUNHO01/LE-Mail/commit/ebcf842a6d8b9b747ddb1aa3dcffcde77639babe))
+* 빌드 드랙터리 정보 수정 ([7f1b9d9](https://github.com/YUNHO01/LE-Mail/commit/7f1b9d9bb5bf9c3d2c8a789dee827da89434ec0f))
+* 시스템 리소스 가이드 수정 ([24c5130](https://github.com/YUNHO01/LE-Mail/commit/24c5130efb6f020e703a7f532669b8696e1cb23f))
+* 웹 URL 호출 시 오류 수정 ([145cb69](https://github.com/YUNHO01/LE-Mail/commit/145cb690b7b4666024d87aa92105019b79c6a6b7))
+* AI 도우미 UI 스타일 수정 ([59a2300](https://github.com/YUNHO01/LE-Mail/commit/59a2300fee13c35283498a4c477fbaedc863c2c3))
+* AMS 조직도 연동 오류 수정 ([a129ebe](https://github.com/YUNHO01/LE-Mail/commit/a129ebe811df92bdce8cdca92910b4ef117b4294))
+
 ### [1.2.2](https://github.com/YUNHO01/LE-Mail/compare/v1.2.1...v1.2.2) (2026-11-12)
 
 
