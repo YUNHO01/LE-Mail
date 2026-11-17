@@ -337,9 +337,9 @@ node apps/api/dist/modules/database/scripts/init-schema.js
 # 1. 80 포트 점유 방지를 위해 Nginx가 실행 중인 경우 일시 정지
 sudo systemctl stop nginx 2>/dev/null || true
 
-# 2. Let's Encrypt 멀티도메인(SAN) 인증서 발급 (웹메일 + 모바일 도메인)
-sudo certbot certonly --standalone -d mail.yourdomain.com -d m.yourdomain.com
-# (기존 mail.yourdomain.com 인증서에 m.yourdomain.com 을 추가 확장할 경우 --expand 옵션 사용)
+# 2. Let's Encrypt 멀티도메인(SAN) 통합 인증서 발급 (웹메일 + 모바일 도메인, RSA 호환 체인)
+sudo certbot certonly --standalone --key-type rsa -d mail.yourdomain.com -d m.yourdomain.com
+# (기존 mail.yourdomain.com 인증서에 m.yourdomain.com 을 추가 확장할 경우 --expand 옵션 함께 사용)
 ```
 * 발급 원본 경로:
   * 인증서(Full Chain): `/etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem`
@@ -468,9 +468,9 @@ server {
     listen 443 ssl http2;
     server_name m.yourdomain.com;
 
-    # 별도 인증서 발급 시 경로 (SAN 멀티도메인 통합 인증서 사용 시 /opt/lemail/certs/fullchain.pem 지정)
-    ssl_certificate /etc/letsencrypt/live/m.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/m.yourdomain.com/privkey.pem;
+    # SAN 멀티도메인 통합 인증서 사용 (별도 인증서 사용 시 해당 도메인 인증서 경로로 변경)
+    ssl_certificate /opt/lemail/certs/fullchain.pem;
+    ssl_certificate_key /opt/lemail/certs/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 50M;
 
