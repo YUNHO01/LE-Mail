@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.4.1](https://github.com/YUNHO01/LE-Mail/compare/v1.4.0...v1.4.1) (2026-11-17)
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 모바일 인증서 위치 수정 ([55ec957](https://github.com/YUNHO01/LE-Mail/commit/55ec9573dc50e6d9ab66e05439f731322cbf848b))
+* 인증서 통합발급 처리 수정 ([8336e52](https://github.com/YUNHO01/LE-Mail/commit/8336e522695852136a4722badc54e99cef6e2bf7))
+
 ## [1.4.0](https://github.com/YUNHO01/LE-Mail/compare/v1.3.0...v1.4.0) (2026-11-17)
 
 
