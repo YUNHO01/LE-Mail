@@ -205,7 +205,7 @@ const FIELD_HELP: Record<
   },
   SMTP_RELAY_HOST: {
     title: 'SMTP 릴레이 호스트',
-    desc: '상위 릴레이 메일 서버 주소입니다. (예: mail.aibworks.com, smtp.gmail.com, email-smtp.ap-northeast-2.amazonaws.com)',
+    desc: '상위 릴레이 메일 서버 주소입니다. (예: mail.yourdomain.com, smtp.gmail.com, email-smtp.ap-northeast-2.amazonaws.com)',
     recommended: '정확한 FQDN 도메인 또는 IP',
   },
   SMTP_RELAY_PORT: {
@@ -221,7 +221,7 @@ const FIELD_HELP: Record<
   SMTP_RELAY_USER: {
     title: '릴레이 인증 계정 (아이디/이메일)',
     desc: '상위 릴레이 메일 서버에 로그인할 인증 계정입니다.',
-    recommended: '예: admin@aibworks.com 또는 SES Access Key ID',
+    recommended: '예: smtp-user@yourdomain.com 또는 SES Access Key ID',
   },
   SMTP_RELAY_PASS: {
     title: '릴레이 인증 비밀번호',
