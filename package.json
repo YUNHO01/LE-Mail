@@ -1,6 +1,6 @@
 {
   "name": "lemail-monorepo",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "packageManager": "yarn@1.22.22",
   "workspaces": [

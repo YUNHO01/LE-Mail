@@ -1,6 +1,6 @@
 {
   "name": "@lemail/haraka",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "description": "LEMail Outbound MTA powered by Haraka",
   "scripts": {

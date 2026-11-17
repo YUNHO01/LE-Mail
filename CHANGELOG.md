@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.4.2](https://github.com/YUNHO01/LE-Mail/compare/v1.4.1...v1.4.2) (2026-11-17)
+
+
+### ♻️ Code Refactoring (리팩토링)
+
+* remove empty file list from context ([60cc66a](https://github.com/YUNHO01/LE-Mail/commit/60cc66a54960d35ce1076589abd0a0a543186038))
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 모바일 설정 정보 추가 ([aef9b99](https://github.com/YUNHO01/LE-Mail/commit/aef9b9945b7d5d06ae4eeeb21ef1c1820eea4be1))
+* 외부메일 릴레이 설정 기본값 수정 ([5bb2ca1](https://github.com/YUNHO01/LE-Mail/commit/5bb2ca1da310d1dc531701f9afbbb4791b702f4b))
+* add API swagger specification and next-env definitions ([58c8855](https://github.com/YUNHO01/LE-Mail/commit/58c885537b249330872375f2ea199cac13e58852))
+* AI 작성 도움미 원문 삭제 오류 수정 ([c0329b4](https://github.com/YUNHO01/LE-Mail/commit/c0329b4c9fc4ce1c2230d1968f5b05704b3ec01a))
+
 ### [1.4.1](https://github.com/YUNHO01/LE-Mail/compare/v1.4.0...v1.4.1) (2026-11-17)
 
 
