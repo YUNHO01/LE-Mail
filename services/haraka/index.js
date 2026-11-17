@@ -67,6 +67,10 @@ function ensureTlsCertificates() {
   // 1. 공인 인증서(Let's Encrypt / LEMail certs / .env) 자동 탐색 및 동기화
   const certCandidates = [
     {
+      cert: process.env.MAIL_TLS_CERT,
+      key: process.env.MAIL_TLS_KEY,
+    },
+    {
       cert: process.env.IMAP_TLS_CERT,
       key: process.env.IMAP_TLS_KEY,
     },

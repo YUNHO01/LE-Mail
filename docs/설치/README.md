@@ -12,6 +12,7 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 | 🐧 **Linux (Baremetal / VM)** | Ubuntu 22.04+, RHEL/Rocky Linux 8/9 | [Linux 설치 가이드](linux-install.md) | **PM2 프로세스 매니저(권장)** 및 `systemd` 데몬 서비스 등록, ClamAV 데몬 연동, Nginx 리버스 프록시 및 SSL/TLS 적용 |
 | 🪟 **Windows Server** | Windows Server 2019/2022, Windows 10/11 | [Windows 설치 가이드](windows-install.md) | **PM2(권장)** 및 Windows 백그라운드 서비스(NSSM), Memurai(Redis 호환), ClamAV for Windows, Nginx for Windows |
 | 🐳 **Docker (Containerized)** | Docker Engine 24+, Docker Compose v2 | [Docker 설치 가이드](docker-install.md) | `docker-compose.yml` 원클릭 배포, ClamAV 및 Redis(`requirepass`) 일체형 컨테이너 격리 배포 |
+| 📧 **메일 클라이언트 연동** | Outlook, Thunderbird, Apple Mail 등 | [메일 클라이언트 연동 가이드](../메일_클라이언트_연동_가이드.md) | 외부 메일 클라이언트 IMAP(`993`/`143`) · SMTP(`25`/`587` STARTTLS) 설정 및 트러블슈팅 |
 
 ---
 
@@ -20,7 +21,7 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 모든 배포 환경에서 안정적인 운영을 위해 다음 5대 컴포넌트 구성을 준수해야 합니다:
 
 1. **Nginx 리버스 프록시**:
-   * 웹메일(9000), REST API(9200) 라우팅 및 HTTPS(443) 강제 리다이렉트
+   * 웹메일(9000), 모바일 PWA(9300), REST API(9200) 라우팅 및 HTTPS(443) 강제 리다이렉트
    * 대용량 첨부파일 업로드 제한 해제(`client_max_body_size 50M`)
 2. **ClamAV 안티바이러스 데몬**:
    * 첨부파일 바이러스/악성코드 실시간 검사를 위한 `clamd` TCP 포트(`3310`) 활성화
@@ -30,7 +31,7 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
    * 메시지 유실 방지를 위한 AOF(`appendonly yes`) 및 메모리 정책(`maxmemory-policy noeviction`) 구성
 4. **SSL / TLS 보안 인증서**:
    * **웹 SSL**: Nginx HTTPS(443) 인증서 (`fullchain.pem`, `privkey.pem`)
-   * **IMAP TLS**: `.env`의 `IMAP_TLS_CERT`, `IMAP_TLS_KEY` 설정 (STARTTLS 및 IMAPS 1993 지원)
+   * **메일 TLS (IMAP / SMTP)**: `.env`의 `MAIL_TLS_CERT`, `MAIL_TLS_KEY` 공통 설정 (IMAP STARTTLS/IMAPS 1993, API Inbound SMTP STARTTLS, Haraka MTA 자동 동기화)
    * **SMTP TLS**: Haraka MTA (`services/haraka/config/tls_cert.pem`, `tls_key.pem`) 아웃바운드 암호화
 5. **공식 배포 패키지(ZIP) 기반 배포**:
    * 개발 환경 소스코드 빌드(`yarn build`) 불필요
@@ -48,6 +49,8 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 | **2526** | TCP | Haraka MTA | Haraka 아웃바운드 발송 릴레이 포트 |
 | **143** | TCP | IMAP (STARTTLS) | IMAP 표준 메일 클라이언트 포트 (STARTTLS 암호화) |
 | **993** | TCP | IMAPS (SSL/TLS) | 보안 IMAP 클라이언트 전용 포트 (Direct SSL/TLS) |
+| **9000** | TCP | Webmail UI | 데스크톱 웹메일 Next.js 포트 (Nginx 프록시로만 노출) |
+| **9300** | TCP | Mobile PWA | 모바일 웹메일 PWA Next.js 포트 (Nginx 프록시로만 노출) |
 | **9200** | TCP | REST API | 백엔드 API 서비스 포트 (Nginx `/api` 프록시로만 노출) |
 | **3310** | TCP | ClamAV Daemon | ClamAV TCP 데몬 통신 포트 (로컬 내부 127.0.0.1 전용) |
 | **6379** | TCP | Redis / Memurai | 작업 큐 및 캐시 저장소 (비밀번호 인증 필수, 로컬 전용) |

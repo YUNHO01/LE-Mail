@@ -208,12 +208,12 @@ CLAMAV_PORT=3310
 CLAMAV_ENABLED=true
 CLAMAV_TIMEOUT_MS=3000
 
-# 4. IMAP Service & TLS Certificates
+# 4. Mail Services & IMAP/SMTP TLS Certificates (API SMTP / Haraka MTA / IMAP 공통)
 IMAP_PORT=1143
 IMAPS_PORT=1993
 IMAP_STARTTLS=true
-# IMAP_TLS_CERT=/opt/lemail/certs/fullchain.pem
-# IMAP_TLS_KEY=/opt/lemail/certs/privkey.pem
+# MAIL_TLS_CERT=/opt/lemail/certs/fullchain.pem
+# MAIL_TLS_KEY=/opt/lemail/certs/privkey.pem
 
 # 5. Default System Administrator (최초 부트스트랩 시 1회 시딩)
 DEFAULT_ADMIN_EMAIL=admin@lineedge.com

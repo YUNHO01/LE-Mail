@@ -248,7 +248,7 @@ nano .env
 # ==========================================
 # LEMail Production Environment Configuration
 # ==========================================
-# ※ API Core(9200) 및 Webmail(9000) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
+# ※ API Core(9200), Webmail(9000), Mobile PWA(9300) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
 NODE_ENV=production
 
 # 1. MySQL Database
@@ -274,8 +274,8 @@ CLAMAV_TIMEOUT_MS=3000
 IMAP_PORT=1143
 IMAPS_PORT=1993
 IMAP_STARTTLS=true
-IMAP_TLS_CERT=/opt/lemail/certs/fullchain.pem
-IMAP_TLS_KEY=/opt/lemail/certs/privkey.pem
+MAIL_TLS_CERT=/opt/lemail/certs/fullchain.pem
+MAIL_TLS_KEY=/opt/lemail/certs/privkey.pem
 
 # 5. Security & Master Encryption Key
 JWT_SECRET=c28f09d84ef478c9320b9e81d714b901a8f9024cba81001928374655
@@ -418,7 +418,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/lemail-cert-sync.sh
 # HTTP -> HTTPS 리다이렉트
 server {
     listen 80;
-    server_name mail.yourdomain.com;
+    server_name mail.yourdomain.com m.yourdomain.com;
     return 301 https://$host$request_uri;
 }
 
@@ -461,6 +461,40 @@ server {
         proxy_read_timeout 300s;
     }
 }
+
+# 3. Mobile PWA HTTPS (예: m.yourdomain.com, 필요 시 도메인/인증서 설정)
+server {
+    listen 443 ssl http2;
+    server_name m.yourdomain.com;
+
+    ssl_certificate /opt/lemail/certs/fullchain.pem;
+    ssl_certificate_key /opt/lemail/certs/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass http://127.0.0.1:9300;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api {
+        proxy_pass http://127.0.0.1:9200;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
 ```
 
 ```bash
@@ -484,7 +518,7 @@ sudo netfilter-persistent save 2>/dev/null || sudo iptables-save | sudo tee /etc
 
 ## 8. 서비스 데몬화 및 프로세스 상시화 (PM2 / systemd)
 
-LEMail의 4대 핵심 서비스(Core API, Webmail UI, IMAP Microservice, Haraka MTA)를 24x365 무중단 운영하기 위한 프로세스 관리 방법입니다.  
+LEMail의 5대 핵심 서비스(Core API, Webmail UI, Mobile PWA, IMAP Microservice, Haraka MTA)를 24x365 무중단 운영하기 위한 프로세스 관리 방법입니다.  
 **Node.js 표준 프로세스 매니저인 [방법 1] PM2 사용을 적극 권장**하며, OS 표준 서비스 규격을 준수해야 하는 환경에서는 **[방법 2] `systemd` 등록 방식**을 사용할 수 있습니다.
 
 ---
@@ -539,6 +573,24 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 9000,
+      },
+    },
+    {
+      name: 'lemail-mobile',
+      cwd: './apps/mobile',
+      script: 'scripts/start.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+        PORT: 9300,
       },
     },
     {
@@ -601,8 +653,9 @@ pm2 status
 ├────┼────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┤
 │ 0  │ lemail-api     │ default     │ 1.1.0   │ fork    │ 12345    │ 10s    │ 0    │ online    │ 0.5%     │ 120.4 MB │
 │ 1  │ lemail-web     │ default     │ 1.1.0   │ fork    │ 12346    │ 10s    │ 0    │ online    │ 0.2%     │ 85.1 MB  │
-│ 2  │ lemail-imap    │ default     │ 1.1.0   │ fork    │ 12347    │ 10s    │ 0    │ online    │ 0.1%     │ 65.8 MB  │
-│ 3  │ lemail-haraka  │ default     │ 1.1.0   │ fork    │ 12348    │ 10s    │ 0    │ online    │ 0.1%     │ 72.3 MB  │
+│ 2  │ lemail-mobile  │ default     │ 1.1.0   │ fork    │ 12347    │ 10s    │ 0    │ online    │ 0.2%     │ 82.5 MB  │
+│ 3  │ lemail-imap    │ default     │ 1.1.0   │ fork    │ 12348    │ 10s    │ 0    │ online    │ 0.1%     │ 65.8 MB  │
+│ 4  │ lemail-haraka  │ default     │ 1.1.0   │ fork    │ 12349    │ 10s    │ 0    │ online    │ 0.1%     │ 72.3 MB  │
 └────┴────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┘
 ```
 
@@ -623,10 +676,10 @@ pm2 save
 
 | 작업 구분 | CLI 명령어 | 설명 |
 | :--- | :--- | :--- |
-| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 4대 서비스 일괄 등록 및 기동 |
+| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 5대 서비스 일괄 등록 및 기동 |
 | **실행 상태 확인** | `pm2 status` 또는 `pm2 list` | CPU, 메모리, 업타임, 재시작 횟수 확인 |
 | **실시간 로그 모니터링** | `pm2 logs` | 전체 서비스의 통합 실시간 로그 스트리밍 |
-| **특정 서비스 로그** | `pm2 logs lemail-api` | 지정 서비스(`lemail-api`, `lemail-web`, `lemail-imap`, `lemail-haraka`) 전용 로그 |
+| **특정 서비스 로그** | `pm2 logs lemail-api` | 지정 서비스(`lemail-api`, `lemail-web`, `lemail-mobile`, `lemail-imap`, `lemail-haraka`) 전용 로그 |
 | **CPU/메모리 실시간 대시보드** | `pm2 monit` | 터미널 기반 실시간 자원 모니터링 대시보드 |
 | **무중단 리로드** | `pm2 reload ecosystem.config.js` | 신규 배포 시 세션 끊김 없는 순차적 재기동 |
 | **서비스 재시작** | `pm2 restart ecosystem.config.js` | 전체 프로세스 재시작 |
@@ -698,7 +751,27 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-#### (3) IMAP Microservice (`/etc/systemd/system/lemail-imap.service`)
+#### (3) Mobile PWA (`/etc/systemd/system/lemail-mobile.service`)
+```ini
+[Unit]
+Description=LEMail Mobile PWA Next.js Client
+After=network.target lemail-api.service
+
+[Service]
+Type=simple
+User=lemail
+WorkingDirectory=/opt/lemail/apps/mobile
+Environment=NODE_ENV=production
+Environment=PORT=9300
+ExecStart=/usr/bin/node scripts/start.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### (4) IMAP Microservice (`/etc/systemd/system/lemail-imap.service`)
 ```ini
 [Unit]
 Description=LEMail IMAP4rev1 Microservice
@@ -718,7 +791,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-#### (4) Haraka Outbound MTA (`/etc/systemd/system/lemail-haraka.service`)
+#### (5) Haraka Outbound MTA (`/etc/systemd/system/lemail-haraka.service`)
 ```ini
 [Unit]
 Description=LEMail Haraka Outbound Relay MTA
@@ -737,13 +810,13 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-#### (5) 서비스 일괄 등록 및 시작
+#### (6) 서비스 일괄 등록 및 시작
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now lemail-api lemail-web lemail-imap lemail-haraka
+sudo systemctl enable --now lemail-api lemail-web lemail-mobile lemail-imap lemail-haraka
 
 # 구동 상태 확인
-sudo systemctl status lemail-api lemail-web lemail-imap lemail-haraka
+sudo systemctl status lemail-api lemail-web lemail-mobile lemail-imap lemail-haraka
 ```
 
 ---

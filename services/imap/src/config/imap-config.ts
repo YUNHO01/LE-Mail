@@ -20,8 +20,8 @@ export const imapConfig: ImapServerConfig = {
   enableStartTls: process.env.IMAP_STARTTLS !== 'false',
   maxConnections: parseInt(process.env.IMAP_MAX_CONNECTIONS || '200', 10),
   authTimeoutMs: parseInt(process.env.IMAP_AUTH_TIMEOUT_MS || '60000', 10),
-  certPath: process.env.IMAP_TLS_CERT,
-  keyPath: process.env.IMAP_TLS_KEY,
+  certPath: process.env.MAIL_TLS_CERT || process.env.IMAP_TLS_CERT,
+  keyPath: process.env.MAIL_TLS_KEY || process.env.IMAP_TLS_KEY,
   archiveDir: path.resolve(
     process.cwd(),
     process.env.MAIL_ARCHIVE_DIR || process.env.ARCHIVE_DIR || './mail-archive',

@@ -156,7 +156,7 @@ notepad .env
 # ==========================================
 # LEMail Production Environment Configuration
 # ==========================================
-# ※ API Core(9200) 및 Webmail(9000) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
+# ※ API Core(9200), Webmail(9000), Mobile PWA(9300) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
 NODE_ENV=production
 
 # 1. Database
@@ -182,8 +182,8 @@ CLAMAV_TIMEOUT_MS=3000
 IMAP_PORT=1143
 IMAPS_PORT=1993
 IMAP_STARTTLS=true
-IMAP_TLS_CERT=C:/LEMail/ssl/fullchain.pem
-IMAP_TLS_KEY=C:/LEMail/ssl/privkey.pem
+MAIL_TLS_CERT=C:/LEMail/ssl/fullchain.pem
+MAIL_TLS_KEY=C:/LEMail/ssl/privkey.pem
 
 # 5. Security & Master Encryption Key
 JWT_SECRET=c28f09d84ef478c9320b9e81d714b901a8f9024cba81001928374655
@@ -214,7 +214,7 @@ node apps\api\dist\modules\database\scripts\init-schema.js
 
 공인 인증서(`fullchain.pem`, `privkey.pem`)를 `C:\LEMail\ssl\` 디렉터리에 배치합니다:
 * **웹메일 (Nginx)**: `C:/nginx/conf/ssl/fullchain.pem`, `privkey.pem`
-* **IMAP SSL/TLS**: `.env`의 `IMAP_TLS_CERT`, `IMAP_TLS_KEY` 설정
+* **메일 SSL/TLS (IMAP / SMTP)**: `.env`의 `MAIL_TLS_CERT`, `MAIL_TLS_KEY` 공통 설정 (API SMTP, Haraka, IMAP 자동 적용)
 * **Haraka SMTP**: `C:\LEMail\services\haraka\config\tls_cert.pem`, `tls_key.pem`으로 복사
 
 ```powershell
@@ -245,7 +245,7 @@ http {
     # 1. HTTP -> HTTPS 리다이렉트
     server {
         listen 80;
-        server_name mail.yourdomain.com;
+        server_name mail.yourdomain.com m.yourdomain.com;
         return 301 https://$host$request_uri;
     }
 
@@ -260,6 +260,39 @@ http {
 
         location / {
             proxy_pass http://127.0.0.1:9000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api {
+            proxy_pass http://127.0.0.1:9200;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 300s;
+        }
+    }
+
+    # 3. Mobile PWA HTTPS (예: m.yourdomain.com, 필요 시 도메인/인증서 설정)
+    server {
+        listen 443 ssl http2;
+        server_name m.yourdomain.com;
+
+        ssl_certificate C:/LEMail/ssl/fullchain.pem;
+        ssl_certificate_key C:/LEMail/ssl/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://127.0.0.1:9300;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
@@ -297,14 +330,14 @@ nssm start Nginx
 
 ## 8. Windows 프로세스 상시화 및 서비스 등록 (PM2 / NSSM)
 
-LEMail의 4대 핵심 서비스(Core API, Webmail, IMAP, Haraka)를 상시 구동하고 재부팅 시 자동 시작하도록 구성합니다.  
+LEMail의 5대 핵심 서비스(Core API, Webmail, Mobile PWA, IMAP, Haraka)를 상시 구동하고 재부팅 시 자동 시작하도록 구성합니다.  
 **[방법 1] PM2 프로세스 매니저**를 사용하면 실시간 리소스 모니터링 및 통합 로그 관리가 편리하며, **[방법 2] NSSM**을 사용하면 각 서비스를 Windows 표준 서비스(`services.msc`)로 직접 등록할 수 있습니다.
 
 ---
 
 ### 8.1 [방법 1] PM2 프로세스 매니저를 통한 등록 및 실행 (권장)
 
-배포 루트 디렉터리에 포함된 `ecosystem.config.js`를 활용하여 4대 서비스를 원클릭으로 등록 및 실행합니다.
+배포 루트 디렉터리에 포함된 `ecosystem.config.js`를 활용하여 5대 서비스를 원클릭으로 등록 및 실행합니다.
 
 #### (1) PM2 글로벌 설치 및 확인
 관리자 권한 PowerShell에서 실행:
@@ -319,7 +352,7 @@ LEMail 설치 루트 디렉터리(`C:\LEMail`)에서 실행합니다:
 ```powershell
 cd C:\LEMail
 
-# PM2 설정 파일로 4대 서비스 일괄 기동
+# PM2 설정 파일로 5대 서비스 일괄 기동
 pm2 start ecosystem.config.js
 
 # 구동 상태 확인
@@ -330,10 +363,10 @@ pm2 status
 
 | 작업 | PowerShell 명령어 | 설명 |
 | :--- | :--- | :--- |
-| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 4대 서비스 일괄 등록 및 기동 |
+| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 5대 서비스 일괄 등록 및 기동 |
 | **상태 확인** | `pm2 status` | CPU, 메모리, 상태, 재시작 횟수 확인 |
 | **실시간 로그 모니터링** | `pm2 logs` | 전체 서비스 실시간 스트리밍 로그 |
-| **특정 서비스 로그** | `pm2 logs lemail-api` | `lemail-api`, `lemail-web`, `lemail-imap`, `lemail-haraka` 개별 로그 |
+| **특정 서비스 로그** | `pm2 logs lemail-api` | `lemail-api`, `lemail-web`, `lemail-mobile`, `lemail-imap`, `lemail-haraka` 개별 로그 |
 | **리소스 대시보드** | `pm2 monit` | 실시간 CPU 및 메모리 터미널 대시보드 |
 | **무중단 리로드** | `pm2 reload ecosystem.config.js` | 무중단 순차적 재기동 |
 | **전체 재시작** | `pm2 restart ecosystem.config.js` | 전체 프로세스 재시작 |
@@ -388,7 +421,16 @@ nssm set LEMail-Web Description "LEMail Next.js Webmail Client"
 nssm set LEMail-Web Start SERVICE_AUTO_START
 ```
 
-#### (3) `LEMail-IMAP` 등록
+#### (3) `LEMail-Mobile` 등록
+```powershell
+nssm install LEMail-Mobile "C:\Program Files\nodejs\node.exe" "C:\LEMail\apps\mobile\scripts\start.js"
+nssm set LEMail-Mobile AppDirectory "C:\LEMail\apps\mobile"
+nssm set LEMail-Mobile AppEnvironmentExtra "NODE_ENV=production" "PORT=9300"
+nssm set LEMail-Mobile Description "LEMail Next.js Mobile PWA Client"
+nssm set LEMail-Mobile Start SERVICE_AUTO_START
+```
+
+#### (4) `LEMail-IMAP` 등록
 ```powershell
 nssm install LEMail-IMAP "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\imap\dist\index.js"
 nssm set LEMail-IMAP AppDirectory "C:\LEMail\services\imap"
@@ -397,7 +439,7 @@ nssm set LEMail-IMAP Description "LEMail IMAP4rev1 Microservice"
 nssm set LEMail-IMAP Start SERVICE_AUTO_START
 ```
 
-#### (4) `LEMail-Haraka` 등록
+#### (5) `LEMail-Haraka` 등록
 ```powershell
 nssm install LEMail-Haraka "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\haraka\index.js"
 nssm set LEMail-Haraka AppDirectory "C:\LEMail\services\haraka"
@@ -406,10 +448,11 @@ nssm set LEMail-Haraka Description "LEMail Haraka Outbound Relay MTA"
 nssm set LEMail-Haraka Start SERVICE_AUTO_START
 ```
 
-#### (5) 서비스 일괄 시작 및 상태 확인
+#### (6) 서비스 일괄 시작 및 상태 확인
 ```powershell
 nssm start LEMail-API
 nssm start LEMail-Web
+nssm start LEMail-Mobile
 nssm start LEMail-IMAP
 nssm start LEMail-Haraka
 

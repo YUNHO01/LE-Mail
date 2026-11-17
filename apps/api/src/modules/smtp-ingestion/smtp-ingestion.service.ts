@@ -94,7 +94,19 @@ export class SmtpIngestionService
   }
 
   private createServerInstance(): SMTPServer {
-    const certCandidates = [
+    const certCandidates: Array<{ key?: string; cert?: string }> = [
+      {
+        key: process.env.SMTP_TLS_KEY,
+        cert: process.env.SMTP_TLS_CERT,
+      },
+      {
+        key: process.env.MAIL_TLS_KEY,
+        cert: process.env.MAIL_TLS_CERT,
+      },
+      {
+        key: process.env.IMAP_TLS_KEY,
+        cert: process.env.IMAP_TLS_CERT,
+      },
       {
         key: resolve(process.cwd(), 'apps/api/certs/smtp-key.pem'),
         cert: resolve(process.cwd(), 'apps/api/certs/smtp-cert.pem'),
@@ -104,8 +116,16 @@ export class SmtpIngestionService
         cert: resolve(process.cwd(), 'certs/smtp-cert.pem'),
       },
       {
+        key: resolve(process.cwd(), '../../certs/privkey.pem'),
+        cert: resolve(process.cwd(), '../../certs/fullchain.pem'),
+      },
+      {
         key: resolve(process.cwd(), 'services/haraka/config/tls_key.pem'),
         cert: resolve(process.cwd(), 'services/haraka/config/tls_cert.pem'),
+      },
+      {
+        key: resolve(process.cwd(), '../../services/haraka/config/tls_key.pem'),
+        cert: resolve(process.cwd(), '../../services/haraka/config/tls_cert.pem'),
       },
     ];
 
@@ -113,7 +133,7 @@ export class SmtpIngestionService
     let tlsCert: string | undefined;
 
     for (const cand of certCandidates) {
-      if (existsSync(cand.key) && existsSync(cand.cert)) {
+      if (cand.key && cand.cert && existsSync(cand.key) && existsSync(cand.cert)) {
         try {
           tlsKey = readFileSync(cand.key, 'utf8');
           tlsCert = readFileSync(cand.cert, 'utf8');
@@ -125,6 +145,17 @@ export class SmtpIngestionService
       }
     }
 
+    if (!tlsKey || !tlsCert) {
+      this.logger.warn(
+        '[SMTP TLS] No TLS certificate found. STARTTLS will be disabled (SMTP AUTH remains disabled without TLS).',
+      );
+    }
+
+    const disabledCommands = ['VRFY'];
+    if (!tlsKey || !tlsCert) {
+      disabledCommands.push('STARTTLS');
+    }
+
     return new SMTPServer({
       banner: 'ESMTP Mail Server Ready (NestJS Production Ready)',
       size: 25 * 1024 * 1024, // 25MB Max
@@ -132,7 +163,7 @@ export class SmtpIngestionService
       cert: tlsCert,
       secure: false, // Port 25/2525 opportunistic STARTTLS
       authOptional: true,
-      disabledCommands: ['VRFY'],
+      disabledCommands,
       closeTimeout: 30000, // Slowloris DoS 방어: 30초
       socketTimeout: 30000,
       useProxy: this.currentUseProxy, // Reverse Proxy (HAProxy / PROXY protocol)

@@ -16,6 +16,7 @@
 * **Mail Services**:
   * Core API & Inbound ESMTP (포트 2525, 9200)
   * Webmail UI Next.js (포트 9000)
+  * Mobile PWA Next.js (포트 9300)
   * IMAP4rev1 Microservice (포트 1143, 1993, STARTTLS/IMAPS 지원)
   * Haraka Outbound Relay MTA (포트 2526, TLS 아웃바운드)
 
@@ -178,6 +179,23 @@ services:
     networks:
       - lemail-net
 
+  # 5-2. Mobile PWA Next.js
+  mobile:
+    image: lemail/mobile:latest
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+    container_name: lemail-mobile
+    restart: always
+    depends_on:
+      - api
+    env_file:
+      - .env
+    ports:
+      - "9300:9300"
+    networks:
+      - lemail-net
+
   # 6. IMAP4rev1 Microservice (SSL/TLS 지원)
   imap:
     image: lemail/imap:latest
@@ -282,8 +300,8 @@ CLAMAV_TIMEOUT_MS=3000
 IMAP_PORT=1143
 IMAPS_PORT=1993
 IMAP_STARTTLS=true
-IMAP_TLS_CERT=/app/certs/fullchain.pem
-IMAP_TLS_KEY=/app/certs/privkey.pem
+MAIL_TLS_CERT=/app/certs/fullchain.pem
+MAIL_TLS_KEY=/app/certs/privkey.pem
 
 # Security Secrets (최소 32자 이상 랜덤값)
 JWT_SECRET=c28f09d84ef478c9320b9e81d714b901a8f9024cba81001928374655
@@ -348,7 +366,7 @@ http {
 
     server {
         listen 80;
-        server_name mail.yourdomain.com;
+        server_name mail.yourdomain.com m.yourdomain.com;
         return 301 https://$host$request_uri;
     }
 
@@ -362,6 +380,39 @@ http {
 
         location / {
             proxy_pass http://web:9000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api {
+            proxy_pass http://api:9200;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 300s;
+        }
+    }
+
+    # Mobile PWA 프록시 (예: m.yourdomain.com, 필요 시 도메인/인증서 설정)
+    server {
+        listen 443 ssl http2;
+        server_name m.yourdomain.com;
+
+        ssl_certificate /etc/ssl/certs/fullchain.pem;
+        ssl_certificate_key /etc/ssl/certs/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://mobile:9300;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
