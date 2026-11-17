@@ -287,8 +287,9 @@ http {
         listen 443 ssl http2;
         server_name m.yourdomain.com;
 
-        ssl_certificate C:/LEMail/ssl/fullchain.pem;
-        ssl_certificate_key C:/LEMail/ssl/privkey.pem;
+        # 별도 인증서 사용 시 모바일 전용 경로 지정 (SAN 멀티도메인 통합 인증서 사용 시 C:/LEMail/ssl/fullchain.pem 지정)
+        ssl_certificate C:/LEMail/ssl/m-fullchain.pem;
+        ssl_certificate_key C:/LEMail/ssl/m-privkey.pem;
         ssl_protocols TLSv1.2 TLSv1.3;
 
         location / {

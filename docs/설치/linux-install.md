@@ -337,8 +337,9 @@ node apps/api/dist/modules/database/scripts/init-schema.js
 # 1. 80 포트 점유 방지를 위해 Nginx가 실행 중인 경우 일시 정지
 sudo systemctl stop nginx 2>/dev/null || true
 
-# 2. Let's Encrypt 인증서 발급 (도메인명 변경)
-sudo certbot certonly --standalone -d mail.yourdomain.com
+# 2. Let's Encrypt 멀티도메인(SAN) 인증서 발급 (웹메일 + 모바일 도메인)
+sudo certbot certonly --standalone -d mail.yourdomain.com -d m.yourdomain.com
+# (기존 mail.yourdomain.com 인증서에 m.yourdomain.com 을 추가 확장할 경우 --expand 옵션 사용)
 ```
 * 발급 원본 경로:
   * 인증서(Full Chain): `/etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem`
@@ -362,11 +363,11 @@ chmod 600 /opt/lemail/certs/privkey.pem
 
 ### 6.3 메일 서비스별 TLS 인증서 연동
 
-1. **IMAP 마이크로서비스 (`services/imap`)**:
-   * `.env` 파일에 복사한 인증서 경로를 지정합니다:
+1. **API SMTP & IMAP 마이크로서비스 (`.env` 공통 TLS 설정)**:
+   * `.env` 파일에 복사한 인증서 경로를 지정합니다 (`apps/api`, `services/imap`, `services/haraka` 공통 적용):
      ```ini
-     IMAP_TLS_CERT=/opt/lemail/certs/fullchain.pem
-     IMAP_TLS_KEY=/opt/lemail/certs/privkey.pem
+     MAIL_TLS_CERT=/opt/lemail/certs/fullchain.pem
+     MAIL_TLS_KEY=/opt/lemail/certs/privkey.pem
      ```
 2. **Haraka SMTP 아웃바운드 릴레이 (`services/haraka`)**:
    * 발신 메일의 TLS 암호화를 위해 Haraka 설정 디렉터리에 인증서를 복사합니다:
@@ -467,8 +468,9 @@ server {
     listen 443 ssl http2;
     server_name m.yourdomain.com;
 
-    ssl_certificate /opt/lemail/certs/fullchain.pem;
-    ssl_certificate_key /opt/lemail/certs/privkey.pem;
+    # 별도 인증서 발급 시 경로 (SAN 멀티도메인 통합 인증서 사용 시 /opt/lemail/certs/fullchain.pem 지정)
+    ssl_certificate /etc/letsencrypt/live/m.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/m.yourdomain.com/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 50M;
 
