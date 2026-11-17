@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/YUNHO01/LE-Mail/compare/v1.3.0...v1.4.0) (2026-11-17)
+
+
+### ✨ Features (기능 추가)
+
+* add mobile package to release versioning and workspace sync script ([e369560](https://github.com/YUNHO01/LE-Mail/commit/e3695602f8ac354b6844e403812b0b387b52edea))
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 인증서 위치 통합 수정 및 설치가이드 수정 ([a4e1d41](https://github.com/YUNHO01/LE-Mail/commit/a4e1d41f5142eb8a63e938f4b2b4afe907caf740))
+* add mobile login page and Next.js TypeScript environment declarations ([4bd239e](https://github.com/YUNHO01/LE-Mail/commit/4bd239ea57ef787f2a23d3220ccb8a1894d42f0f))
+
 ## [1.3.0](https://github.com/YUNHO01/LE-Mail/compare/v1.2.2...v1.3.0) (2026-11-16)
 
 
