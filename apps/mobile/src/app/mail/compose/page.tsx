@@ -53,7 +53,16 @@ function ComposeMailContent() {
     const [subject, setSubject] = useState('');
     const [bodyHtml, setBodyHtml] = useState('');
     const [bodyText, setBodyText] = useState('');
+    const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
     const [aiGenerating, setAiGenerating] = useState(false);
+
+    const rawMode = searchParams.get('mode');
+    const composeMode: 'new' | 'reply' | 'replyAll' | 'forward' | 'draft' =
+        rawMode === 'reply' || rawMode === 'replyAll' || rawMode === 'forward'
+            ? rawMode
+            : searchParams.get('draftId')
+              ? 'draft'
+              : 'new';
     const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
     const [draftId, setDraftId] = useState<string | null>(null);
 
@@ -188,6 +197,7 @@ function ComposeMailContent() {
         try {
             const sig = await fetchApi<{ useSignature: boolean; signatureHtml: string | null }>('/users/me/signature');
             if (sig && sig.useSignature && sig.signatureHtml) {
+                setSignatureHtml(sig.signatureHtml);
                 setBodyHtml(`<p><br/></p><br/>${sig.signatureHtml}`);
             }
         } catch (_) {}
@@ -208,6 +218,7 @@ function ComposeMailContent() {
                 try {
                     const sig = await fetchApi<{ useSignature: boolean; signatureHtml: string | null }>('/users/me/signature');
                     if (sig && sig.useSignature && sig.signatureHtml) {
+                        setSignatureHtml(sig.signatureHtml);
                         userSigHtml = `<br/>${sig.signatureHtml}`;
                     }
                 } catch (_) {}
@@ -698,6 +709,8 @@ function ComposeMailContent() {
                         subject={subject}
                         bodyText={bodyText}
                         bodyHtml={bodyHtml}
+                        signatureHtml={signatureHtml}
+                        composeMode={composeMode}
                         onLoadingChange={setAiGenerating}
                         onApply={(res) => {
                             if (res.subject && !subject.trim()) {

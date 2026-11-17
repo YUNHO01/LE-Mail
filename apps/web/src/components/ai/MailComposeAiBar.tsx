@@ -1,15 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Sparkles, Wand2, Languages, Loader2 } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 import { useAiAssistant } from '@/hooks/useAiAssistant';
+import { plainTextToParagraphHtml, splitComposeBody } from '@/lib/mailComposeAi';
 import { AiMailDraftResultDto } from '@lemail/shared-types';
 
 interface MailComposeAiBarProps {
   subject: string;
   bodyText: string;
   bodyHtml: string;
+  signatureHtml?: string | null;
+  composeMode?: 'new' | 'reply' | 'replyAll' | 'forward' | 'draft';
   onApply: (result: { subject?: string; bodyHtml: string; bodyText: string }) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
@@ -18,6 +21,8 @@ export const MailComposeAiBar: React.FC<MailComposeAiBarProps> = ({
   subject,
   bodyText,
   bodyHtml,
+  signatureHtml,
+  composeMode = 'new',
   onApply,
   onLoadingChange,
 }) => {
@@ -25,6 +30,13 @@ export const MailComposeAiBar: React.FC<MailComposeAiBarProps> = ({
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const splitResult = useMemo(
+    () => splitComposeBody(bodyHtml, signatureHtml),
+    [bodyHtml, signatureHtml],
+  );
+  const editableContent =
+    splitResult.editableText || (!splitResult.preservedTailHtml ? bodyText.trim() : '');
 
   if (!canUseAi) return null;
 
@@ -36,24 +48,37 @@ export const MailComposeAiBar: React.FC<MailComposeAiBarProps> = ({
       setLoading(true);
       onLoadingChange?.(true);
       setError(null);
+
+      const isReplyMode = composeMode === 'reply' || composeMode === 'replyAll';
+      const apiMode =
+        mode === 'compose' && isReplyMode && splitResult.quotedText ? 'reply' : mode;
+      const originalBody =
+        mode === 'compose'
+          ? splitResult.quotedText || editableContent || undefined
+          : editableContent;
+
       const res = await fetchApi<AiMailDraftResultDto>('/ai/mail/draft', {
         method: 'POST',
         body: JSON.stringify({
-          mode,
+          mode: apiMode,
           prompt: prompt.trim() || undefined,
           subject,
-          originalBody: bodyText || bodyHtml,
+          originalBody,
           targetLanguage,
         }),
       });
-      const escapedHtml = res.body
-        .split('\n')
-        .map((line) => `<p>${line || '<br/>'}</p>`)
-        .join('');
+      const draftHtml = plainTextToParagraphHtml(res.body);
+      const nextBodyHtml = splitResult.preservedTailHtml
+        ? `${draftHtml}${splitResult.preservedTailHtml}`
+        : draftHtml;
+      const nextBodyText = splitResult.preservedTailText
+        ? `${res.body}\n\n${splitResult.preservedTailText}`
+        : res.body;
+
       onApply({
         subject: res.subject || undefined,
-        bodyHtml: escapedHtml,
-        bodyText: res.body,
+        bodyHtml: nextBodyHtml,
+        bodyText: nextBodyText,
       });
       if (mode === 'compose') setPrompt('');
     } catch (e: any) {
@@ -95,7 +120,7 @@ export const MailComposeAiBar: React.FC<MailComposeAiBarProps> = ({
         </button>
         <button
           type="button"
-          disabled={loading || !(bodyText || bodyHtml).trim()}
+          disabled={loading || !editableContent}
           onClick={() => runDraft('polish')}
           className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
@@ -104,7 +129,7 @@ export const MailComposeAiBar: React.FC<MailComposeAiBarProps> = ({
         </button>
         <button
           type="button"
-          disabled={loading || !(bodyText || bodyHtml).trim()}
+          disabled={loading || !editableContent}
           onClick={() => runDraft('translate', 'en')}
           className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
