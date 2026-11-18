@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/YUNHO01/LE-Mail/compare/v1.4.2...v1.5.0) (2026-11-18)
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* SMTP_RBL 관련 설정 및 가이드 수정 ([d5fe4e9](https://github.com/YUNHO01/LE-Mail/commit/d5fe4e9e47bee365dfe4d2db00a11e280d85e867))
+
+
+### ✨ Features (기능 추가)
+
+* add authentication, mail, and license modules to api and frontend apps ([42c5f50](https://github.com/YUNHO01/LE-Mail/commit/42c5f500411c293363db58d2276404fe6a202ec7))
+
 ### [1.4.2](https://github.com/YUNHO01/LE-Mail/compare/v1.4.1...v1.4.2) (2026-11-17)
 
 
