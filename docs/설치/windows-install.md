@@ -484,4 +484,11 @@ netsh interface portproxy add v4tov4 listenport=25 listenaddress=0.0.0.0 connect
 1. 웹 브라우저에서 `https://mail.yourdomain.com` 접속.
 2. 초기 관리자 계정(`admin@yourdomain.com`)으로 로그인.
 3. 관리자 메뉴 ➔ **스팸 & 보안 관리 (`/admin/spam-rules`)**에서 ClamAV 연결 테스트 (`127.0.0.1:3310` 성공 확인).
-4. 도메인 및 사서함 계정을 생성하고 메일 송수신 및 IMAP 클라이언트 연동을 확인합니다.
+4. 관리자 메뉴 ➔ **도메인 관리 (`/admin/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
+5. 도메인 및 사서함 계정을 생성하고 메일 송수신 및 IMAP 클라이언트 연동을 확인합니다.
+
+> [!WARNING]
+> **Windows DNS 설정 및 Spamhaus RBL 주의사항**
+> * LEMail은 외부 SMTP 수신 시 `zen.spamhaus.org` 실시간 RBL 검사를 기본 수행합니다.
+> * Windows 네트워크 어댑터의 DNS 서버가 Google(`8.8.8.8`), Cloudflare(`1.1.1.1`) 등 공용 DNS로 설정되어 있으면 Spamhaus 정책 차단 응답(`127.255.255.254`)으로 인해 정상 외부 메일이 `554 5.7.1`로 차단될 수 있습니다.
+> * 운영 서버에서는 **ISP/사내 전용 DNS 또는 Windows Server DNS 역할(로컬 재귀 리졸버)**을 사용하시고, 불가피한 경우 `C:\LEMail\.env`에서 `SMTP_RBL_SERVERS=spamlist.or.kr` 또는 `SMTP_RBL_ENABLED=false`로 조정하십시오. (상세 안내: [설치 가이드 개요](README.md#-spamhaus-rbl-dnsbl-연동-및-dns--ip-평판-관리))

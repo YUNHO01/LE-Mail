@@ -66,6 +66,7 @@ export default function UsersManagementPage() {
   // Selection & Pagination
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -283,6 +284,20 @@ export default function UsersManagementPage() {
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Copy single user's email address to clipboard
+  const handleCopyEmail = async (item: UserDto, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(item.email);
+      setCopiedUserId(item.id);
+      setTimeout(() => {
+        setCopiedUserId((prev) => (prev === item.id ? null : prev));
+      }, 2000);
+    } catch {
+      setMessage({ type: 'error', text: '이메일 주소 복사에 실패했습니다.' });
+    }
   };
 
   // Export to Excel (.xlsx) (해당 페이지 목록 또는 선택된 항목)
@@ -945,7 +960,26 @@ export default function UsersManagementPage() {
 
                       {/* 관리 액션 */}
                       <td className="px-4 py-3.5 text-right whitespace-nowrap print:hidden">
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* 이메일 복사 버튼 */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyEmail(item, e)}
+                            title={copiedUserId === item.id ? '복사됨' : '이메일 주소 복사'}
+                            aria-label="이메일 주소 복사"
+                            className={`p-1.5 rounded-lg transition ${
+                              copiedUserId === item.id
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : 'text-slate-400 hover:bg-sky-50 hover:text-sky-600'
+                            }`}
+                          >
+                            {copiedUserId === item.id ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+
                           {/* 삭제 버튼 */}
                           <button
                             type="button"

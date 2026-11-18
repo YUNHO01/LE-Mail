@@ -56,8 +56,8 @@ export default (): AppConfig => ({
     spoolCleanup: process.env.MAIL_SPOOL_CLEANUP === 'true',
     useProxy: process.env.SMTP_USE_PROXY === 'true',
     maxClients: parseInt(process.env.SMTP_MAX_CLIENTS || '100', 10),
-    cacheTtlSeconds: parseInt(process.env.MAILBOX_CACHE_TTL || '60', 10),
-    rblEnabled: process.env.SMTP_RBL_ENABLED !== 'false',
+        cacheTtlSeconds: parseInt(process.env.MAILBOX_CACHE_TTL || '60', 10),
+    rblEnabled: process.env.SMTP_RBL_ENABLED === 'true',
     rblServers:
       process.env.SMTP_RBL_SERVERS || 'zen.spamhaus.org,spamlist.or.kr',
   },

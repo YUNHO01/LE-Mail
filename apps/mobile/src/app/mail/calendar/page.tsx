@@ -414,7 +414,7 @@ function CalendarPageContent() {
           setEventModalOpen(true);
         }}
         aria-label="새 일정"
-        className="fixed bottom-20 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007AFF] text-white shadow-lg shadow-blue-500/35 active:scale-95 transition-transform"
+        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-20 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007AFF] text-white shadow-lg shadow-blue-500/35 active:scale-95 transition-transform"
       >
         <CalendarPlus className="h-6 w-6" />
       </button>

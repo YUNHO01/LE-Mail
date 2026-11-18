@@ -459,4 +459,11 @@ docker compose exec api node dist/modules/database/scripts/init-schema.js
 
 1. 브라우저에서 `https://mail.yourdomain.com` 접속 후 관리자 계정으로 로그인.
 2. 관리자 메뉴 ➔ **스팸 & 보안 설정 (`/admin/spam-rules`)**에서 ClamAV 연결 테스트 실행 (`clamav:3310` 연결 정상 확인).
-3. 외부 메일 발송 및 IMAP 수신 검증.
+3. 관리자 메뉴 ➔ **도메인 관리 (`/admin/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
+4. 외부 메일 발송 및 IMAP 수신 검증.
+
+> [!WARNING]
+> **Docker 환경 Spamhaus RBL 및 DNS 리졸버 주의사항**
+> * 호스트 OS가 `systemd-resolved`(`127.0.0.53`)를 사용하는 경우 Docker 데몬이 컨테이너 기본 DNS로 `8.8.8.8`을 할당할 수 있습니다.
+> * 공용 DNS(`8.8.8.8`, `1.1.1.1`)를 통해 `zen.spamhaus.org`를 조회하면 Spamhaus 정책 차단 응답(`127.255.255.254`)으로 인해 정상 외부 메일이 `554 5.7.1`로 오탐 차단될 수 있습니다.
+> * 운영 환경에서는 `docker-compose.yml`의 `api` 서비스에 VPC/사내 전용 DNS 또는 로컬 `unbound` 주소를 `dns:` 항목으로 명시하거나, `/opt/lemail-docker/.env`에서 `SMTP_RBL_SERVERS=spamlist.or.kr` 또는 `SMTP_RBL_ENABLED=false`로 조정하십시오. (상세 안내: [설치 가이드 개요](README.md#-spamhaus-rbl-dnsbl-연동-및-dns--ip-평판-관리))

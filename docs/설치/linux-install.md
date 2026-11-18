@@ -849,6 +849,7 @@ sudo firewall-cmd --reload
 3. **보안 및 연동 점검**:
    * 관리자 콘솔 ➔ **스팸 & 보안 관리 (`/admin/spam-rules`)** 접속.
    * **ClamAV 안티바이러스 연동 설정**에서 `127.0.0.1:3310` **"연결 테스트"** 클릭 ➔ "ClamAV 데몬 연결 성공" 확인.
+   * 관리자 콘솔 ➔ **도메인 관리 (`/admin/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태를 확인합니다.
 4. **메일 송수신 테스트**: 도메인 및 사서함 계정을 추가하여 외부 메일 송수신 및 IMAP 클라이언트 연동을 확인합니다.
 
 ---
@@ -909,3 +910,41 @@ sudo firewall-cmd --reload
   # 또는
   yarn install --production --no-lockfile
   ```
+
+### Q4. 외부에서 들어오는 정상 메일이 Spamhaus RBL(`554 5.7.1`)로 차단됩니다.
+* **증상**: API 로그에 `[SMTP RBL Block] Rejected connection from ... (Listed in zen.spamhaus.org)`가 기록되며 정상 외부 메일 수신이 거부됨.
+* **원인**: 서버의 DNS 리졸버(`/etc/resolv.conf`)가 Google(`8.8.8.8`), Cloudflare(`1.1.1.1`) 등 공용 오픈 리졸버로 설정되어 있어 Spamhaus가 정책 차단 응답(`127.255.255.254` 등)을 반환하는 경우입니다. (자세한 내용은 [설치 가이드 개요 - Spamhaus RBL 연동 안내](README.md#-spamhaus-rbl-dnsbl-연동-및-dns--ip-평판-관리) 참조)
+* **해결 방법 (택 1)**:
+  1. **로컬 캐싱 전용 DNS 리졸버(`unbound`) 구성 (권장)**:
+     ```bash
+     # Ubuntu / Debian
+     sudo apt-get install -y unbound
+     sudo systemctl enable --now unbound
+
+     # Rocky Linux / RHEL
+     sudo dnf install -y unbound
+     sudo systemctl enable --now unbound
+     ```
+     이후 `/etc/resolv.conf`(또는 `systemd-resolved` / NetworkManager 설정)의 네임서버를 `127.0.0.1`로 지정하고, 정상 동작을 테스트합니다:
+     ```bash
+     # 정상 IP는 NXDOMAIN(미등재), 테스트 IP(127.0.0.2)는 127.0.0.x 응답 확인
+     dig +short 2.0.0.127.zen.spamhaus.org @127.0.0.1
+     ```
+  2. **RBL 설정 조정 (`/opt/lemail/.env`)**:
+     로컬 DNS 구성이 어렵거나 폐쇄망 환경인 경우 `.env`에 아래 옵션을 추가한 뒤 API 서비스를 재시작합니다:
+     ```ini
+     # Spamhaus 제외 후 KISA RBL만 사용
+     SMTP_RBL_SERVERS=spamlist.or.kr
+     # 또는 RBL 검사 전체 비활성화
+     # SMTP_RBL_ENABLED=false
+     ```
+     ```bash
+     pm2 restart lemail-api
+     # systemd 사용 시: sudo systemctl restart lemail-api
+     ```
+
+### Q5. 도메인 헬스체크에서 Spamhaus RBL 경고가 뜨거나 외부 발송 메일이 반송됩니다.
+* **원인**: 클라우드/IDC에서 할당받은 서버 공인 IP가 기존 이력(PBL/SBL/XBL)으로 인해 `zen.spamhaus.org`에 등재되어 있는 상태입니다.
+* **해결 방법**:
+  1. 서버 호스팅 업체/IDC 콘솔에서 공인 IP의 **PTR(역방향 DNS) 레코드**를 메일 서버 호스트명(`mail.yourdomain.com`)으로 등록합니다.
+  2. [Spamhaus IP Lookup](https://check.spamhaus.org/)에서 서버 공인 IP를 조회하고 등재 해제(**Delist**)를 신청합니다.

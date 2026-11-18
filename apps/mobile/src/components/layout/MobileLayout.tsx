@@ -68,7 +68,11 @@ export const MobileLayout: React.FC<{ children: React.ReactNode }> = ({ children
         </>
       )}
 
-      <main className={`relative flex-1 overflow-x-hidden ${hideBottomNav ? '' : 'pb-16'}`}>
+      <main
+        className={`relative flex-1 overflow-x-hidden ${
+          hideBottomNav ? '' : 'pb-[calc(4rem+env(safe-area-inset-bottom))]'
+        }`}
+      >
         {children}
       </main>
 

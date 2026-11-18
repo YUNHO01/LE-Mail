@@ -76,4 +76,40 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 6. **관리자 웹 콘솔 접속 & 검증**:
    * `https://mail.yourdomain.com` 접속 후 관리자 계정 로그인.
    * **스팸 & 보안 관리 (`/admin/spam-rules`)**에서 ClamAV 연결 테스트 실행 (정상 확인).
-   * 도메인 및 사서함 계정 생성 후 메일 송수신 테스트.
+   * **도메인 관리 (`/admin/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
+   * 사서함 계정 생성 후 외부 메일 송수신 테스트.
+
+---
+
+## 🛡️ Spamhaus RBL (DNSBL) 연동 및 DNS · IP 평판 관리
+
+LEMail은 스팸 메일 유입을 선제적으로 차단하고 발송 도메인의 평판을 진단하기 위해 **Spamhaus(`zen.spamhaus.org`)** 및 **KISA(`spamlist.or.kr`)** RBL(DNSBL)을 기본 연동합니다.
+
+### 1. LEMail에서의 Spamhaus 동작 방식
+* **인바운드 SMTP IP 차단 (`RblCheckService`)**:
+  * 외부 미인증 SMTP 수신(`MAIL FROM` 단계) 시, 발신 서버의 공인 IPv4 주소를 `zen.spamhaus.org` 및 `spamlist.or.kr`에 실시간 DNS 조회(타임아웃 1,500ms)합니다.
+  * 블랙리스트에 등재된 IP로 확인되면 메일 본문 수신 전 연결 단계에서 `554 5.7.1 Service unavailable; Client host [...] blocked using ...` 응답으로 즉시 거부합니다.
+  * 사설/루프백 IP(`127.0.0.1`, `10.x.x.x`, `172.16.x.x`, `192.168.x.x`) 및 인증된 발신 세션은 RBL 검사를 우회합니다.
+* **아웃바운드 도메인 헬스체크 (`DomainHealthService`)**:
+  * 관리자 콘솔의 **도메인 관리 (`/admin/domains`)** 헬스체크 실행 시, 자사 MX 호스트 IP가 `zen.spamhaus.org`에 등재되어 있는지 점검하여 외부 포털(Gmail, Naver 등) 발송 차단 위험을 사전에 진단합니다.
+
+### 2. 설치 시 필수 DNS 리졸버 주의사항 (오탐 차단 방지)
+> [!WARNING]
+> **공용 오픈 DNS 리졸버(`8.8.8.8`, `1.1.1.1` 등) 사용 시 정상 메일 차단 주의**
+> * Spamhaus는 Google Public DNS(`8.8.8.8`), Cloudflare(`1.1.1.1`) 등 대형 공용 오픈 리졸버를 통한 대량 DNSBL 쿼리를 정책상 제한하며, 차단 응답 코드(예: `127.255.255.254`)를 반환할 수 있습니다.
+> * LEMail은 RBL DNS 조회 시 A 레코드 응답이 반환되면 차단 대상으로 판단하므로, **서버 DNS로 공용 오픈 리졸버를 사용하면 정상적인 외부 메일까지 RBL에 걸려 차단(오탐)될 수 있습니다.**
+> * **권장 구성**: 서버 자체 **로컬 캐싱 전용 DNS 리졸버(`unbound` 또는 `bind9`)**를 사용하거나, **클라우드 VPC 내부 DNS(예: AWS VPC DNS)** 또는 **IDC/ISP 전용 DNS 서버**를 지정하십시오.
+> * **방화벽**: RBL 조회를 위해 서버에서 외부 DNS(**UDP/TCP 53 아웃바운드**) 통신이 허용되어 있어야 합니다.
+
+### 3. 자사 서버 공인 IP 사전 점검 및 등재 해제(Delist)
+* 신규 서버(특히 클라우드 VM/VPS)에 할당된 공인 IP는 이전 사용자의 이력으로 인해 Spamhaus(PBL/SBL/XBL)에 등재되어 있을 수 있습니다.
+* 설치 직후 [Spamhaus IP Lookup](https://check.spamhaus.org/) 또는 LEMail 관리자 콘솔 도메인 헬스체크를 통해 발송 IP의 등재 여부를 확인하십시오.
+* 등재되어 있는 경우, 서버 공인 IP에 대한 **역방향 DNS(PTR/rDNS) 레코드**를 메일 서버 호스트명(`mail.yourdomain.com`)으로 먼저 설정한 뒤 Spamhaus 공식 페이지에서 **등재 해제(Delist)**를 신청하십시오.
+
+### 4. 환경 변수 제어 옵션 (`.env`)
+폐쇄망·사내망 환경이거나 RBL 정책을 조정해야 하는 경우 `.env` 파일에서 아래 환경 변수로 제어할 수 있습니다(변경 후 `api` 서비스 재시작 필요):
+
+| 환경 변수 | 기본값 | 설명 |
+| :--- | :--- | :--- |
+| `SMTP_RBL_ENABLED` | `true` | 인바운드 SMTP RBL 실시간 검사 활성화 여부 (`false` 설정 시 비활성화) |
+| `SMTP_RBL_SERVERS` | `zen.spamhaus.org,spamlist.or.kr` | 조회할 DNSBL 서버 목록 (쉼표 구분, 예: 공용 DNS 환경에서 KISA만 사용 시 `spamlist.or.kr`) |

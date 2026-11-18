@@ -17,7 +17,7 @@ export class RblCheckService {
 
   constructor(private readonly configService: ConfigService) {
     this.isEnabled =
-      this.configService.get<boolean>('smtp.rblEnabled') ?? true;
+      this.configService.get<boolean>('smtp.rblEnabled') ?? false;
 
     const rblConfig =
       this.configService.get<string>('smtp.rblServers') ||
