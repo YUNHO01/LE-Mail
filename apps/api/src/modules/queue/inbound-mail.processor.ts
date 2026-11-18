@@ -155,11 +155,39 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
       await queryRunner.manager.save(message);
 
       // 3. 수신자 (TO, CC, BCC) 엔티티 생성
+      // - 메일 헤더 표시용(MailRecipient): MIME To/Cc/Bcc 헤더를 그대로 유지하고,
+      //   헤더에 없는 Envelope RCPT TO(숨은참조 등)만 BCC로 보완
+      // - 실제 사서함 배달(UserMail)은 반드시 SMTP Envelope RCPT TO(to) 기준으로만 수행
+      const normalizeAddrList = (list?: string[]): string[] => {
+        const seen = new Set<string>();
+        const result: string[] = [];
+        for (const raw of list || []) {
+          const norm = raw.toLowerCase().trim();
+          if (norm && !seen.has(norm)) {
+            seen.add(norm);
+            result.push(norm);
+          }
+        }
+        return result;
+      };
+
+      const envelopeRecipients = normalizeAddrList(to);
+      const headerToAddresses = normalizeAddrList(parsedData.to);
+      const headerCcAddresses = normalizeAddrList(parsedData.cc);
+      const headerBccAddresses = normalizeAddrList(parsedData.bcc);
+
+      const headerVisibleSet = new Set<string>([
+        ...headerToAddresses,
+        ...headerCcAddresses,
+      ]);
+      const effectiveBccAddresses = normalizeAddrList([
+        ...headerBccAddresses,
+        ...envelopeRecipients.filter((addr) => !headerVisibleSet.has(addr)),
+      ]);
+
       const recipientsToSave: MailRecipient[] = [];
 
-      // Envelope TO 우선 등록
-      const allToAddresses = new Set<string>([...to, ...(parsedData.to || [])]);
-      for (const address of allToAddresses) {
+      for (const address of headerToAddresses) {
         recipientsToSave.push(
           queryRunner.manager.create(MailRecipient, {
             messageId: id,
@@ -169,8 +197,7 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
         );
       }
 
-      // CC 등록
-      for (const address of parsedData.cc || []) {
+      for (const address of headerCcAddresses) {
         recipientsToSave.push(
           queryRunner.manager.create(MailRecipient, {
             messageId: id,
@@ -180,8 +207,7 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
         );
       }
 
-      // BCC 등록
-      for (const address of parsedData.bcc || []) {
+      for (const address of effectiveBccAddresses) {
         recipientsToSave.push(
           queryRunner.manager.create(MailRecipient, {
             messageId: id,
@@ -249,8 +275,7 @@ export class InboundMailProcessor extends WorkerHost implements OnModuleDestroy 
       const notifyEvents: Array<{ userId: string; folderId: string; uid: number }> = [];
       const senderDomain = effectiveSender.includes('@') ? effectiveSender.split('@')[1] : '';
 
-      for (const address of allToAddresses) {
-        const normEmail = address.toLowerCase().trim();
+      for (const normEmail of envelopeRecipients) {
         const targetUser = await queryRunner.manager.findOne(User, {
           where: { email: normEmail },
         });

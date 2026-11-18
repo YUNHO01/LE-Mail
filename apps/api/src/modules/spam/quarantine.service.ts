@@ -162,8 +162,12 @@ export class QuarantineService {
     await queryRunner.startTransaction();
 
     try {
-      const recipientAddresses = (message.recipients || []).map((r) =>
-        r.address.toLowerCase().trim(),
+      const recipientAddresses = Array.from(
+        new Set(
+          (message.recipients || [])
+            .map((r) => r.address.toLowerCase().trim())
+            .filter(Boolean),
+        ),
       );
 
       for (const address of recipientAddresses) {
