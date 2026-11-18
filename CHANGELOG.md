@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.1](https://github.com/YUNHO01/LE-Mail/compare/v1.5.0...v1.5.1) (2026-11-18)
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 보낸이명, 수신자명이 있는 경우 표시되도록 수정 ([a721646](https://github.com/YUNHO01/LE-Mail/commit/a721646a5e403c9c56805fff0250641f31657e9a))
+
 ## [1.5.0](https://github.com/YUNHO01/LE-Mail/compare/v1.4.2...v1.5.0) (2026-11-18)
 
 
