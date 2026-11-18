@@ -286,7 +286,13 @@ export default function MailDetailPage() {
               <span className="w-14 shrink-0 font-semibold text-slate-500">받는사람</span>
               <span className="min-w-0 flex-1 break-all text-slate-700">
                 {mail.recipients && mail.recipients.length > 0
-                  ? mail.recipients.map((r) => r.address).join(', ')
+                  ? mail.recipients
+                      .map((r) =>
+                        r.name && !r.address.includes(r.name)
+                          ? `${r.name} <${r.address}>`
+                          : r.address,
+                      )
+                      .join(', ')
                   : '지정되지 않음'}
               </span>
             </div>

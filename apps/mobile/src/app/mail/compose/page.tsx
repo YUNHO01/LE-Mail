@@ -224,6 +224,16 @@ function ComposeMailContent() {
                 } catch (_) {}
             }
 
+            const senderEmailPure = extractPureEmail(mail.sender);
+            const formattedSenderChip = formatRecipientEntry({
+                email: senderEmailPure || mail.sender,
+                name: mail.senderName,
+            });
+            const formattedFromQuote =
+                mail.senderName && !mail.sender.includes(mail.senderName)
+                    ? `${mail.senderName} &lt;${mail.sender}&gt;`
+                    : mail.sender;
+
             if (mode === 'reply') {
                 // 보낸사람에게 답장
                 let aiDraftHtml = '<p></p>';
@@ -238,12 +248,12 @@ function ComposeMailContent() {
                         setBodyText(savedDraft);
                     }
                 }
-                setTo([mail.sender]);
+                setTo([formattedSenderChip]);
                 setSubject(mail.subject?.startsWith('Re:') ? mail.subject : `Re: ${mail.subject || ''}`);
                 setBodyHtml(
                     `${aiDraftHtml}${userSigHtml}<br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
                     `----- Original Message -----<br/>` +
-                    `<b>From:</b> ${mail.sender}<br/>` +
+                    `<b>From:</b> ${formattedFromQuote}<br/>` +
                     `<b>Date:</b> ${formattedDate}<br/>` +
                     `<b>Subject:</b> ${mail.subject || '(제목 없음)'}<br/><br/>` +
                     `${mailBodyHtml}</div>`,
@@ -251,10 +261,15 @@ function ComposeMailContent() {
             } else if (mode === 'replyAll') {
                 // 전체 답장 (발신자 + 기존 수신자 중 나를 제외)
                 const allRecipients = (mail.recipients || [])
-                    .map((r) => r.address)
-                    .filter((addr) => addr.toLowerCase() !== user?.email?.toLowerCase());
+                    .filter((r) => extractPureEmail(r.address).toLowerCase() !== user?.email?.toLowerCase())
+                    .map((r) =>
+                        formatRecipientEntry({
+                            email: extractPureEmail(r.address) || r.address,
+                            name: r.name,
+                        }),
+                    );
 
-                setTo([mail.sender]);
+                setTo([formattedSenderChip]);
                 if (allRecipients.length > 0) {
                     setCc(allRecipients);
                     setShowCc(true);
@@ -263,7 +278,7 @@ function ComposeMailContent() {
                 setBodyHtml(
                     `<p></p>${userSigHtml}<br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
                     `----- Original Message -----<br/>` +
-                    `<b>From:</b> ${mail.sender}<br/>` +
+                    `<b>From:</b> ${formattedFromQuote}<br/>` +
                     `<b>Date:</b> ${formattedDate}<br/>` +
                     `<b>Subject:</b> ${mail.subject || '(제목 없음)'}<br/><br/>` +
                     `${mailBodyHtml}</div>`,
@@ -274,7 +289,7 @@ function ComposeMailContent() {
                 setBodyHtml(
                     `<p></p>${userSigHtml}<br/><div class="quote" style="border-left: 2px solid #cbd5e1; padding-left: 12px; margin-top: 16px; color: #64748b;">` +
                     `---------- Forwarded message ---------<br/>` +
-                    `<b>From:</b> ${mail.sender}<br/>` +
+                    `<b>From:</b> ${formattedFromQuote}<br/>` +
                     `<b>Date:</b> ${formattedDate}<br/>` +
                     `<b>Subject:</b> ${mail.subject || '(제목 없음)'}<br/><br/>` +
                     `${mailBodyHtml}</div>`,
@@ -283,13 +298,28 @@ function ComposeMailContent() {
                 // 임시저장 내용 복원
                 const toList = (mail.recipients || [])
                     .filter((r) => r.type === 'TO')
-                    .map((r) => r.address);
+                    .map((r) =>
+                        formatRecipientEntry({
+                            email: extractPureEmail(r.address) || r.address,
+                            name: r.name,
+                        }),
+                    );
                 const ccList = (mail.recipients || [])
                     .filter((r) => r.type === 'CC')
-                    .map((r) => r.address);
+                    .map((r) =>
+                        formatRecipientEntry({
+                            email: extractPureEmail(r.address) || r.address,
+                            name: r.name,
+                        }),
+                    );
                 const bccList = (mail.recipients || [])
                     .filter((r) => r.type === 'BCC')
-                    .map((r) => r.address);
+                    .map((r) =>
+                        formatRecipientEntry({
+                            email: extractPureEmail(r.address) || r.address,
+                            name: r.name,
+                        }),
+                    );
 
                 if (toList.length > 0) setTo(toList);
                 if (ccList.length > 0) {

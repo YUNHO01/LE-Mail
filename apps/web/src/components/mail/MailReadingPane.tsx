@@ -442,7 +442,13 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
                 <div className="text-[12px] text-[#6e6e73] mt-0.5 break-all">
                   받는사람:{' '}
                   {mail.recipients && mail.recipients.length > 0
-                    ? mail.recipients.map((r) => r.address).join(', ')
+                    ? mail.recipients
+                        .map((r) =>
+                          r.name && !r.address.includes(r.name)
+                            ? `${r.name} <${r.address}>`
+                            : r.address,
+                        )
+                        .join(', ')
                     : '지정되지 않음'}
                 </div>
               </div>

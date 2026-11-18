@@ -92,7 +92,7 @@ export const MailListItem: React.FC<MailListItemProps> = ({
             >
               {isSent
                 ? mail.recipients && mail.recipients.length > 0
-                  ? mail.recipients.map((r) => r.address).join(', ')
+                  ? mail.recipients.map((r) => r.name || r.address).join(', ')
                   : '(수신자 없음)'
                 : mail.senderName || mail.sender}
             </span>

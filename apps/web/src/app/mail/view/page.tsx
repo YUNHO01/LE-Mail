@@ -577,7 +577,13 @@ function MailMultiViewContent() {
                       <span className="font-semibold text-slate-700">받는사람:</span>
                       <span className="text-slate-700">
                         {mail.recipients && mail.recipients.length > 0
-                          ? mail.recipients.map((r) => r.address).join(', ')
+                          ? mail.recipients
+                              .map((r) =>
+                                r.name && !r.address.includes(r.name)
+                                  ? `${r.name} <${r.address}>`
+                                  : r.address,
+                              )
+                              .join(', ')
                           : '지정되지 않음'}
                       </span>
                     </div>

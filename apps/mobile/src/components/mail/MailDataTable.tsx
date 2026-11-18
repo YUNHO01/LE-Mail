@@ -333,10 +333,14 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
             {filteredMails.map((mail) => {
               const isSelected = selectedIds.includes(mail.id);
               const isSentOrDraft = type === 'sent' || type === 'drafts';
-              const displayParty = isSentOrDraft
-                ? mail.recipients?.[0]?.address || '(받는사람 없음)'
-                : mail.sender || '(발신자 없음)';
-              const displayName = displayParty.split('<')[0].trim() || displayParty;
+              const displayName = isSentOrDraft
+                ? mail.recipients && mail.recipients.length > 0
+                  ? mail.recipients
+                      .map((r) => r.name || (r.address.split('<')[0].trim() || r.address))
+                      .join(', ')
+                  : '(받는사람 없음)'
+                : mail.senderName ||
+                  (mail.sender ? mail.sender.split('<')[0].replace(/^["']|["']$/g, '').trim() || mail.sender : '(발신자 없음)');
               const previewText =
                 (mail.body?.text || '').replace(/\s+/g, ' ').trim() || '내용 미리보기가 없습니다.';
               const hasAttachment = Boolean(mail.attachments && mail.attachments.length > 0);

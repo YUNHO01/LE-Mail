@@ -88,15 +88,23 @@ export class MailService {
     return { decodedSender: decoded, parsedName: '', emailAddress: emailOnly };
   }
 
-  private async buildSenderNameMap(rawSenders: Array<string | null | undefined>): Promise<Map<string, string>> {
-    const emails = Array.from(
-      new Set(
-        rawSenders
-          .map((s) => this.parseSenderParts(s))
-          .filter((p) => !p.parsedName && p.emailAddress)
-          .map((p) => p.emailAddress),
-      ),
-    );
+  private async buildUserNameMap(
+    messages: Array<{ sender?: string | null; recipients?: Array<{ address?: string | null }> }>,
+  ): Promise<Map<string, string>> {
+    const emailSet = new Set<string>();
+    for (const m of messages) {
+      const senderParts = this.parseSenderParts(m.sender);
+      if (!senderParts.parsedName && senderParts.emailAddress) {
+        emailSet.add(senderParts.emailAddress);
+      }
+      for (const r of m.recipients || []) {
+        const recParts = this.parseSenderParts(r.address);
+        if (!recParts.parsedName && recParts.emailAddress) {
+          emailSet.add(recParts.emailAddress);
+        }
+      }
+    }
+    const emails = Array.from(emailSet);
     const map = new Map<string, string>();
     if (emails.length === 0) return map;
 
@@ -110,6 +118,22 @@ export class MailService {
       }
     }
     return map;
+  }
+
+  private enrichRecipients(
+    recipients: any[] | undefined,
+    userNameMap: Map<string, string>,
+  ) {
+    if (!recipients || recipients.length === 0) return recipients;
+    return recipients.map((r) => {
+      const { decodedSender, parsedName, emailAddress } = this.parseSenderParts(r.address);
+      const name = parsedName || (emailAddress ? userNameMap.get(emailAddress) : undefined);
+      return {
+        ...r,
+        address: decodedSender || r.address,
+        name,
+      };
+    });
   }
 
   async findAll(query: MailQueryDto, currentUserId?: string) {
@@ -195,7 +219,7 @@ export class MailService {
     queryBuilder.skip(skip).take(limit);
 
     const [items, total] = await queryBuilder.getManyAndCount();
-    const senderNameMap = await this.buildSenderNameMap(items.map((m) => m.sender));
+    const userNameMap = await this.buildUserNameMap(items);
 
     let effectiveFolderId = query.folderId;
     if (!effectiveFolderId && query.folderType && currentUserId) {
@@ -216,7 +240,7 @@ export class MailService {
         const um = umMap.get(m.id);
         const decodedSubject = this.decodeMimeWords(m.subject);
         const { decodedSender, parsedName, emailAddress } = this.parseSenderParts(m.sender);
-        const senderName = parsedName || (emailAddress ? senderNameMap.get(emailAddress) : undefined);
+        const senderName = parsedName || (emailAddress ? userNameMap.get(emailAddress) : undefined);
         const isSecure = Boolean(
           m.isSecure ||
             decodedSubject?.includes('[보안메일]') ||
@@ -229,6 +253,7 @@ export class MailService {
           ...m,
           sender: decodedSender || m.sender,
           senderName,
+          recipients: this.enrichRecipients(m.recipients, userNameMap),
           subject: decodedSubject,
           folderId: effectiveFolderId,
           uid: um?.uid,
@@ -267,7 +292,7 @@ export class MailService {
     const decodedItems = items.map((m) => {
       const decodedSubject = this.decodeMimeWords(m.subject);
       const { decodedSender, parsedName, emailAddress } = this.parseSenderParts(m.sender);
-      const senderName = parsedName || (emailAddress ? senderNameMap.get(emailAddress) : undefined);
+      const senderName = parsedName || (emailAddress ? userNameMap.get(emailAddress) : undefined);
       const isSecure = Boolean(
         m.isSecure ||
           decodedSubject?.includes('[보안메일]') ||
@@ -277,6 +302,7 @@ export class MailService {
         ...m,
         sender: decodedSender || m.sender,
         senderName,
+        recipients: this.enrichRecipients(m.recipients, userNameMap),
         subject: decodedSubject,
         isSecure,
         isStarred: Boolean(m.isImportant),
@@ -686,9 +712,9 @@ export class MailService {
     }
 
     const decodedSubject = this.decodeMimeWords(message.subject);
-    const senderNameMap = await this.buildSenderNameMap([message.sender]);
+    const userNameMap = await this.buildUserNameMap([message]);
     const { decodedSender, parsedName, emailAddress } = this.parseSenderParts(message.sender);
-    const senderName = parsedName || (emailAddress ? senderNameMap.get(emailAddress) : undefined);
+    const senderName = parsedName || (emailAddress ? userNameMap.get(emailAddress) : undefined);
     const isSecure = Boolean(
       message.isSecure ||
         decodedSubject?.includes('[보안메일]') ||
@@ -699,6 +725,7 @@ export class MailService {
       ...message,
       sender: decodedSender || message.sender,
       senderName,
+      recipients: this.enrichRecipients(message.recipients, userNameMap),
       subject: decodedSubject,
       isRead,
       isSeen: true,

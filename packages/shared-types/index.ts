@@ -271,6 +271,7 @@ export interface MailRecipientDto {
   messageId: string;
   type: RecipientType;
   address: string;
+  name?: string;
 }
 
 export interface MailAttachmentDto {
