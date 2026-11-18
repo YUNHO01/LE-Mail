@@ -1,11 +1,34 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { ApiKeyService } from './api-key.service';
 import { WebAuthnService } from './webauthn.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+
+const AUTH_COOKIE_NAME = 'lemail_token';
+
+function isHttpsRequest(req: Request): boolean {
+  if (req.secure) return true;
+  const proto = req.headers['x-forwarded-proto'];
+  if (typeof proto === 'string') {
+    return proto.split(',')[0].trim().toLowerCase() === 'https';
+  }
+  return false;
+}
+
+function setAuthCookie(req: Request, res: Response, accessToken?: string) {
+  if (!accessToken) return;
+  res.cookie(AUTH_COOKIE_NAME, accessToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isHttpsRequest(req),
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+}
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -33,12 +56,34 @@ export class AuthController {
   @Post('login')
   @ApiOperation({
     summary: '사용자 및 관리자 로그인',
-    description: '이메일과 비밀번호로 로그인하여 JWT 액세스 토큰을 발급받습니다.',
+    description: '이메일과 비밀번호로 로그인하여 HttpOnly 쿠키 및 JWT 액세스 토큰을 발급합니다.',
   })
   @ApiResponse({ status: 200, description: '로그인 성공' })
   @ApiResponse({ status: 401, description: '인증 실패 (이메일/비밀번호 불일치)' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(loginDto);
+    setAuthCookie(req, res, result?.accessToken);
+    return result;
+  }
+
+  @Post('logout')
+  @ApiOperation({
+    summary: '로그아웃',
+    description: 'HttpOnly 인증 쿠키를 만료시킵니다.',
+  })
+  @ApiResponse({ status: 200, description: '로그아웃 성공' })
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    res.clearCookie(AUTH_COOKIE_NAME, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: isHttpsRequest(req),
+      path: '/',
+    });
+    return { success: true };
   }
 
   @Get('profile')
@@ -112,10 +157,14 @@ export class AuthController {
   @ApiOperation({ summary: '생체인식(WebAuthn) 로그인 서명 검증 및 JWT 발급' })
   async verifyWebAuthnLogin(
     @Body() body: any,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
     @Headers('origin') origin?: string,
     @Headers('x-forwarded-host') forwardedHost?: string,
     @Headers('host') host?: string,
   ) {
-    return this.webAuthnService.verifyLogin(body, origin, forwardedHost || host);
+    const result = await this.webAuthnService.verifyLogin(body, origin, forwardedHost || host);
+    setAuthCookie(req, res, result?.accessToken);
+    return result;
   }
 }

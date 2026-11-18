@@ -52,15 +52,14 @@ export function getDefaultDeviceName(): string {
 }
 
 function getAuthHeaders(): HeadersInit {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('lemail_token') : null;
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
 export async function listBiometricCredentials(): Promise<PasskeyCredentialDto[]> {
   const res = await fetch(`${API_BASE_URL}/api/auth/webauthn/credentials`, {
+    credentials: 'include',
     headers: getAuthHeaders(),
   });
   const data = await res.json().catch(() => []);
@@ -73,6 +72,7 @@ export async function listBiometricCredentials(): Promise<PasskeyCredentialDto[]
 export async function deleteBiometricCredential(id: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/api/auth/webauthn/credentials/${encodeURIComponent(id)}`, {
     method: 'DELETE',
+    credentials: 'include',
     headers: getAuthHeaders(),
   });
   const data = await res.json().catch(() => ({}));
@@ -87,6 +87,7 @@ export async function registerBiometricCredential(
 ): Promise<PasskeyCredentialDto> {
   const optionsRes = await fetch(`${API_BASE_URL}/api/auth/webauthn/register/options`, {
     method: 'POST',
+    credentials: 'include',
     headers: getAuthHeaders(),
   });
   const options: WebAuthnRegisterOptionsResponseDto & { message?: string } = await optionsRes.json();
@@ -135,6 +136,7 @@ export async function registerBiometricCredential(
 
   const verifyRes = await fetch(`${API_BASE_URL}/api/auth/webauthn/register/verify`, {
     method: 'POST',
+    credentials: 'include',
     headers: getAuthHeaders(),
     body: JSON.stringify({
       id: credential.id,
@@ -199,6 +201,7 @@ export async function authenticateWithBiometric(email?: string): Promise<LoginRe
   const response = credential.response as AuthenticatorAssertionResponse;
   const verifyRes = await fetch(`${API_BASE_URL}/api/auth/webauthn/login/verify`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       challengeToken: options.challengeToken,

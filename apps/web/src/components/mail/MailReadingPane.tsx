@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchApi, calendarApi } from '@/lib/api';
-import { sanitizeHtml } from '@/lib/sanitize';
+import { fetchMailFoldersCached } from '@/lib/mail-folders-cache';
+import { SandboxedMailBody } from '@/components/mail/SandboxedMailBody';
 import {
   MailMessageDto,
   MailFolderDto,
@@ -91,7 +92,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         if (cancelled) return;
         setMail(data);
 
-        const folders = await fetchApi<MailFolderDto[]>('/mail-folders');
+        const folders = await fetchMailFoldersCached();
         if (cancelled) return;
         const spam = (folders || []).find((f) => f.type === FolderType.SPAM);
         if (spam) {
@@ -244,7 +245,11 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
 
   if (!mail) return null;
 
-  const senderInitial = mail.sender ? mail.sender.replace(/["'<]/g, '').trim().slice(0, 1).toUpperCase() : 'M';
+  const senderDisplayName = mail.senderName?.trim() || '';
+  const senderInitialSource = senderDisplayName || mail.sender;
+  const senderInitial = senderInitialSource
+    ? senderInitialSource.replace(/["'<]/g, '').trim().slice(0, 1).toUpperCase()
+    : 'M';
 
   return (
     <div className={`flex-1 flex flex-col min-h-0 bg-white ${standalone ? 'rounded-2xl border border-black/[0.08] overflow-hidden' : ''}`}>
@@ -277,6 +282,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             onClick={() => router.push(`/mail/compose?mode=replyAll&replyId=${mail.id}`)}
             className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
             title="전체 답장"
+            aria-label="전체 답장"
           >
             <ReplyAll className="h-4 w-4" />
           </button>
@@ -285,6 +291,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             onClick={() => router.push(`/mail/compose?mode=forward&replyId=${mail.id}`)}
             className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
             title="전달"
+            aria-label="전달"
           >
             <Forward className="h-4 w-4" />
           </button>
@@ -295,6 +302,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             onClick={handleToggleRead}
             className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#0071e3] transition"
             title={mail.isRead ? '안읽음으로 표시' : '읽음으로 표시'}
+            aria-label={mail.isRead ? '안읽음으로 표시' : '읽음으로 표시'}
           >
             {mail.isRead ? <MailIcon className="h-4 w-4" /> : <MailCheck className="h-4 w-4 text-[#0071e3]" />}
           </button>
@@ -313,6 +321,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
               onClick={handleReportSpam}
               className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-[#ff9500]/10 hover:text-[#ff9500] transition"
               title="스팸 신고"
+              aria-label="스팸 신고"
             >
               <ShieldAlert className="h-4 w-4" />
             </button>
@@ -322,6 +331,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             onClick={handleDelete}
             className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition"
             title="삭제"
+            aria-label="삭제"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -332,6 +342,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             onClick={handleOpenCreateCalendarEvent}
             className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
             title="캘린더 일정 등록"
+            aria-label="캘린더 일정 등록"
           >
             <CalendarPlus className="h-3.5 w-3.5 text-[#0071e3]" />
             <span className="hidden md:inline">일정 등록</span>
@@ -343,6 +354,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             rel="noreferrer"
             className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
             title="원본 EML 다운로드"
+            aria-label="원본 EML 다운로드"
           >
             <Download className="h-4 w-4" />
           </a>
@@ -352,6 +364,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
               onClick={() => router.push(`/mail/${mail.id}`)}
               className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
               title="전체 화면으로 보기"
+              aria-label="전체 화면으로 보기"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </button>
@@ -369,6 +382,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
                 type="button"
                 onClick={handleToggleStar}
                 title={mail.isStarred ? '중요 메일 해제' : '중요 메일 표시'}
+                aria-label={mail.isStarred ? '중요 메일 해제' : '중요 메일 표시'}
                 className="mt-0.5 p-1 rounded-lg hover:bg-[#ff9500]/10 transition shrink-0"
               >
                 <Star
@@ -394,11 +408,37 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
           {/* Sender Metadata */}
           <div className="mt-5 pb-5 border-b border-black/[0.06] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-[#0071e3]/12 text-[#0071e3] font-semibold text-sm flex items-center justify-center shrink-0">
+              <div
+                className={`w-9 h-9 rounded-full text-white font-semibold text-sm flex items-center justify-center shrink-0 shadow-xs ${
+                  [
+                    'bg-[#0071e3]',
+                    'bg-emerald-600',
+                    'bg-violet-600',
+                    'bg-amber-600',
+                    'bg-rose-600',
+                    'bg-cyan-600',
+                  ][
+                    Math.abs(
+                      (mail.sender || '')
+                        .split('')
+                        .reduce((acc, ch) => acc * 31 + ch.charCodeAt(0), 0),
+                    ) % 6
+                  ]
+                }`}
+              >
                 {senderInitial}
               </div>
               <div className="text-[13px] min-w-0">
-                <div className="font-semibold text-[#1d1d1f] truncate">{mail.sender}</div>
+                <div className="font-semibold text-[#1d1d1f] truncate">
+                  {senderDisplayName && !mail.sender.includes(senderDisplayName) ? (
+                    <>
+                      <span>{senderDisplayName}</span>{' '}
+                      <span className="font-normal text-[#6e6e73]">&lt;{mail.sender}&gt;</span>
+                    </>
+                  ) : (
+                    mail.sender
+                  )}
+                </div>
                 <div className="text-[12px] text-[#6e6e73] mt-0.5 break-all">
                   받는사람:{' '}
                   {mail.recipients && mail.recipients.length > 0
@@ -453,10 +493,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
           {/* Body */}
           <div className="mt-6">
             {mail.body?.html ? (
-              <div
-                className="prose prose-sm max-w-none text-[14px] leading-relaxed text-[#1d1d1f]"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(mail.body.html) }}
-              />
+              <SandboxedMailBody html={mail.body.html} />
             ) : mail.body?.text ? (
               <pre className="whitespace-pre-wrap font-sans text-[14px] leading-relaxed text-[#1d1d1f]">
                 {mail.body.text}

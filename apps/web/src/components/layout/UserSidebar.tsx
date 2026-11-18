@@ -152,12 +152,12 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-30 w-60 bg-[#f5f5f7] text-[#1d1d1f] border-r border-black/[0.08] transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-30 w-60 flex flex-col bg-[#f5f5f7] text-[#1d1d1f] border-r border-black/[0.08] transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
       {/* Brand Header */}
-      <div className="flex h-12 items-center justify-between border-b border-black/[0.08] px-4">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-black/[0.08] px-4">
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-b from-[#2997ff] to-[#0071e3] text-white shadow-xs">
             <Mail className="h-4 w-4" />
@@ -176,8 +176,8 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col justify-between h-[calc(100vh-3rem)] overflow-y-auto px-3 py-3.5">
-        <div className="space-y-3.5">
+      <div className="flex flex-col flex-1 min-h-0 px-3 py-3">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-3.5 pr-0.5">
           {/* Compose Mail Button */}
           <div>
             <Link
@@ -485,8 +485,8 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           </div>
         </div>
 
-        {/* User Quota / Storage Footer */}
-        <div className="rounded-xl bg-white/80 p-3 border border-black/[0.06] text-xs mt-4">
+        {/* User Quota / Storage Footer (낮은 화면 높이에서도 항상 하단 고정) */}
+        <div className="shrink-0 rounded-xl bg-white/80 p-3 border border-black/[0.06] text-xs mt-3">
           <div className="flex items-center justify-between text-[#1d1d1f] font-medium mb-1.5">
             <span className="flex items-center gap-1.5 font-semibold text-[#1d1d1f]">
               <HardDrive className="h-3.5 w-3.5 text-[#0071e3]" />

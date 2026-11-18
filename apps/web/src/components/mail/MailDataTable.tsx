@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { fetchApi } from '@/lib/api';
+import { fetchMailFoldersCached } from '@/lib/mail-folders-cache';
 import { SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { MailReadingPane } from '@/components/mail/MailReadingPane';
 import { exportTableToExcel } from '@/lib/excel';
@@ -86,6 +87,30 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedMailId, setSelectedMailId] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // URL의 ?mailId= 초기 로드 및 뒤로가기/앞으로가기 동기화
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const readFromUrl = () => {
+      const paramMailId = new URLSearchParams(window.location.search).get('mailId');
+      setSelectedMailId(paramMailId);
+    };
+    readFromUrl();
+    window.addEventListener('popstate', readFromUrl);
+    return () => window.removeEventListener('popstate', readFromUrl);
+  }, []);
+
+  const syncMailIdToUrl = (mailId: string | null) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (mailId) {
+      url.searchParams.set('mailId', mailId);
+    } else {
+      url.searchParams.delete('mailId');
+    }
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  };
   const [selectMode, setSelectMode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [page, setPage] = useState(1);
@@ -110,7 +135,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
 
   const fetchFolders = async () => {
     try {
-      const res = await fetchApi<MailFolderDto[]>('/mail-folders');
+      const res = await fetchMailFoldersCached();
       setFolders(res || []);
     } catch (err) {
       console.error('편지함 목록 조회 실패:', err);
@@ -533,6 +558,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     }
     if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
       setSelectedMailId(mail.id);
+      syncMailIdToUrl(mail.id);
     } else {
       router.push(`/mail/${mail.id}`);
     }
@@ -625,7 +651,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   // Helper date formatter
   const formatDateParts = (iso: string) => {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return { dateStr: '-', timeStr: '-' };
+    if (isNaN(d.getTime())) return { dateStr: '-', timeStr: '-', compactStr: '-' };
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
       d.getDate()
     ).padStart(2, '0')}`;
@@ -633,7 +659,20 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       2,
       '0'
     )}:${String(d.getSeconds()).padStart(2, '0')}`;
-    return { dateStr, timeStr };
+    const now = new Date();
+    const isToday =
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+    const isThisYear = d.getFullYear() === now.getFullYear();
+    const compactStr = isToday
+      ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      : isThisYear
+      ? `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+      : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(
+          d.getDate()
+        ).padStart(2, '0')}`;
+    return { dateStr, timeStr, compactStr };
   };
 
   // Extract display name or local part from email
@@ -641,8 +680,9 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     if (!senderOrRecipients) return { name: '(없음)', address: '' };
     const match = senderOrRecipients.match(/^(.*?)(?:<(.+?)>)?$/);
     if (match) {
-      const name = match[1].trim() || match[2] || senderOrRecipients;
-      const address = match[2] || (match[1].includes('@') ? match[1].trim() : '');
+      const rawName = match[1].replace(/^["']|["']$/g, '').trim();
+      const address = (match[2] || (rawName.includes('@') ? rawName : '')).trim();
+      const name = rawName || address || senderOrRecipients;
       return { name, address };
     }
     return { name: senderOrRecipients, address: '' };
@@ -956,8 +996,8 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
               )}
             </div>
           ) : (
-            paginatedMails.map((mail) => {
-              const { dateStr, timeStr } = formatDateParts(mail.createdAt);
+            paginatedMails.map((mail, rowIndex) => {
+              const { dateStr, timeStr, compactStr } = formatDateParts(mail.createdAt);
               const { isRead, isStarred, isNew, isSecure, isAnswered, isForwarded } =
                 getMailStatusFlags(mail);
               const isChecked = selectedIds.includes(mail.id);
@@ -970,13 +1010,36 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                 : mail.sender;
               const { name, address } = extractPersonInfo(personRaw);
 
+              const handleRowKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+                if (e.target !== e.currentTarget) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleRowClick(mail);
+                } else if (e.key === 'ArrowDown' || e.key === 'j') {
+                  e.preventDefault();
+                  const next = paginatedMails[rowIndex + 1];
+                  if (next) rowRefs.current[next.id]?.focus();
+                } else if (e.key === 'ArrowUp' || e.key === 'k') {
+                  e.preventDefault();
+                  const prev = paginatedMails[rowIndex - 1];
+                  if (prev) rowRefs.current[prev.id]?.focus();
+                }
+              };
+
               return (
                 <div
                   key={mail.id}
+                  ref={(el) => {
+                    rowRefs.current[mail.id] = el;
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-selected={isActiveRow}
                   onClick={() => handleRowClick(mail)}
-                  className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition ${
+                  onKeyDown={handleRowKeyDown}
+                  className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3] ${
                     isActiveRow
-                      ? 'bg-[#007aff]/12'
+                      ? 'bg-[#007aff]/10 ring-1 ring-[#0071e3]/35'
                       : isChecked
                       ? 'bg-[#007aff]/5'
                       : 'hover:bg-black/[0.03]'
@@ -1007,7 +1070,13 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                           className="w-2 h-2 rounded-full bg-[#007aff]"
                         />
                       ) : (
-                        <span className="w-2 h-2 rounded-full opacity-0 group-hover:opacity-40 bg-[#86868b] transition" />
+                        <span
+                          className={`w-2 h-2 rounded-full transition-opacity ${
+                            isActiveRow
+                              ? 'opacity-100 bg-[#007aff]'
+                              : 'opacity-0 group-hover:opacity-40 bg-[#86868b]'
+                          }`}
+                        />
                       )}
                     </div>
 
@@ -1020,7 +1089,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                               !isRead ? 'font-bold text-[#1d1d1f]' : 'font-medium text-[#1d1d1f]'
                             }`}
                           >
-                            {name || address || '(발신자 없음)'}
+                            {(!isSent && mail.senderName) || name || address || '(발신자 없음)'}
                           </span>
                           {isNew && (
                             <span className="inline-flex h-3.5 px-1 items-center justify-center rounded-full bg-[#007aff] text-[9px] font-bold text-white shrink-0">
@@ -1051,17 +1120,19 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                                 : 'text-[#d2d2d7] opacity-0 group-hover:opacity-100 hover:text-[#ff9500]'
                             }`}
                             title={isStarred ? '중요 해제' : '중요 표시'}
+                            aria-label={isStarred ? '중요 해제' : '중요 표시'}
                           >
                             <Star
                               className={`h-3.5 w-3.5 ${isStarred ? 'fill-[#ff9500]' : ''}`}
                             />
                           </button>
                           <span
+                            title={`${dateStr} ${timeStr}`}
                             className={`text-[11px] tabular-nums ${
                               !isRead ? 'text-[#0071e3] font-medium' : 'text-[#86868b]'
                             }`}
                           >
-                            {dateStr} {timeStr}
+                            {compactStr}
                           </span>
                         </div>
                       </div>
@@ -1080,13 +1151,14 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                             ? mail.body.text.replace(/\s+/g, ' ').trim()
                             : address || ''}
                         </span>
-                        {/* Hover Quick Delete */}
+                        {/* Hover Quick Delete (레이아웃 밀림 방지를 위해 공간은 유지하고 opacity로 제어) */}
                         {onDelete && (
                           <button
                             type="button"
                             onClick={(e) => onDelete(e, mail.id)}
                             title="삭제"
-                            className="hidden group-hover:inline-flex p-1 rounded-md text-[#86868b] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition shrink-0 print:hidden"
+                            aria-label="삭제"
+                            className="inline-flex opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto p-1 rounded-md text-[#86868b] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition-opacity shrink-0 print:hidden"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -1141,6 +1213,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           onDeleted={(deletedId) => {
             if (selectedMailId === deletedId) {
               setSelectedMailId(null);
+              syncMailIdToUrl(null);
             }
           }}
           onReadChanged={(id, nextRead) => {

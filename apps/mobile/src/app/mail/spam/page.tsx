@@ -29,27 +29,18 @@ export default function MailSpamPage() {
 
     try {
       setLoading(true);
-      // SPAM 편지함 찾기
-      const folders = await fetchApi<MailFolderDto[]>('/mail-folders');
-      const spamFolder = (folders || []).find((f) => f.type === FolderType.SPAM);
-
-      if (spamFolder) {
-        const queryParams = new URLSearchParams({
-          folderId: spamFolder.id,
-          limit: '50',
-        });
-        if (search.trim()) {
-          queryParams.append('search', search.trim());
-        }
-        const res = await fetchApi<{ items: MailMessageDto[]; total: number }>(
-          `/mails?${queryParams.toString()}`,
-        );
-        setMails(res.items || []);
-        setTotal(res.total || 0);
-      } else {
-        setMails([]);
-        setTotal(0);
+      const queryParams = new URLSearchParams({
+        folderType: FolderType.SPAM,
+        limit: '50',
+      });
+      if (search.trim()) {
+        queryParams.append('search', search.trim());
       }
+      const res = await fetchApi<{ items: MailMessageDto[]; total: number }>(
+        `/mails?${queryParams.toString()}`,
+      );
+      setMails(res.items || []);
+      setTotal(res.total || 0);
     } catch (err: any) {
       console.error('스팸메일함 조회 오류:', err);
     } finally {

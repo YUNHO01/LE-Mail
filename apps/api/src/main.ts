@@ -12,6 +12,17 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
+  // Express X-Powered-By 헤더 노출 비활성화 및 기본 보안 헤더 적용
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  app.use((_req: any, res: any, next: () => void) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+  });
+
   // 요청 본문(JSON 및 URL-encoded) 크기 제한 상향 (본문 서식 및 첨부파일 지원, 기본 100kb -> 50mb)
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));

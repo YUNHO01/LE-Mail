@@ -29,27 +29,18 @@ export default function MailDraftsPage() {
 
     try {
       setLoading(true);
-      // DRAFTS 편지함 찾기
-      const folders = await fetchApi<MailFolderDto[]>('/mail-folders');
-      const draftsFolder = (folders || []).find((f) => f.type === FolderType.DRAFTS);
-
-      if (draftsFolder) {
-        const queryParams = new URLSearchParams({
-          folderId: draftsFolder.id,
-          limit: '50',
-        });
-        if (search.trim()) {
-          queryParams.append('search', search.trim());
-        }
-        const res = await fetchApi<{ items: MailMessageDto[]; total: number }>(
-          `/mails?${queryParams.toString()}`,
-        );
-        setMails(res.items || []);
-        setTotal(res.total || 0);
-      } else {
-        setMails([]);
-        setTotal(0);
+      const queryParams = new URLSearchParams({
+        folderType: FolderType.DRAFTS,
+        limit: '50',
+      });
+      if (search.trim()) {
+        queryParams.append('search', search.trim());
       }
+      const res = await fetchApi<{ items: MailMessageDto[]; total: number }>(
+        `/mails?${queryParams.toString()}`,
+      );
+      setMails(res.items || []);
+      setTotal(res.total || 0);
     } catch (err: any) {
       console.error('임시보관함 조회 오류:', err);
     } finally {

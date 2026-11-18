@@ -28,20 +28,10 @@ export default function MailSentPage() {
     try {
       setLoading(true);
 
-      // 1. SENT(보낸편지함) 폴더 찾기
-      const folders = await fetchApi<MailFolderDto[]>('/mail-folders');
-      const sentFolder = (folders || []).find((f) => f.type === FolderType.SENT);
-
       const queryParams = new URLSearchParams({
+        folderType: FolderType.SENT,
         limit: '50',
       });
-
-      if (sentFolder) {
-        queryParams.append('folderId', sentFolder.id);
-      } else {
-        queryParams.append('mailbox', user.email);
-        queryParams.append('direction', 'OUTBOUND');
-      }
 
       if (search.trim()) {
         queryParams.append('search', search.trim());

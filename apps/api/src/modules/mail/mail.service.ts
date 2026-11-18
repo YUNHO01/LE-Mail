@@ -69,6 +69,49 @@ export class MailService {
     }
   }
 
+  private parseSenderParts(rawSender: string | null | undefined): {
+    decodedSender: string;
+    parsedName: string;
+    emailAddress: string;
+  } {
+    const decoded = this.decodeMimeWords(rawSender).trim();
+    if (!decoded) {
+      return { decodedSender: '', parsedName: '', emailAddress: '' };
+    }
+    const match = decoded.match(/^(.*?)\s*<([^>]+)>$/);
+    if (match) {
+      const parsedName = match[1].replace(/^["']|["']$/g, '').trim();
+      const emailAddress = match[2].trim().toLowerCase();
+      return { decodedSender: decoded, parsedName, emailAddress };
+    }
+    const emailOnly = decoded.includes('@') ? decoded.toLowerCase() : '';
+    return { decodedSender: decoded, parsedName: '', emailAddress: emailOnly };
+  }
+
+  private async buildSenderNameMap(rawSenders: Array<string | null | undefined>): Promise<Map<string, string>> {
+    const emails = Array.from(
+      new Set(
+        rawSenders
+          .map((s) => this.parseSenderParts(s))
+          .filter((p) => !p.parsedName && p.emailAddress)
+          .map((p) => p.emailAddress),
+      ),
+    );
+    const map = new Map<string, string>();
+    if (emails.length === 0) return map;
+
+    const users = await this.userRepo.find({
+      where: { email: In(emails) },
+      select: { email: true, name: true },
+    });
+    for (const u of users) {
+      if (u.email && u.name?.trim()) {
+        map.set(u.email.toLowerCase(), u.name.trim());
+      }
+    }
+    return map;
+  }
+
   async findAll(query: MailQueryDto, currentUserId?: string) {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.max(1, Math.min(100, Number(query.limit) || 20));
@@ -95,6 +138,14 @@ export class MailService {
           : 'um.messageId = msg.id AND um.folderId = :folderId',
         { folderId: query.folderId, currentUserId },
       );
+    } else if (query.folderType && currentUserId) {
+      queryBuilder
+        .innerJoin(UserMail, 'um', 'um.messageId = msg.id AND um.userId = :currentUserId', {
+          currentUserId,
+        })
+        .innerJoin(MailFolder, 'mf', 'mf.id = um.folderId AND mf.type = :folderType', {
+          folderType: query.folderType,
+        });
     } else if (currentUserId && !isAdmin) {
       queryBuilder.innerJoin(
         UserMail,
@@ -144,16 +195,28 @@ export class MailService {
     queryBuilder.skip(skip).take(limit);
 
     const [items, total] = await queryBuilder.getManyAndCount();
+    const senderNameMap = await this.buildSenderNameMap(items.map((m) => m.sender));
 
-    if (query.folderId && items.length > 0) {
+    let effectiveFolderId = query.folderId;
+    if (!effectiveFolderId && query.folderType && currentUserId) {
+      const targetFolder = await this.folderRepo.findOne({
+        where: { userId: currentUserId, type: query.folderType },
+        select: { id: true },
+      });
+      effectiveFolderId = targetFolder?.id;
+    }
+
+    if (effectiveFolderId && items.length > 0) {
       const messageIds = items.map((m) => m.id);
       const userMails = await this.userMailRepo.find({
-        where: { folderId: query.folderId, messageId: In(messageIds) },
+        where: { folderId: effectiveFolderId, messageId: In(messageIds) },
       });
       const umMap = new Map(userMails.map((um) => [um.messageId, um]));
       const enrichedItems = items.map((m) => {
         const um = umMap.get(m.id);
         const decodedSubject = this.decodeMimeWords(m.subject);
+        const { decodedSender, parsedName, emailAddress } = this.parseSenderParts(m.sender);
+        const senderName = parsedName || (emailAddress ? senderNameMap.get(emailAddress) : undefined);
         const isSecure = Boolean(
           m.isSecure ||
             decodedSubject?.includes('[보안메일]') ||
@@ -164,7 +227,10 @@ export class MailService {
         const isNew = Boolean(!isRead && !isSeen);
         return {
           ...m,
+          sender: decodedSender || m.sender,
+          senderName,
           subject: decodedSubject,
+          folderId: effectiveFolderId,
           uid: um?.uid,
           isRead,
           isSeen,
@@ -200,6 +266,8 @@ export class MailService {
 
     const decodedItems = items.map((m) => {
       const decodedSubject = this.decodeMimeWords(m.subject);
+      const { decodedSender, parsedName, emailAddress } = this.parseSenderParts(m.sender);
+      const senderName = parsedName || (emailAddress ? senderNameMap.get(emailAddress) : undefined);
       const isSecure = Boolean(
         m.isSecure ||
           decodedSubject?.includes('[보안메일]') ||
@@ -207,6 +275,8 @@ export class MailService {
       );
       return {
         ...m,
+        sender: decodedSender || m.sender,
+        senderName,
         subject: decodedSubject,
         isSecure,
         isStarred: Boolean(m.isImportant),
@@ -616,6 +686,9 @@ export class MailService {
     }
 
     const decodedSubject = this.decodeMimeWords(message.subject);
+    const senderNameMap = await this.buildSenderNameMap([message.sender]);
+    const { decodedSender, parsedName, emailAddress } = this.parseSenderParts(message.sender);
+    const senderName = parsedName || (emailAddress ? senderNameMap.get(emailAddress) : undefined);
     const isSecure = Boolean(
       message.isSecure ||
         decodedSubject?.includes('[보안메일]') ||
@@ -624,6 +697,8 @@ export class MailService {
 
     return {
       ...message,
+      sender: decodedSender || message.sender,
+      senderName,
       subject: decodedSubject,
       isRead,
       isSeen: true,

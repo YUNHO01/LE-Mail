@@ -239,11 +239,10 @@ export default function ContactsPage() {
   // 내보내기 실행
   const handleExport = (format: 'xlsx' | 'csv' | 'vcf') => {
     setExportMenuOpen(false);
-    const token = typeof window !== 'undefined' ? localStorage.getItem('lemail_token') : '';
     const url = `/api/contacts/export?format=${format}&groupId=${currentGroupId}`;
 
     fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
     })
       .then((res) => {
         if (!res.ok) throw new Error('내보내기 파일 생성에 실패했습니다.');

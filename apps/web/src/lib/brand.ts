@@ -7,13 +7,13 @@ import { DEFAULT_BRAND_NAME, formatBrandName, SystemLicenseInfo } from '@lemail/
 export async function getServerBrandName(): Promise<string> {
   const apiUrl = process.env.INTERNAL_API_URL || 'http://localhost:9200';
   try {
-    const res = await fetch(`${apiUrl}/api/admin/license/status`, {
+    const res = await fetch(`${apiUrl}/api/license/public`, {
       cache: 'no-store',
       signal: AbortSignal.timeout(1500),
     });
     if (!res.ok) return DEFAULT_BRAND_NAME;
-    const data: SystemLicenseInfo = await res.json();
-    return formatBrandName(data);
+    const data: { isValid?: boolean; brandName?: string } = await res.json();
+    return data.brandName?.trim() || DEFAULT_BRAND_NAME;
   } catch {
     return DEFAULT_BRAND_NAME;
   }

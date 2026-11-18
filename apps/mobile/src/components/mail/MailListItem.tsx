@@ -94,7 +94,7 @@ export const MailListItem: React.FC<MailListItemProps> = ({
                 ? mail.recipients && mail.recipients.length > 0
                   ? mail.recipients.map((r) => r.address).join(', ')
                   : '(수신자 없음)'
-                : mail.sender}
+                : mail.senderName || mail.sender}
             </span>
 
             {/* 읽지 않음 전용 뱃지 */}
@@ -138,7 +138,22 @@ export const MailListItem: React.FC<MailListItemProps> = ({
         </div>
 
         <span className={!isRead ? 'font-medium text-slate-600' : 'text-slate-400'}>
-          {new Date(mail.createdAt).toLocaleString('ko-KR')}
+          {(() => {
+            const d = new Date(mail.createdAt);
+            if (isNaN(d.getTime())) return '-';
+            const now = new Date();
+            const isToday =
+              d.getFullYear() === now.getFullYear() &&
+              d.getMonth() === now.getMonth() &&
+              d.getDate() === now.getDate();
+            if (isToday) {
+              return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            }
+            if (d.getFullYear() === now.getFullYear()) {
+              return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+            }
+            return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+          })()}
         </span>
 
         {/* 호버 액션 버튼 (읽음 토글 / 삭제) */}

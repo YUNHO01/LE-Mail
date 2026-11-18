@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { FolderType } from '@lemail/shared-types';
 import { MailStatus, Direction } from '../../database/entities/mail-message.entity';
 
 export class MailQueryDto {
@@ -16,6 +17,9 @@ export class MailQueryDto {
 
   @ApiPropertyOptional({ description: '편지함 ID 필터 (특정 편지함의 메일 조회)' })
   folderId?: string;
+
+  @ApiPropertyOptional({ enum: FolderType, description: '편지함 유형 필터 (INBOX, SENT, DRAFTS, SPAM, TRASH 등)' })
+  folderType?: FolderType;
 
   @ApiPropertyOptional({ enum: MailStatus, description: '메일 상태 필터' })
   status?: MailStatus;

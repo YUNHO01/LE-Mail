@@ -30,19 +30,10 @@ export default function MailInboxPage() {
     try {
       setLoading(true);
 
-      // 1. INBOX(받은편지함) 폴더 찾기
-      const folders = await fetchApi<MailFolderDto[]>('/mail-folders');
-      const inboxFolder = (folders || []).find((f) => f.type === FolderType.INBOX);
-
       const queryParams = new URLSearchParams({
+        folderType: FolderType.INBOX,
         limit: '50',
       });
-
-      if (inboxFolder) {
-        queryParams.append('folderId', inboxFolder.id);
-      } else {
-        queryParams.append('mailbox', user.email);
-      }
 
       if (search.trim()) {
         queryParams.append('search', search.trim());

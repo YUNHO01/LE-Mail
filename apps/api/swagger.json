@@ -588,6 +588,23 @@
             }
           },
           {
+            "name": "folderType",
+            "required": false,
+            "in": "query",
+            "description": "편지함 유형 필터 (INBOX, SENT, DRAFTS, SPAM, TRASH 등)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INBOX",
+                "SENT",
+                "DRAFTS",
+                "SPAM",
+                "TRASH",
+                "CUSTOM"
+              ]
+            }
+          },
+          {
             "name": "status",
             "required": false,
             "in": "query",
@@ -1181,7 +1198,7 @@
     },
     "/api/auth/login": {
       "post": {
-        "description": "이메일과 비밀번호로 로그인하여 JWT 액세스 토큰을 발급받습니다.",
+        "description": "이메일과 비밀번호로 로그인하여 HttpOnly 쿠키 및 JWT 액세스 토큰을 발급합니다.",
         "operationId": "AuthController_login",
         "parameters": [],
         "requestBody": {
@@ -1203,6 +1220,22 @@
           }
         },
         "summary": "사용자 및 관리자 로그인",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "description": "HttpOnly 인증 쿠키를 만료시킵니다.",
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "로그아웃 성공"
+          }
+        },
+        "summary": "로그아웃",
         "tags": [
           "Auth"
         ]
@@ -1580,7 +1613,12 @@
             "description": "조회 성공"
           }
         },
-        "summary": "현재 시스템 라이선스 상태 및 무결성 정보 조회",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "현재 시스템 라이선스 상태 및 무결성 정보 조회 (관리자 전용)",
         "tags": [
           "Admin License (시스템 라이선스 관리)"
         ]
@@ -1617,6 +1655,22 @@
         "summary": "신규 정품 라이선스 파일 등록 및 검증",
         "tags": [
           "Admin License (시스템 라이선스 관리)"
+        ]
+      }
+    },
+    "/api/license/public": {
+      "get": {
+        "description": "로그인 전/일반 사용자 화면에서 브랜드명 표시를 위한 최소 정보만 반환합니다.",
+        "operationId": "LicensePublicController_getPublicBrandInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "조회 성공"
+          }
+        },
+        "summary": "공개 브랜드명 및 라이선스 유효 여부 조회",
+        "tags": [
+          "License (공개 브랜드 정보)"
         ]
       }
     },

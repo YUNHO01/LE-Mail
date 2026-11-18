@@ -14,15 +14,9 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
     'Content-Type': 'application/json',
   };
 
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('lemail_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-  }
-
   const response = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: {
       ...headers,
       ...options?.headers,
@@ -222,9 +216,8 @@ export const calendarApi = {
       searchParams.set('calendarIds', params.calendarIds.join(','));
     }
     const qs = searchParams.toString();
-    const token = typeof window !== 'undefined' ? localStorage.getItem('lemail_token') : null;
     const res = await fetch(`${API_BASE_URL}/api/calendar/export-ics${qs ? `?${qs}` : ''}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
     });
     if (!res.ok) {
       throw new Error('ICS 내보내기에 실패했습니다.');

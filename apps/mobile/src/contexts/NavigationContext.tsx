@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, Suspense } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 interface NavigationContextType {
@@ -28,8 +28,13 @@ function NavigationWatcher({ onNavigateDone }: { onNavigateDone: () => void }) {
 
 export function NavigationProvider({ children }: { children: React.ReactNode }) {
   const [isNavigating, setIsNavigating] = useState(false);
+  const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const endNavigation = useCallback(() => {
+    if (delayTimerRef.current) {
+      clearTimeout(delayTimerRef.current);
+      delayTimerRef.current = null;
+    }
     setIsNavigating(false);
   }, []);
 
@@ -42,7 +47,13 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         }
       } catch {}
     }
-    setIsNavigating(true);
+    if (delayTimerRef.current) {
+      clearTimeout(delayTimerRef.current);
+    }
+    delayTimerRef.current = setTimeout(() => {
+      setIsNavigating(true);
+      delayTimerRef.current = null;
+    }, 180);
   }, []);
 
   useEffect(() => {

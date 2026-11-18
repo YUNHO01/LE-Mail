@@ -48,7 +48,7 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
   onClose,
   className = '',
 }) => {
-  const [activeTab, setActiveTab] = useState<'personal' | 'company'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'company'>('company');
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');

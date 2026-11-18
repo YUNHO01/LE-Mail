@@ -12,6 +12,31 @@ export interface JwtPayload {
   role: string;
 }
 
+const AUTH_COOKIE_NAME = 'lemail_token';
+
+function extractJwtFromCookieOrHeader(req: any): string | null {
+  const cookieHeader = req?.headers?.cookie;
+  if (typeof cookieHeader === 'string' && cookieHeader.length > 0) {
+    const pairs = cookieHeader.split(';');
+    for (const pair of pairs) {
+      const idx = pair.indexOf('=');
+      if (idx === -1) continue;
+      const key = pair.slice(0, idx).trim();
+      if (key === AUTH_COOKIE_NAME) {
+        const rawVal = pair.slice(idx + 1).trim();
+        if (rawVal) {
+          try {
+            return decodeURIComponent(rawVal);
+          } catch {
+            return rawVal;
+          }
+        }
+      }
+    }
+  }
+  return ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -20,7 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly userRepository: Repository<User>,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: extractJwtFromCookieOrHeader,
       ignoreExpiration: false,
       secretOrKey:
         configService.get<string>('auth.jwtSecret') ||

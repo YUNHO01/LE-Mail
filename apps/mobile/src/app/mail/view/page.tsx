@@ -4,7 +4,7 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { fetchApi, calendarApi } from '@/lib/api';
-import { sanitizeHtml } from '@/lib/sanitize';
+import { SandboxedMailBody } from '@/components/mail/SandboxedMailBody';
 import {
   MailMessageDto,
   MailFolderDto,
@@ -628,12 +628,7 @@ function MailMultiViewContent() {
                   {/* Mail Body */}
                   <div className="p-4">
                     {mail.body?.html ? (
-                      <div
-                        className="mail-body-html"
-                        dangerouslySetInnerHTML={{
-                          __html: sanitizeHtml(mail.body.html),
-                        }}
-                      />
+                      <SandboxedMailBody html={mail.body.html} />
                     ) : mail.body?.text ? (
                       <pre className="whitespace-pre-wrap break-words font-sans text-[15px] leading-relaxed text-slate-800">
                         {mail.body.text}

@@ -772,34 +772,25 @@ function ComposeMailContent() {
                             placeholder="메일 제목을 입력하세요"
                             className="flex-1 border-none bg-transparent py-1 text-sm font-medium text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none"
                         />
-                        <div
-                            className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#f5f5f7] border border-black/[0.06] shrink-0"
+                        <button
+                            type="button"
+                            onClick={() => setIsImportant(!isImportant)}
+                            aria-pressed={isImportant}
+                            aria-label="중요 메일로 발송"
                             title="중요 메일로 발송"
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition shrink-0 ${
+                                isImportant
+                                    ? 'bg-[#ff9500]/12 border-[#ff9500]/30 text-[#b25000]'
+                                    : 'bg-[#f5f5f7] border-black/[0.06] text-[#6e6e73] hover:bg-black/[0.05]'
+                            }`}
                         >
-                            <ToggleSwitch
-                                checked={isImportant}
-                                onChange={setIsImportant}
-                                size="sm"
-                                color="amber"
-                                showStatusText={false}
-                                label={
-                                    <span className="inline-flex items-center gap-1">
-                                        <Star
-                                            className={`h-3.5 w-3.5 ${
-                                                isImportant ? 'fill-[#ff9500] text-[#ff9500]' : 'text-[#86868b]'
-                                            }`}
-                                        />
-                                        <span
-                                            className={`text-xs font-medium ${
-                                                isImportant ? 'text-[#b25000]' : 'text-[#6e6e73]'
-                                            }`}
-                                        >
-                                            중요
-                                        </span>
-                                    </span>
-                                }
+                            <Star
+                                className={`h-3.5 w-3.5 ${
+                                    isImportant ? 'fill-[#ff9500] text-[#ff9500]' : 'text-[#86868b]'
+                                }`}
                             />
-                        </div>
+                            <span>중요</span>
+                        </button>
                     </div>
                 </div>
 

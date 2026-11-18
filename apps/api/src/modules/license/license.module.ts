@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SystemLicense, User } from '../database/entities';
 import { LicenseService } from './license.service';
-import { LicenseController } from './license.controller';
+import { LicenseController, LicensePublicController } from './license.controller';
 import { LicenseGuard } from './guards/license.guard';
 
 @Module({
   imports: [TypeOrmModule.forFeature([SystemLicense, User])],
-  controllers: [LicenseController],
+  controllers: [LicenseController, LicensePublicController],
   providers: [LicenseService, LicenseGuard],
   exports: [LicenseService, LicenseGuard],
 })

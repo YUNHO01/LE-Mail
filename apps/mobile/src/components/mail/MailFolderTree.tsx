@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
+import { fetchMailFoldersCached } from '@/lib/mail-folders-cache';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { MailFolderDto, FolderType } from '@lemail/shared-types';
@@ -43,7 +44,7 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
     if (!isAuthenticated) return;
     try {
       setLoading(true);
-      const res = await fetchApi<MailFolderDto[]>('/mail-folders');
+      const res = await fetchMailFoldersCached();
       setFolders(res || []);
 
       // 개인편지함(CUSTOM)은 기본적으로 펼쳐둠

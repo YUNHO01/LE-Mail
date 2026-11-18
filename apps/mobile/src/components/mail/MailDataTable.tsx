@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { fetchApi } from '@/lib/api';
+import { fetchMailFoldersCached } from '@/lib/mail-folders-cache';
 import {
   Search,
   Paperclip,
@@ -114,7 +115,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
 
   const loadFolders = async () => {
     try {
-      const data = await fetchApi<MailFolderDto[]>('/mail-folders');
+      const data = await fetchMailFoldersCached();
       setFolders(data || []);
     } catch {
       // ignore

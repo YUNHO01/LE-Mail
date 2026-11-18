@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchApi, calendarApi } from '@/lib/api';
-import { sanitizeHtml } from '@/lib/sanitize';
+import { SandboxedMailBody } from '@/components/mail/SandboxedMailBody';
 import {
   MailMessageDto,
   MailFolderDto,
@@ -277,7 +277,9 @@ export default function MailDetailPage() {
             <div className="flex items-start gap-2">
               <span className="w-14 shrink-0 font-semibold text-slate-500">보낸사람</span>
               <span className="min-w-0 flex-1 break-all font-medium text-slate-900">
-                {mail.sender}
+                {mail.senderName && !mail.sender.includes(mail.senderName)
+                  ? `${mail.senderName} <${mail.sender}>`
+                  : mail.sender}
               </span>
             </div>
             <div className="flex items-start gap-2">
@@ -341,10 +343,7 @@ export default function MailDetailPage() {
         {/* Mail Body */}
         <div className="p-4">
           {mail.body?.html ? (
-            <div
-              className="mail-body-html"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(mail.body.html) }}
-            />
+            <SandboxedMailBody html={mail.body.html} />
           ) : mail.body?.text ? (
             <pre className="whitespace-pre-wrap break-words font-sans text-[15px] leading-relaxed text-slate-800">
               {mail.body.text}

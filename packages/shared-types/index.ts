@@ -287,6 +287,7 @@ export interface MailMessageDto {
   direction: Direction;
   messageId: string | null;
   sender: string;
+  senderName?: string;
   subject: string | null;
   rawFilePath: string;
   spfResult: SpfResult;
@@ -631,8 +632,11 @@ export interface RegisterLicenseDto {
 export const DEFAULT_BRAND_NAME = '가장자리 LEMail';
 
 export function formatBrandName(
-  license?: Pick<SystemLicenseInfo, 'isValid' | 'organizationName'> | null,
+  license?: (Pick<SystemLicenseInfo, 'isValid' | 'organizationName'> & { brandName?: string }) | null,
 ): string {
+  if (license?.brandName?.trim()) {
+    return license.brandName.trim();
+  }
   const orgName = license?.organizationName?.trim();
   if (license?.isValid && orgName) {
     return `${orgName} LEMail`;

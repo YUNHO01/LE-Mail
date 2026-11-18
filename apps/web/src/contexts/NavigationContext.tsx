@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, Suspense } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 interface NavigationContextType {
@@ -28,8 +28,13 @@ function NavigationWatcher({ onNavigateDone }: { onNavigateDone: () => void }) {
 
 export function NavigationProvider({ children }: { children: React.ReactNode }) {
   const [isNavigating, setIsNavigating] = useState(false);
+  const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const endNavigation = useCallback(() => {
+    if (delayTimerRef.current) {
+      clearTimeout(delayTimerRef.current);
+      delayTimerRef.current = null;
+    }
     setIsNavigating(false);
   }, []);
 
@@ -42,8 +47,14 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         }
       } catch {}
     }
-    // 동기 상태 업데이트로 0ms 즉각 반응 표출
-    setIsNavigating(true);
+    // 프리패치된 빠른 전환에서는 전체 로딩 화면이 번쩍이지 않도록 180ms 지연 후 표시
+    if (delayTimerRef.current) {
+      clearTimeout(delayTimerRef.current);
+    }
+    delayTimerRef.current = setTimeout(() => {
+      setIsNavigating(true);
+      delayTimerRef.current = null;
+    }, 180);
   }, []);
 
   // 안전 타이머: 라우트 전환이 중단되거나 비정상 지연될 경우 8초 후 자동 해제
