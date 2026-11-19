@@ -209,11 +209,16 @@ export class ClientSession {
     let parsed: any = null;
 
     try {
-      parsed = imapHandler.parser(rawLine);
+      parsed = imapHandler.parser(Buffer.from(rawLine, 'utf8'));
       tag = parsed.tag || '*';
       command = (parsed.command || '').toUpperCase();
+      if (command.startsWith('UID ')) {
+        const subCommand = command.slice(4).trim();
+        command = 'UID';
+        parsed.attributes = [{ type: 'ATOM', value: subCommand }, ...(parsed.attributes || [])];
+      }
     } catch {
-      const parts = rawLine.split(' ');
+      const parts = ImapUtils.parseSearchCriteria(rawLine);
       tag = parts[0] || '*';
       command = (parts[1] || '').toUpperCase();
       parsed = {
@@ -592,7 +597,11 @@ export class ClientSession {
 
     if (attrs && attrs.length >= 3) {
       const first = attrs[0];
-      const firstStr = (typeof first === 'string' ? first : first?.value || '').toString().trim();
+      const firstStr = Array.isArray(first)
+        ? first.map((v: any) => (v && v.value !== undefined ? String(v.value) : String(v))).join(' ')
+        : Array.isArray(first?.value)
+          ? first.value.map((v: any) => (v && v.value !== undefined ? String(v.value) : String(v))).join(' ')
+          : (typeof first === 'string' ? first : first?.value || '').toString().trim();
       if (
         firstStr.startsWith('(') ||
         Array.isArray(first) ||

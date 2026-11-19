@@ -5,6 +5,6 @@ declare module 'emailjs-imap-handler' {
     attributes?: any[];
   }
 
-  export function parser(commandString: string): ImapParsedCommand;
+  export function parser(command: Buffer | Uint8Array): ImapParsedCommand;
   export function compiler(commandObject: any, isLogging?: boolean): string;
 }
