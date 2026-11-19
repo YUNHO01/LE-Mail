@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.3](https://github.com/YUNHO01/LE-Mail/compare/v1.5.2...v1.5.3) (2026-11-19)
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 편지함 날짜 그룹핑 및 AI 도우미 오류 수정 ([9a1f658](https://github.com/YUNHO01/LE-Mail/commit/9a1f6583568e02bf0847a1476a26c94d770e5858))
+* imap 편지함 오류 수정 ([dcbc44a](https://github.com/YUNHO01/LE-Mail/commit/dcbc44aae6a6e20fb68fc038a0f3ca0758d9e4c6))
+* imap 편지함명 수정 ([df2fd71](https://github.com/YUNHO01/LE-Mail/commit/df2fd7180d3579aa110f856c22e2d82561056d51))
+
 ### [1.5.2](https://github.com/YUNHO01/LE-Mail/compare/v1.5.1...v1.5.2) (2026-11-19)
 
 
