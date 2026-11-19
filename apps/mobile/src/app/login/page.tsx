@@ -18,9 +18,10 @@ function MobileLoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginPhase, setLoginPhase] = useState<'idle' | 'authenticating' | 'biometric' | 'redirecting'>('idle');
+  const [redirectMessage, setRedirectMessage] = useState('받은 편지함으로 이동 중입니다...');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [isBiometricSubmitting, setIsBiometricSubmitting] = useState(false);
+  const isBusy = loginPhase !== 'idle';
 
   useEffect(() => {
     isBiometricSupported().then((ok) => {
@@ -35,10 +36,12 @@ function MobileLoginForm() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (!isLoading && isAuthenticated && loginPhase === 'idle') {
+      setRedirectMessage('받은 편지함으로 이동 중입니다...');
+      setLoginPhase('redirecting');
       router.replace('/mail/inbox');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, loginPhase, router]);
 
   useEffect(() => {
     const reason = searchParams.get('reason');
@@ -51,40 +54,56 @@ function MobileLoginForm() {
     }
   }, [searchParams]);
 
+  // 안전 타이머: 라우트 전환이 비정상 지연될 경우 10초 후 로딩 상태 해제
+  useEffect(() => {
+    if (loginPhase !== 'redirecting') return;
+    const timer = setTimeout(() => {
+      setLoginPhase('idle');
+      setError('화면 이동이 지연되고 있습니다. 다시 시도해 주세요.');
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [loginPhase]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isBusy) return;
     setError(null);
-    setIsSubmitting(true);
+    setLoginPhase('authenticating');
 
     try {
       const res = await login(email, password);
       if (res.success) {
         // 관리자(SYSTEM_ADMIN) 포함 모든 사용자는 사용자 웹메일로 이동
+        setRedirectMessage('받은 편지함으로 이동 중입니다...');
+        setLoginPhase('redirecting');
         router.push('/mail/inbox');
       } else {
         setError(res.message || '로그인에 실패했습니다.');
+        setLoginPhase('idle');
       }
     } catch (err: any) {
       setError(err.message || '네트워크 연결 오류가 발생했습니다.');
-    } finally {
-      setIsSubmitting(false);
+      setLoginPhase('idle');
     }
   };
 
   const handleBiometricLogin = async () => {
+    if (isBusy) return;
     setError(null);
-    setIsBiometricSubmitting(true);
+    setLoginPhase('biometric');
     try {
       const res = await loginWithBiometric(email);
       if (res.success) {
+        setRedirectMessage('받은 편지함으로 이동 중입니다...');
+        setLoginPhase('redirecting');
         router.push('/mail/inbox');
       } else {
         setError(res.message || '생체인식 로그인에 실패했습니다.');
+        setLoginPhase('idle');
       }
     } catch (err: any) {
       setError(err.message || '생체인식 로그인 중 오류가 발생했습니다.');
-    } finally {
-      setIsBiometricSubmitting(false);
+      setLoginPhase('idle');
     }
   };
 
@@ -169,26 +188,58 @@ function MobileLoginForm() {
 
           <button
             type="submit"
-            disabled={isSubmitting || isBiometricSubmitting}
+            disabled={isBusy}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-sky-600/25 transition hover:bg-sky-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <span>{isSubmitting ? '로그인 중...' : '로그인'}</span>
-            {!isSubmitting && <ArrowRight className="h-4 w-4" />}
+            <span>
+              {loginPhase === 'redirecting'
+                ? '이동 중...'
+                : loginPhase === 'authenticating'
+                  ? '로그인 중...'
+                  : '로그인'}
+            </span>
+            {loginPhase === 'idle' && <ArrowRight className="h-4 w-4" />}
           </button>
 
           {biometricAvailable && (
             <button
               type="button"
               onClick={handleBiometricLogin}
-              disabled={isSubmitting || isBiometricSubmitting}
+              disabled={isBusy}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Fingerprint className="h-4 w-4 text-[#007AFF]" />
-              <span>{isBiometricSubmitting ? '생체인식 확인 중...' : '생체인식으로 로그인'}</span>
+              <span>{loginPhase === 'biometric' ? '생체인식 확인 중...' : '생체인식으로 로그인'}</span>
             </button>
           )}
         </form>
       </div>
+
+      {/* 로그인 요청 및 화면 이동 완료까지 유지되는 전체 로딩 오버레이 */}
+      {isBusy && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 backdrop-blur-sm"
+        >
+          <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl border border-white/40 bg-white/95 px-6 py-7 text-center shadow-2xl">
+            <div className="relative flex items-center justify-center">
+              <div className="h-11 w-11 rounded-full border-[3px] border-sky-100" />
+              <div className="absolute inset-0 h-11 w-11 animate-spin rounded-full border-[3px] border-[#007AFF] border-t-transparent" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-800">
+                {loginPhase === 'redirecting'
+                  ? redirectMessage
+                  : loginPhase === 'biometric'
+                    ? '생체인식을 확인하고 있습니다...'
+                    : '로그인 중입니다...'}
+              </p>
+              <p className="text-xs text-slate-500">잠시만 기다려 주세요.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

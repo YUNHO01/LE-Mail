@@ -17,7 +17,9 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginPhase, setLoginPhase] = useState<'idle' | 'authenticating' | 'redirecting'>('idle');
+  const [redirectMessage, setRedirectMessage] = useState('받은 편지함으로 이동 중입니다...');
+  const isBusy = loginPhase !== 'idle';
 
   useEffect(() => {
     const reason = searchParams.get('reason');
@@ -30,30 +32,48 @@ function LoginForm() {
     }
   }, [searchParams]);
 
+  // 안전 타이머: 라우트 전환이 비정상 지연될 경우 10초 후 로딩 상태 해제
+  useEffect(() => {
+    if (loginPhase !== 'redirecting') return;
+    const timer = setTimeout(() => {
+      setLoginPhase('idle');
+      setError('화면 이동이 지연되고 있습니다. 다시 시도해 주세요.');
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [loginPhase]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isBusy) return;
     setError(null);
-    setIsSubmitting(true);
+    setLoginPhase('authenticating');
 
     try {
       const res = await login(email, password);
       if (res.success) {
+        let targetPath = '/mail/inbox';
+        let nextMessage = '받은 편지함으로 이동 중입니다...';
+
         if (res.user?.role === 'SYSTEM_ADMIN') {
           if (res.licenseStatus && !res.licenseStatus.isValid) {
-            router.push('/admin/license');
+            targetPath = '/admin/license';
+            nextMessage = '라이선스 관리 화면으로 이동 중입니다...';
           } else {
-            router.push('/admin/users');
+            targetPath = '/admin/users';
+            nextMessage = '관리자 화면으로 이동 중입니다...';
           }
-        } else {
-          router.push('/mail/inbox');
         }
+
+        setRedirectMessage(nextMessage);
+        setLoginPhase('redirecting');
+        router.push(targetPath);
       } else {
         setError(res.message || '로그인에 실패했습니다.');
+        setLoginPhase('idle');
       }
     } catch (err: any) {
       setError(err.message || '네트워크 연결 오류가 발생했습니다.');
-    } finally {
-      setIsSubmitting(false);
+      setLoginPhase('idle');
     }
   };
 
@@ -143,10 +163,12 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isBusy}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50"
           >
-            {isSubmitting ? (
+            {loginPhase === 'redirecting' ? (
+              <span>이동 중...</span>
+            ) : loginPhase === 'authenticating' ? (
               <span>로그인 중...</span>
             ) : (
               <>
@@ -157,6 +179,28 @@ function LoginForm() {
           </button>
         </form>
       </div>
+
+      {/* 로그인 요청 및 화면 이동 완료까지 유지되는 전체 로딩 오버레이 */}
+      {isBusy && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 backdrop-blur-sm"
+        >
+          <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl border border-white/40 bg-white/95 px-6 py-7 text-center shadow-2xl">
+            <div className="relative flex items-center justify-center">
+              <div className="h-11 w-11 rounded-full border-[3px] border-blue-100" />
+              <div className="absolute inset-0 h-11 w-11 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-800">
+                {loginPhase === 'redirecting' ? redirectMessage : '로그인 중입니다...'}
+              </p>
+              <p className="text-xs text-slate-500">잠시만 기다려 주세요.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
