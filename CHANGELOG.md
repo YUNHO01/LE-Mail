@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.6](https://github.com/YUNHO01/LE-Mail/compare/v1.5.5...v1.5.6) (2026-11-19)
+
+
+### 📦 Maintenance (유지보수 및 설정)
+
+* add Next.js TypeScript declaration files for mobile and web apps ([ada39eb](https://github.com/YUNHO01/LE-Mail/commit/ada39ebb4c46db31b1185e23c43b08aa416b8d0c))
+
+
+### ✨ Features (기능 추가)
+
+* 메일 알림 기능 추가 ([30177e2](https://github.com/YUNHO01/LE-Mail/commit/30177e267a8140dcaa8f3f162bc62bcc91ff9852))
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 환경설정 UI 통합 처리 및 알림 설정 오류 수정 ([c80d87a](https://github.com/YUNHO01/LE-Mail/commit/c80d87adb123bdc2f9054d6502ba365c7d04da9f))
+
 ### [1.5.5](https://github.com/YUNHO01/LE-Mail/compare/v1.5.4...v1.5.5) (2026-11-19)
 
 
