@@ -98,6 +98,8 @@ const schemaStatements = [
     \`last_login_at\` TIMESTAMP NULL,
     \`use_signature\` BOOLEAN NOT NULL DEFAULT FALSE,
     \`signature_html\` MEDIUMTEXT NULL,
+    \`push_enabled\` BOOLEAN NOT NULL DEFAULT TRUE,
+    \`push_preview_enabled\` BOOLEAN NOT NULL DEFAULT TRUE,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX \`idx_user_email\` (\`email\`),
@@ -411,6 +413,23 @@ const schemaStatements = [
     UNIQUE INDEX \`uq_iak_key_hash\` (\`key_hash\`),
     CONSTRAINT \`fk_iak_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`push_subscription\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`endpoint\` TEXT NOT NULL,
+    \`endpoint_hash\` VARCHAR(64) NOT NULL,
+    \`p256dh\` VARCHAR(255) NOT NULL,
+    \`auth\` VARCHAR(255) NOT NULL,
+    \`user_agent\` VARCHAR(255) NULL,
+    \`device_label\` VARCHAR(120) NULL,
+    \`last_used_at\` TIMESTAMP NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_ps_user\` (\`user_id\`),
+    UNIQUE INDEX \`uq_ps_endpoint_hash\` (\`endpoint_hash\`),
+    CONSTRAINT \`fk_ps_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\`(\`id\`) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 export interface SchemaLogger {
@@ -450,6 +469,8 @@ export async function syncDatabaseSchema(
     { name: 'last_synced_at', ddl: 'ALTER TABLE `user` ADD COLUMN `last_synced_at` TIMESTAMP NULL AFTER `resigned_at`;' },
     { name: 'use_signature', ddl: 'ALTER TABLE `user` ADD COLUMN `use_signature` BOOLEAN NOT NULL DEFAULT FALSE AFTER `last_login_at`;' },
     { name: 'signature_html', ddl: 'ALTER TABLE `user` ADD COLUMN `signature_html` MEDIUMTEXT NULL AFTER `use_signature`;' },
+    { name: 'push_enabled', ddl: 'ALTER TABLE `user` ADD COLUMN `push_enabled` BOOLEAN NOT NULL DEFAULT TRUE AFTER `signature_html`;' },
+    { name: 'push_preview_enabled', ddl: 'ALTER TABLE `user` ADD COLUMN `push_preview_enabled` BOOLEAN NOT NULL DEFAULT TRUE AFTER `push_enabled`;' },
   ];
 
   for (const col of alterColumns) {

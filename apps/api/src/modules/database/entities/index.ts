@@ -23,6 +23,7 @@ export * from './user-passkey.entity';
 export * from './user-ai-setting.entity';
 export * from './user-mail-ai-summary.entity';
 export * from './integration-api-key.entity';
+export * from './push-subscription.entity';
 
 
 

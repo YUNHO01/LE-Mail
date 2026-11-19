@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'lemail-web-v1';
+const CACHE_VERSION = 'lemail-web-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const OFFLINE_URL = '/offline';
 
@@ -109,4 +109,59 @@ self.addEventListener('fetch', (event) => {
       }),
     );
   }
+});
+
+self.addEventListener('push', (event) => {
+  let payload = {
+    title: '새 메일 도착',
+    body: '새로운 메일이 도착했습니다.',
+    url: '/mail/inbox',
+    tag: 'lemail-new-mail',
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      payload = { ...payload, ...parsed };
+    } catch {
+      const text = event.data.text();
+      if (text) payload.body = text;
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-192x192.png',
+      tag: payload.tag || 'lemail-new-mail',
+      renotify: true,
+      data: {
+        url: payload.url || '/mail/inbox',
+      },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/mail/inbox';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          client.focus();
+          if ('navigate' in client) {
+            return client.navigate(targetUrl);
+          }
+          return client;
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+      return undefined;
+    }),
+  );
 });

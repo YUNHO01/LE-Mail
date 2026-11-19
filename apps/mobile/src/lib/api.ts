@@ -1,4 +1,11 @@
-import type { DepartmentDto } from '@lemail/shared-types';
+import type {
+  DepartmentDto,
+  PushSettingsResponse,
+  PushSubscriptionItem,
+  RegisterPushSubscriptionDto,
+  UpdatePushSettingsDto,
+  VapidPublicKeyResponse,
+} from '@lemail/shared-types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -235,4 +242,34 @@ export const orgApi = {
     fetchApi<DepartmentTreeNodeDto[]>(
       `/org/departments/tree${includeInactive ? '?includeInactive=true' : ''}`,
     ),
+};
+
+export const pushApi = {
+  getVapidPublicKey: () =>
+    fetchApi<VapidPublicKeyResponse>('/push/vapid-public-key'),
+
+  getSettingsAndSubscriptions: () =>
+    fetchApi<PushSettingsResponse>('/push/subscriptions'),
+
+  registerSubscription: (dto: RegisterPushSubscriptionDto) =>
+    fetchApi<PushSubscriptionItem>('/push/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+  removeSubscription: (id: string) =>
+    fetchApi<{ success: boolean }>(`/push/subscriptions/${id}`, {
+      method: 'DELETE',
+    }),
+
+  updateSettings: (dto: UpdatePushSettingsDto) =>
+    fetchApi<PushSettingsResponse>('/push/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  sendTestNotification: () =>
+    fetchApi<{ sent: number; failed: number }>('/push/test', {
+      method: 'POST',
+    }),
 };

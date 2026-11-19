@@ -13,6 +13,7 @@ import {
   Fingerprint,
   Sparkles,
   PlugZap,
+  Bell,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SignatureSettingsTab } from '@/components/settings/SignatureSettingsTab';
@@ -22,14 +23,16 @@ import { PasswordChangeTab } from '@/components/settings/PasswordChangeTab';
 import { BiometricSettingsTab } from '@/components/settings/BiometricSettingsTab';
 import { AiSettingsTab } from '@/components/settings/AiSettingsTab';
 import { McpApiKeySettingsTab } from '@/components/settings/McpApiKeySettingsTab';
+import { NotificationSettingsTab } from '@/components/settings/NotificationSettingsTab';
 import { fetchApi } from '@/lib/api';
 import { AiPolicyDto } from '@lemail/shared-types';
 
-type SettingsSection = 'menu' | 'signature' | 'spam' | 'backup' | 'password' | 'biometric' | 'ai' | 'mcp';
+type SettingsSection = 'menu' | 'signature' | 'spam' | 'notifications' | 'backup' | 'password' | 'biometric' | 'ai' | 'mcp';
 
 const SECTION_META: Record<Exclude<SettingsSection, 'menu'>, string> = {
   signature: '서명 관리',
   spam: '스팸 및 수신 차단',
+  notifications: '알림 설정 (Web Push)',
   backup: '메일함 백업',
   password: '비밀번호 변경',
   biometric: '생체인식 로그인',
@@ -71,6 +74,7 @@ function SettingsContent() {
         <div className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-slate-200/60">
           {section === 'signature' && <SignatureSettingsTab />}
           {section === 'spam' && <SpamBlockSettingsTab />}
+          {section === 'notifications' && <NotificationSettingsTab />}
           {section === 'backup' && <MailboxBackupTab />}
           {section === 'password' && <PasswordChangeTab />}
           {section === 'biometric' && <BiometricSettingsTab />}
@@ -144,6 +148,20 @@ function SettingsContent() {
                 <ShieldBan className="h-4 w-4" />
               </span>
               <span className="text-sm font-semibold text-slate-900">스팸 및 수신 차단</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-slate-300" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSection('notifications')}
+            className="flex w-full items-center justify-between px-4 py-3.5 text-left active:bg-slate-50"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-white">
+                <Bell className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-semibold text-slate-900">알림 설정 (Web Push)</span>
             </div>
             <ChevronRight className="h-4 w-4 text-slate-300" />
           </button>

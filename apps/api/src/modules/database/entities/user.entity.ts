@@ -102,6 +102,12 @@ export class User {
   @Column({ name: 'signature_html', type: 'mediumtext', nullable: true })
   signatureHtml: string | null;
 
+  @Column({ name: 'push_enabled', type: 'boolean', default: true })
+  pushEnabled: boolean;
+
+  @Column({ name: 'push_preview_enabled', type: 'boolean', default: true })
+  pushPreviewEnabled: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

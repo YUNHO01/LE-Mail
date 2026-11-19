@@ -1103,3 +1103,51 @@ export interface CreateIntegrationApiKeyResponse extends IntegrationApiKeyItem {
   rawKey: string;
 }
 
+// ==========================================
+// Web Push Notification Types
+// ==========================================
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export interface RegisterPushSubscriptionDto {
+  endpoint: string;
+  keys: PushSubscriptionKeys;
+  deviceLabel?: string;
+}
+
+export interface PushSubscriptionItem {
+  id: string;
+  endpoint: string;
+  deviceLabel: string | null;
+  userAgent: string | null;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export interface UpdatePushSettingsDto {
+  pushEnabled?: boolean;
+  pushPreviewEnabled?: boolean;
+}
+
+export interface PushSettingsResponse {
+  pushEnabled: boolean;
+  pushPreviewEnabled: boolean;
+  subscriptions: PushSubscriptionItem[];
+}
+
+export interface VapidPublicKeyResponse {
+  publicKey: string;
+}
+
+export interface WebPushNotificationPayload {
+  title: string;
+  body: string;
+  messageId?: string;
+  folderId?: string;
+  url?: string;
+  tag?: string;
+}
+
+

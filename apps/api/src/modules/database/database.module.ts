@@ -29,6 +29,7 @@ import {
   UserAiSetting,
   UserMailAiSummary,
   IntegrationApiKey,
+  PushSubscription,
 } from './entities';
 
 @Module({
@@ -71,6 +72,7 @@ import {
             UserAiSetting,
             UserMailAiSummary,
             IntegrationApiKey,
+            PushSubscription,
           ],
           synchronize: false,
           timezone: 'Z',
@@ -103,6 +105,7 @@ import {
       OrgSyncLog,
       UserAiSetting,
       UserMailAiSummary,
+      PushSubscription,
     ]),
   ],
   exports: [TypeOrmModule],

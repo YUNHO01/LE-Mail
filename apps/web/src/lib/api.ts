@@ -3,6 +3,11 @@ import type {
   EmploymentStatus,
   OrgSyncStatus,
   OrgSyncType,
+  PushSettingsResponse,
+  PushSubscriptionItem,
+  RegisterPushSubscriptionDto,
+  UpdatePushSettingsDto,
+  VapidPublicKeyResponse,
 } from '@lemail/shared-types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -436,6 +441,36 @@ export const orgApi = {
 
   pullAms: () =>
     fetchApi<OrgSyncLogDto>('/org/sync/pull', {
+      method: 'POST',
+    }),
+};
+
+export const pushApi = {
+  getVapidPublicKey: () =>
+    fetchApi<VapidPublicKeyResponse>('/push/vapid-public-key'),
+
+  getSettingsAndSubscriptions: () =>
+    fetchApi<PushSettingsResponse>('/push/subscriptions'),
+
+  registerSubscription: (dto: RegisterPushSubscriptionDto) =>
+    fetchApi<PushSubscriptionItem>('/push/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+  removeSubscription: (id: string) =>
+    fetchApi<{ success: boolean }>(`/push/subscriptions/${id}`, {
+      method: 'DELETE',
+    }),
+
+  updateSettings: (dto: UpdatePushSettingsDto) =>
+    fetchApi<PushSettingsResponse>('/push/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  sendTestNotification: () =>
+    fetchApi<{ sent: number; failed: number }>('/push/test', {
       method: 'POST',
     }),
 };

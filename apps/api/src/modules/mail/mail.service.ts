@@ -6,6 +6,7 @@ import {
   Logger,
   Inject,
   forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -29,6 +30,7 @@ import { DkimSignService, DkimNodemailerConfig } from '../spam/dkim-sign.service
 import { AccountDefenseService } from '../spam/account-defense.service';
 import { SecureMailService } from './services/secure-mail.service';
 import { UsersService } from '../users/users.service';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class MailService {
@@ -57,6 +59,7 @@ export class MailService {
     private readonly accountDefenseService: AccountDefenseService,
     private readonly secureMailService: SecureMailService,
     private readonly usersService: UsersService,
+    @Optional() private readonly pushService?: PushService,
   ) {}
 
   decodeMimeWords(str: string | null | undefined): string {
@@ -1283,6 +1286,13 @@ export class MailService {
             isDraft: false,
           }),
         );
+
+        await this.pushService?.publishNewMailEvent({
+          userId: targetUser.id,
+          folderId: inbox.id,
+          uid: inboxUid,
+          messageId: mailId,
+        });
       }
     }
 

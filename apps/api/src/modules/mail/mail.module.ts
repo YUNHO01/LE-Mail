@@ -11,6 +11,7 @@ import { WorkerPoolModule } from '../worker-pool/worker-pool.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SpamModule } from '../spam/spam.module';
 import { UsersModule } from '../users/users.module';
+import { PushModule } from '../push/push.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UsersModule } from '../users/users.module';
     WorkerPoolModule,
     SettingsModule,
     UsersModule,
+    PushModule,
     forwardRef(() => SpamModule),
   ],
   controllers: [MailController],

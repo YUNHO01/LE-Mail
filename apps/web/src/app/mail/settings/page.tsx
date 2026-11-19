@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { PenTool, ShieldBan, Archive, Settings, KeyRound, Sparkles, PlugZap } from 'lucide-react';
+import { PenTool, ShieldBan, Archive, Settings, KeyRound, Sparkles, PlugZap, Bell } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SignatureSettingsTab } from '@/components/settings/SignatureSettingsTab';
 import { SpamBlockSettingsTab } from '@/components/settings/SpamBlockSettingsTab';
@@ -10,16 +10,17 @@ import { MailboxBackupTab } from '@/components/settings/MailboxBackupTab';
 import { PasswordChangeTab } from '@/components/settings/PasswordChangeTab';
 import { AiSettingsTab } from '@/components/settings/AiSettingsTab';
 import { McpApiKeySettingsTab } from '@/components/settings/McpApiKeySettingsTab';
+import { NotificationSettingsTab } from '@/components/settings/NotificationSettingsTab';
 import { fetchApi } from '@/lib/api';
 import { AiPolicyDto } from '@lemail/shared-types';
 
-type SettingsTab = 'signature' | 'spam' | 'backup' | 'password' | 'ai' | 'mcp';
+type SettingsTab = 'signature' | 'spam' | 'notifications' | 'backup' | 'password' | 'ai' | 'mcp';
 
 function SettingsContent() {
   const searchParams = useSearchParams();
 
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'signature';
-  const validTabs: SettingsTab[] = ['signature', 'spam', 'backup', 'password', 'ai', 'mcp'];
+  const validTabs: SettingsTab[] = ['signature', 'spam', 'notifications', 'backup', 'password', 'ai', 'mcp'];
   const [activeTab, setActiveTab] = useState<SettingsTab>(
     validTabs.includes(initialTab) ? initialTab : 'signature',
   );
@@ -94,6 +95,19 @@ function SettingsContent() {
 
         <button
           type="button"
+          onClick={() => handleTabChange('notifications')}
+          className={`flex items-center gap-2 pb-3.5 px-4 text-sm font-semibold border-b-2 transition ${
+            activeTab === 'notifications'
+              ? 'border-sky-600 text-sky-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Bell className="h-4 w-4" />
+          <span>알림 설정</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => handleTabChange('backup')}
           className={`flex items-center gap-2 pb-3.5 px-4 text-sm font-semibold border-b-2 transition ${
             activeTab === 'backup'
@@ -151,6 +165,7 @@ function SettingsContent() {
       <div className="w-full">
         {activeTab === 'signature' && <SignatureSettingsTab />}
         {activeTab === 'spam' && <SpamBlockSettingsTab />}
+        {activeTab === 'notifications' && <NotificationSettingsTab />}
         {activeTab === 'backup' && <MailboxBackupTab />}
         {activeTab === 'password' && <PasswordChangeTab />}
         {activeTab === 'ai' && <AiSettingsTab />}
