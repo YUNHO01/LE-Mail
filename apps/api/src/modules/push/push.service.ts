@@ -292,7 +292,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
       body,
       messageId: payload.messageId,
       folderId: payload.folderId,
-      url: payload.messageId ? `/mail/view/${payload.messageId}` : '/mail/inbox',
+      url: payload.messageId ? `/mail/${payload.messageId}` : '/mail/inbox',
       tag: payload.messageId ? `lemail-${payload.messageId}` : 'lemail-new-mail',
     };
 

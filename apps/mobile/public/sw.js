@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'lemail-mobile-v2';
+const CACHE_VERSION = 'lemail-mobile-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const OFFLINE_URL = '/offline';
 
@@ -145,13 +145,14 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/mail/inbox';
+  const targetPath = (event.notification.data && event.notification.data.url) || '/mail/inbox';
+  const targetUrl = new URL(targetPath, self.location.origin).href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
       for (const client of clientList) {
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          client.focus();
+          await client.focus();
           if ('navigate' in client) {
             return client.navigate(targetUrl);
           }
