@@ -212,55 +212,46 @@ export const MailboxBackupTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 w-full">
-      <div>
-        <h2 className="text-base font-bold tracking-tight text-slate-900">메일함 데이터 백업</h2>
-        <p className="text-xs text-slate-500 mt-1">
-          사서함의 메일들을 표준 EML 형식의 압축 파일(.zip)로 백업하고 다운로드합니다.
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-2">
+          <Archive className="h-4 w-4 text-indigo-600" />
+          <span className="text-sm font-bold text-slate-900">메일함 데이터 백업</span>
+        </div>
       </div>
 
       {/* 안내 알림 배너 */}
-      <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 flex items-start gap-3 text-xs text-sky-900">
-        <Info className="h-4 w-4 text-sky-600 flex-shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <div className="font-semibold">백업 압축 파일 보관 및 자동 삭제 정책</div>
-          <p className="text-sky-800 leading-relaxed">
-            백업 파일은 서버에서 비동기로 안전하게 압축 생성되며 완료 시 즉시 다운로드 링크가 제공됩니다.
-            서버 스토리지 보호를 위해 <strong>생성일로부터 7일 후 백업 파일은 서버에서 자동 영구 삭제</strong>되므로 기한 내에 다운로드하여 안전한 로컬 저장소에 보관해 주시기 바랍니다.
-          </p>
-        </div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex items-start gap-2 text-xs text-slate-600">
+        <Info className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+        <p className="leading-relaxed">
+          백업 파일(.zip)은 <strong>생성일로부터 7일 후 서버에서 자동 영구 삭제</strong>되므로 기한 내에 다운로드해 주세요.
+        </p>
       </div>
 
       {/* 상태 메시지 배너 */}
       {message && (
         <div
-          className={`rounded-2xl p-4 flex items-center gap-3 text-xs border ${
+          className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs ${
             message.type === 'success'
-              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50/80 border-rose-200 text-rose-800'
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-rose-50 text-rose-700'
           }`}
         >
           {message.type === 'success' ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
           ) : (
-            <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0" />
+            <AlertCircle className="h-4 w-4 shrink-0" />
           )}
           <span>{message.text}</span>
         </div>
       )}
 
-      {/* 백업 요청 폼 카드 */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Archive className="h-4 w-4 text-sky-600" />
-            <span>신규 메일함 백업 파일 생성</span>
-          </h3>
-          <span className="text-xs text-slate-500">
-            원하는 백업 범위(전체 또는 개별 편지함)를 선택하여 EML 압축본을 생성합니다.
-          </span>
-        </div>
+      {/* 백업 요청 폼 */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-4">
+        <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <Archive className="h-3.5 w-3.5 text-indigo-600" />
+          <span>신규 메일함 백업 파일 생성</span>
+        </h3>
 
         <form onSubmit={handleRequestBackup} className="space-y-4">
           {/* 백업 모드 선택 (전체 vs 선택) */}
@@ -413,8 +404,8 @@ export const MailboxBackupTab: React.FC = () => {
         </form>
       </div>
 
-      {/* 백업 이력 및 다운로드 목록 카드 */}
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+      {/* 백업 이력 및 다운로드 목록 */}
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileArchive className="h-4 w-4 text-slate-600" />

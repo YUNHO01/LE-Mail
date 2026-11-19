@@ -105,22 +105,15 @@ export const PasswordChangeTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 w-full max-w-3xl">
-      <div>
-        <h2 className="text-base font-bold tracking-tight text-slate-900">사용자 비밀번호 변경</h2>
-        <p className="text-xs text-slate-500 mt-1">
-          현재 로그인된 계정의 로그인 비밀번호를 새롭게 변경하고 보안을 강화합니다.
-        </p>
-      </div>
-
-      {/* 보안 권장 안내 배너 */}
-      <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 flex items-start gap-3 text-xs text-sky-900">
-        <Info className="h-4 w-4 text-sky-600 flex-shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <div className="font-semibold">안전한 비밀번호 관리 수칙</div>
-          <p className="text-sky-800 leading-relaxed">
-            영문 대/소문자, 숫자, 특수문자를 혼합한 8자리 이상의 비밀번호를 권장합니다. 타 사이트와 동일한
-            비밀번호를 재사용하지 마시고, 정기적인 변경을 통해 사서함과 개인정보를 안전하게 보호하세요.
+    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+      <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+          <KeyRound className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-900">사용자 비밀번호 변경</h3>
+          <p className="text-xs text-slate-500">
+            현재 로그인된 계정의 로그인 비밀번호를 새롭게 변경하고 보안을 강화합니다.
           </p>
         </div>
       </div>
@@ -128,24 +121,23 @@ export const PasswordChangeTab: React.FC = () => {
       {/* 상태 메시지 배너 */}
       {message && (
         <div
-          className={`rounded-2xl p-4 flex items-center gap-3 text-xs border ${
+          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium ${
             message.type === 'success'
-              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50/80 border-rose-200 text-rose-800'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
           }`}
         >
           {message.type === 'success' ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
           ) : (
-            <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0" />
+            <AlertCircle className="h-4 w-4 shrink-0" />
           )}
           <span>{message.text}</span>
         </div>
       )}
 
-      {/* 비밀번호 변경 폼 카드 */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <form onSubmit={handleSubmit} className="space-y-5">
+      {/* 비밀번호 변경 폼 */}
+      <form onSubmit={handleSubmit} className="space-y-5">
           {/* 현재 비밀번호 */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700">
@@ -293,6 +285,15 @@ export const PasswordChangeTab: React.FC = () => {
             )}
           </div>
 
+          {/* 보안 권장 안내 박스 */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600 flex items-start gap-2.5">
+            <Info className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+            <span>
+              영문 대/소문자, 숫자, 특수문자를 혼합한 8자리 이상의 비밀번호를 권장합니다. 타 사이트와 동일한
+              비밀번호를 재사용하지 마세요.
+            </span>
+          </div>
+
           {/* 버튼 영역 */}
           <div className="pt-2 flex items-center justify-end">
             <button
@@ -306,7 +307,7 @@ export const PasswordChangeTab: React.FC = () => {
                 Boolean(isSameAsCurrent) ||
                 newPassword.length < 6
               }
-              className="h-10 px-6 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>
@@ -315,14 +316,13 @@ export const PasswordChangeTab: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <KeyRound className="h-3.5 w-3.5" />
+                  <KeyRound className="h-4 w-4" />
                   <span>비밀번호 변경 완료</span>
                 </>
               )}
             </button>
           </div>
         </form>
-      </div>
     </div>
   );
 };

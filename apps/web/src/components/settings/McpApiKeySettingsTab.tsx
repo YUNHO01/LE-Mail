@@ -224,23 +224,25 @@ export function McpApiKeySettingsTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
       {/* 상단 요약 및 발급 버튼 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Key className="h-5 w-5 text-sky-600" />
-            <h3 className="text-base font-bold text-slate-900">MCP 연동 API Key 관리</h3>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+            <Key className="h-5 w-5" />
           </div>
-          <p className="text-xs text-slate-500">
-            Claude Desktop, Cursor 등 외부 AI 클라이언트에서 내 메일·주소록·캘린더에 안전하게 접근할 수 있는 개인용 API Key를 발급합니다.
-          </p>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">MCP 연동 API Key 관리</h3>
+            <p className="text-xs text-slate-500">
+              Claude Desktop, Cursor 등 외부 AI 클라이언트에서 내 메일·주소록·캘린더에 안전하게 접근할 수 있는 개인용 API Key를 발급합니다.
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={loadKeys}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>새로고침</span>
@@ -248,7 +250,7 @@ export function McpApiKeySettingsTab() {
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-sky-700"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-500"
           >
             <Plus className="h-4 w-4" />
             <span>새 API Key 발급</span>

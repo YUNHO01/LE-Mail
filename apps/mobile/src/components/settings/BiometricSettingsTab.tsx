@@ -82,18 +82,19 @@ export function BiometricSettingsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-3 rounded-xl bg-sky-50/80 border border-sky-200/80 p-3.5">
-        <Fingerprint className="h-5 w-5 text-[#007AFF] shrink-0 mt-0.5" />
-        <div className="space-y-1 text-xs text-slate-600">
-          <p className="font-semibold text-slate-800">지문 · Face ID 간편 로그인</p>
-          <p>
-            현재 기기의 생체인식을 등록하면 다음 로그인 시 비밀번호 입력 없이 빠르게 접속할 수 있습니다.
-          </p>
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-2">
+          <Fingerprint className="h-4 w-4 text-[#007AFF]" />
+          <span className="text-sm font-bold text-slate-900">생체인식 로그인</span>
         </div>
       </div>
 
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+        현재 기기의 지문 · Face ID를 등록하면 다음 로그인 시 비밀번호 입력 없이 빠르게 접속할 수 있습니다.
+      </div>
+
       {supported === false && (
-        <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+        <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
           <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
           <span>
             현재 브라우저 또는 접속 환경(HTTPS 필수)에서는 기기 생체인식 등록을 지원하지 않습니다.
@@ -102,15 +103,15 @@ export function BiometricSettingsTab() {
       )}
 
       {error && (
-        <div className="flex items-start gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-medium text-rose-700">
-          <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+        <div className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="flex items-start gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-medium text-emerald-700">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{success}</span>
         </div>
       )}

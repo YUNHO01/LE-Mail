@@ -188,17 +188,15 @@ export function AiSettingsTab() {
           <Sparkles className="h-4 w-4 text-violet-600" />
           <span className="text-sm font-bold text-slate-900">개인 AI 활성화</span>
         </div>
-        <label className="relative inline-flex cursor-pointer items-center gap-2">
+        <label className="relative inline-flex cursor-pointer items-center">
           <input
             type="checkbox"
             checked={isEnabled}
             onChange={(e) => setIsEnabled(e.target.checked)}
+            aria-label="개인 AI 활성화"
             className="peer sr-only"
           />
           <span className="h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-violet-600 relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-          <span className="text-xs font-semibold text-slate-700">
-            {isEnabled ? '사용 중' : '비활성'}
-          </span>
         </label>
       </div>
 
@@ -343,18 +341,16 @@ export function AiSettingsTab() {
               메일 열람 시 상단에 요약을 자동 표시합니다. (답신/이전 원본 제외, DB 캐시 재사용)
             </p>
           </div>
-          <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5">
+          <label className="inline-flex shrink-0 cursor-pointer items-center">
             <input
               type="checkbox"
               checked={autoSummarizeOnRead}
               disabled={!isEnabled}
               onChange={(e) => setAutoSummarizeOnRead(e.target.checked)}
+              aria-label="메일 읽기 시 AI 자동 요약"
               className="peer sr-only"
             />
             <div className="h-6 w-11 rounded-full bg-slate-200 peer-disabled:opacity-50 peer-checked:bg-violet-600 relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-            <span className="text-xs font-semibold text-slate-700 w-8">
-              {autoSummarizeOnRead ? 'ON' : 'OFF'}
-            </span>
           </label>
         </div>
       </div>

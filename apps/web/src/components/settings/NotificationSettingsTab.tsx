@@ -184,21 +184,74 @@ export const NotificationSettingsTab: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-slate-500">
-        <Loader2 className="h-5 w-5 animate-spin mr-2 text-sky-600" />
-        <span className="text-sm">알림 설정을 불러오는 중...</span>
+      <div className="py-12 text-center text-xs text-slate-400">
+        알림 설정을 불러오는 중입니다...
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+            {currentSubscription ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Web Push 알림 설정</h3>
+            <p className="text-xs text-slate-500">
+              새 메일 도착 시 현재 브라우저 또는 모바일 PWA로 실시간 푸시 알림을 수신합니다.
+              {' · '}권한: <span className="font-semibold">{permission}</span>
+              {' · '}상태:{' '}
+              <span className={currentSubscription ? 'font-semibold text-emerald-600' : 'text-slate-500'}>
+                {currentSubscription ? '구독 중' : '미등록'}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {currentSubscription ? (
+            <>
+              <button
+                type="button"
+                onClick={handleTestPush}
+                disabled={testing || busy}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                <span>테스트 알림</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleUnsubscribeThisDevice}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+              >
+                <BellOff className="h-3.5 w-3.5" />
+                <span>이 기기 알림 끄기</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubscribeThisDevice}
+              disabled={busy || !supported}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-500 disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+              <span>이 기기에서 알림 받기</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {message && (
         <div
-          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
+          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium ${
             message.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-rose-200 bg-rose-50 text-rose-800'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
           }`}
         >
           {message.type === 'success' ? (
@@ -221,158 +274,119 @@ export const NotificationSettingsTab: React.FC = () => {
       )}
 
       {!supported && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600">
           현재 브라우저 환경에서는 Web Push API를 사용할 수 없습니다. (HTTPS 또는 localhost 환경의 최신 브라우저가 필요합니다.)
         </div>
       )}
 
-      {/* 현재 기기 구독 카드 */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-              {currentSubscription ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">현재 기기 Web Push 알림</h3>
-              <p className="text-xs text-slate-500">
-                브라우저 권한: <span className="font-semibold">{permission}</span>
-                {' · '}
-                상태:{' '}
-                <span className={currentSubscription ? 'font-semibold text-emerald-600' : 'text-slate-500'}>
-                  {currentSubscription ? '구독 중' : '미등록'}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {currentSubscription ? (
-              <>
-                <button
-                  type="button"
-                  onClick={handleTestPush}
-                  disabled={testing || busy}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  <span>테스트 알림</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUnsubscribeThisDevice}
-                  disabled={busy}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
-                >
-                  <BellOff className="h-3.5 w-3.5" />
-                  <span>이 기기 알림 끄기</span>
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubscribeThisDevice}
-                disabled={busy || !supported}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
-              >
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
-                <span>이 기기에서 알림 받기</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* 계정 전역 알림 옵션 */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
-        <h3 className="text-sm font-bold text-slate-900">계정 알림 정책</h3>
+      <div className="space-y-3">
+        <h4 className="text-xs font-semibold text-slate-700">계정 알림 정책</h4>
 
-        <label className="flex items-center justify-between gap-4 cursor-pointer">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
           <div>
-            <p className="text-sm font-semibold text-slate-800">새 메일 푸시 알림 수신</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs font-bold text-slate-900">새 메일 푸시 알림 수신</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
               비활성화하면 등록된 모든 기기로 새 메일 푸시를 발송하지 않습니다. (스팸함 메일은 항상 제외)
             </p>
           </div>
-          <input
-            type="checkbox"
-            checked={pushEnabled}
-            onChange={(e) => handleToggleSetting('pushEnabled', e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-          />
-        </label>
-
-        <div className="border-t border-slate-100 pt-4">
-          <label className="flex items-center justify-between gap-4 cursor-pointer">
-            <div>
-              <p className="text-sm font-semibold text-slate-800">발신자 및 제목 미리보기 표시</p>
-              <p className="text-xs text-slate-500">
-                끄면 알림에 발신자와 제목 대신 &quot;새로운 메일이 도착했습니다.&quot;만 표시됩니다.
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={pushPreviewEnabled}
-              onChange={(e) => handleToggleSetting('pushPreviewEnabled', e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pushEnabled}
+            aria-label="새 메일 푸시 알림 수신"
+            onClick={() => handleToggleSetting('pushEnabled', !pushEnabled)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
+              pushEnabled ? 'bg-sky-600' : 'bg-slate-200'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                pushEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
             />
-          </label>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <div>
+            <p className="text-xs font-bold text-slate-900">발신자 및 제목 미리보기 표시</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              끄면 알림에 발신자와 제목 대신 &quot;새로운 메일이 도착했습니다.&quot;만 표시됩니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pushPreviewEnabled}
+            aria-label="발신자 및 제목 미리보기 표시"
+            onClick={() => handleToggleSetting('pushPreviewEnabled', !pushPreviewEnabled)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
+              pushPreviewEnabled ? 'bg-sky-600' : 'bg-slate-200'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                pushPreviewEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
         </div>
       </div>
 
       {/* 등록된 기기 목록 */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900">
-            등록된 알림 기기 ({subscriptions.length})
-          </h3>
-        </div>
+      <div className="space-y-3">
+        <h4 className="text-xs font-semibold text-slate-700">
+          등록된 알림 기기 ({subscriptions.length})
+        </h4>
 
-        {subscriptions.length === 0 ? (
-          <p className="py-4 text-center text-xs text-slate-400">
-            아직 등록된 기기가 없습니다.
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {subscriptions.map((sub) => {
-              const isCurrent = sub.endpoint === currentEndpoint;
-              return (
-                <li key={sub.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Smartphone className="h-4 w-4 shrink-0 text-slate-400" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-slate-800">
-                          {sub.deviceLabel || '웹 브라우저'}
-                        </span>
-                        {isCurrent && (
-                          <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                            현재 기기
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4">
+          {subscriptions.length === 0 ? (
+            <p className="py-6 text-center text-xs text-slate-400">
+              아직 등록된 기기가 없습니다.
+            </p>
+          ) : (
+            <ul className="divide-y divide-slate-200/70">
+              {subscriptions.map((sub) => {
+                const isCurrent = sub.endpoint === currentEndpoint;
+                return (
+                  <li key={sub.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Smartphone className="h-4 w-4 shrink-0 text-slate-400" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-xs font-semibold text-slate-800">
+                            {sub.deviceLabel || '웹 브라우저'}
                           </span>
-                        )}
+                          {isCurrent && (
+                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                              현재 기기
+                            </span>
+                          )}
+                        </div>
+                        <p className="truncate text-[11px] text-slate-400">
+                          등록: {new Date(sub.createdAt).toLocaleString('ko-KR')}
+                          {sub.lastUsedAt
+                            ? ` · 최근 발송: ${new Date(sub.lastUsedAt).toLocaleString('ko-KR')}`
+                            : ''}
+                        </p>
                       </div>
-                      <p className="truncate text-[11px] text-slate-400">
-                        등록: {new Date(sub.createdAt).toLocaleString('ko-KR')}
-                        {sub.lastUsedAt
-                          ? ` · 최근 발송: ${new Date(sub.lastUsedAt).toLocaleString('ko-KR')}`
-                          : ''}
-                      </p>
                     </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSubscription(sub)}
-                    disabled={busy}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-                    title="구독 삭제"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSubscription(sub)}
+                      disabled={busy}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                      title="구독 삭제"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );

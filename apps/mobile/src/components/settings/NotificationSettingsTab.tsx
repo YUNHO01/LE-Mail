@@ -183,22 +183,27 @@ export const NotificationSettingsTab: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-10 text-slate-500">
-        <Loader2 className="h-5 w-5 animate-spin mr-2 text-sky-600" />
-        <span className="text-sm">알림 설정을 불러오는 중...</span>
-      </div>
-    );
+    return <p className="py-8 text-center text-xs text-slate-400">불러오는 중...</p>;
   }
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4 text-[#007AFF]" />
+          <span className="text-sm font-bold text-slate-900">Web Push 알림</span>
+        </div>
+        <span className={currentSubscription ? 'text-xs font-semibold text-emerald-600' : 'text-xs text-slate-400'}>
+          {currentSubscription ? '구독 중' : '미등록'}
+        </span>
+      </div>
+
       {message && (
         <div
-          className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs ${
+          className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs ${
             message.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-rose-200 bg-rose-50 text-rose-800'
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-rose-50 text-rose-700'
           }`}
         >
           {message.type === 'success' ? (
@@ -280,31 +285,51 @@ export const NotificationSettingsTab: React.FC = () => {
       </div>
 
       <div className="space-y-3 pt-1">
-        <label className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-slate-800">새 메일 푸시 알림</p>
             <p className="text-xs text-slate-500">스팸함 메일은 알림에서 제외됩니다.</p>
           </div>
-          <input
-            type="checkbox"
-            checked={pushEnabled}
-            onChange={(e) => handleToggleSetting('pushEnabled', e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-[#007AFF]"
-          />
-        </label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pushEnabled}
+            aria-label="새 메일 푸시 알림"
+            onClick={() => handleToggleSetting('pushEnabled', !pushEnabled)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              pushEnabled ? 'bg-[#007AFF]' : 'bg-slate-200'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                pushEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
 
-        <label className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+        <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <div>
             <p className="text-sm font-semibold text-slate-800">발신자/제목 미리보기</p>
             <p className="text-xs text-slate-500">끄면 도착 여부만 간단히 표시합니다.</p>
           </div>
-          <input
-            type="checkbox"
-            checked={pushPreviewEnabled}
-            onChange={(e) => handleToggleSetting('pushPreviewEnabled', e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-[#007AFF]"
-          />
-        </label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pushPreviewEnabled}
+            aria-label="발신자/제목 미리보기"
+            onClick={() => handleToggleSetting('pushPreviewEnabled', !pushPreviewEnabled)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              pushPreviewEnabled ? 'bg-[#007AFF]' : 'bg-slate-200'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                pushPreviewEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       <div className="border-t border-slate-100 pt-3 space-y-2">

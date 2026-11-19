@@ -227,17 +227,15 @@ export function AiSettingsTab() {
           </div>
         </div>
 
-        <label className="inline-flex cursor-pointer items-center gap-2">
+        <label className="inline-flex cursor-pointer items-center">
           <input
             type="checkbox"
             checked={isEnabled}
             onChange={(e) => setIsEnabled(e.target.checked)}
+            aria-label="개인용 외부 AI 연동"
             className="peer sr-only"
           />
           <div className="h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-violet-600 relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-          <span className="text-xs font-semibold text-slate-700">
-            {isEnabled ? '사용 중' : '비활성'}
-          </span>
         </label>
       </div>
 
@@ -409,18 +407,16 @@ export function AiSettingsTab() {
           </p>
         </div>
 
-        <label className="inline-flex shrink-0 cursor-pointer items-center gap-2">
+        <label className="inline-flex shrink-0 cursor-pointer items-center">
           <input
             type="checkbox"
             checked={autoSummarizeOnRead}
             disabled={!isEnabled}
             onChange={(e) => setAutoSummarizeOnRead(e.target.checked)}
+            aria-label="메일 읽기 시 AI 자동 요약"
             className="peer sr-only"
           />
           <div className="h-6 w-11 rounded-full bg-slate-200 peer-disabled:opacity-50 peer-checked:bg-violet-600 relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-          <span className="text-xs font-semibold text-slate-700 w-9">
-            {autoSummarizeOnRead ? 'ON' : 'OFF'}
-          </span>
         </label>
       </div>
 
