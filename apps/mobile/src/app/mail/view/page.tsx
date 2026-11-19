@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { fetchApi, calendarApi } from '@/lib/api';
+import { fetchApi, calendarApi, contactsApi } from '@/lib/api';
 import { SandboxedMailBody } from '@/components/mail/SandboxedMailBody';
 import {
   MailMessageDto,
@@ -12,8 +12,11 @@ import {
   CalendarDto,
   CreateCalendarEventDto,
   UpdateCalendarEventDto,
+  ContactEmailStatusDto,
+  ContactGroupDto,
 } from '@lemail/shared-types';
 import { EventModal } from '@/components/calendar/EventModal';
+import { ContactModal } from '@/components/contacts/ContactModal';
 import { MailAiAssistantPanel } from '@/components/ai/MailAiAssistantPanel';
 import {
   ArrowLeft,
@@ -37,6 +40,7 @@ import {
   Layers,
   AlertTriangle,
   ChevronsUpDown,
+  UserPlus,
 } from 'lucide-react';
 
 const MAX_MULTI_OPEN_COUNT = 5;
@@ -69,6 +73,66 @@ function MailMultiViewContent() {
 
   const [calendars, setCalendars] = useState<CalendarDto[]>([]);
   const [calendarTargetMail, setCalendarTargetMail] = useState<MailMessageDto | null>(null);
+
+  const [emailStatuses, setEmailStatuses] = useState<Record<string, ContactEmailStatusDto>>({});
+  const [contactGroups, setContactGroups] = useState<ContactGroupDto[]>([]);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactInitialValues, setContactInitialValues] = useState<{
+    name?: string;
+    email?: string;
+  } | null>(null);
+
+  const extractEmail = (raw?: string | null): string => {
+    if (!raw) return '';
+    const match = raw.match(/<([^>]+)>/);
+    return (match ? match[1] : raw).trim().toLowerCase();
+  };
+
+  const canAddExternalContact = (raw?: string | null): boolean => {
+    const email = extractEmail(raw);
+    if (!email || !email.includes('@')) return false;
+    const status = emailStatuses[email];
+    return Boolean(status && !status.inContacts && !status.isCompanyUser && !status.isSelf);
+  };
+
+  const handleOpenAddContact = async (
+    e: React.MouseEvent,
+    name?: string | null,
+    rawEmail?: string | null,
+  ) => {
+    e.stopPropagation();
+    const email = extractEmail(rawEmail);
+    if (!email) return;
+    const cleanedName = (name || '').replace(/["'<>]/g, '').trim();
+    const fallbackName =
+      cleanedName && cleanedName.toLowerCase() !== email ? cleanedName : email.split('@')[0];
+    setContactInitialValues({ name: fallbackName, email });
+    try {
+      if (contactGroups.length === 0) {
+        const groups = await contactsApi.getGroups().catch(() => [] as ContactGroupDto[]);
+        setContactGroups(groups || []);
+      }
+    } finally {
+      setContactModalOpen(true);
+    }
+  };
+
+  const handleContactSaved = () => {
+    const savedEmail = extractEmail(contactInitialValues?.email);
+    if (savedEmail) {
+      setEmailStatuses((prev) => ({
+        ...prev,
+        [savedEmail]: {
+          email: savedEmail,
+          inContacts: true,
+          isCompanyUser: prev[savedEmail]?.isCompanyUser ?? false,
+          isSelf: prev[savedEmail]?.isSelf ?? false,
+          contactId: prev[savedEmail]?.contactId ?? null,
+        },
+      }));
+    }
+    setContactModalOpen(false);
+  };
 
   useEffect(() => {
     if (targetIds.length === 0) {
@@ -103,6 +167,31 @@ function MailMultiViewContent() {
 
         setMails(loaded);
         setFailedCount(failures);
+
+        const candidateEmails = Array.from(
+          new Set(
+            loaded
+              .flatMap((m) => [
+                extractEmail(m.sender),
+                ...(m.recipients || []).map((r) => extractEmail(r.address)),
+              ])
+              .filter((e) => e && e.includes('@')),
+          ),
+        );
+        if (candidateEmails.length > 0) {
+          contactsApi
+            .checkEmails(candidateEmails)
+            .then((res) => {
+              if (!cancelled && res?.statuses) {
+                setEmailStatuses(res.statuses);
+              }
+            })
+            .catch(() => {
+              if (!cancelled) setEmailStatuses({});
+            });
+        } else {
+          setEmailStatuses({});
+        }
 
         const initialExpanded: Record<string, boolean> = {};
         for (const m of loaded) {
@@ -419,9 +508,24 @@ function MailMultiViewContent() {
                       {mail.subject || '(제목 없음)'}
                     </h2>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
-                      <span className="truncate max-w-[260px]">
-                        <strong className="font-semibold text-slate-700">보낸사람:</strong>{' '}
-                        {mail.sender}
+                      <span className="inline-flex items-center gap-1.5 min-w-0">
+                        <span className="truncate max-w-[260px]">
+                          <strong className="font-semibold text-slate-700">보낸사람:</strong>{' '}
+                          {mail.sender}
+                        </span>
+                        {canAddExternalContact(mail.sender) && (
+                          <button
+                            type="button"
+                            onClick={(e) =>
+                              handleOpenAddContact(e, mail.senderName || mail.sender, mail.sender)
+                            }
+                            title="주소록에 추가"
+                            className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 hover:bg-sky-100 transition shrink-0"
+                          >
+                            <UserPlus className="h-3 w-3" />
+                            <span>주소록 추가</span>
+                          </button>
+                        )}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Clock className="h-3 w-3 text-slate-400" />
@@ -677,6 +781,14 @@ function MailMultiViewContent() {
           onSave={handleSaveCalendarEvent}
         />
       )}
+
+      <ContactModal
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
+        initialValues={contactInitialValues}
+        groups={contactGroups}
+        onSaved={handleContactSaved}
+      />
     </div>
   );
 }

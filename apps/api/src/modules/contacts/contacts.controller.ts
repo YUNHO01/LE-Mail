@@ -26,6 +26,7 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { ImportContactsDto } from './dto/import-contacts.dto';
 import { BulkDeleteContactsDto } from './dto/bulk-delete.dto';
+import { CheckContactEmailsDto } from './dto/check-emails.dto';
 
 @ApiTags('Contacts & Address Book')
 @Controller('contacts')
@@ -76,6 +77,22 @@ export class ContactsController {
   })
   async search(@CurrentUser() user: any, @Query('q') q: string) {
     return this.contactsService.searchContactsAndUsers(user.id, q);
+  }
+
+  @Post('check-emails')
+  @ApiOperation({
+    summary: '이메일 주소 목록의 주소록 및 사내 사용자 등록 여부 일괄 확인',
+    description: '메일 읽기 화면 등에서 외부 사용자 이메일의 개인 주소록 미등록 여부를 판별합니다.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: '이메일 주소별 등록 상태 맵(statuses) 반환',
+  })
+  async checkEmails(
+    @CurrentUser() user: any,
+    @Body() dto: CheckContactEmailsDto,
+  ) {
+    return this.contactsService.checkEmails(user.id, dto.emails);
   }
 
   @Get('groups')

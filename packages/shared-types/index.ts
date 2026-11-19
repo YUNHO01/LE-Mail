@@ -807,6 +807,22 @@ export interface ContactSearchResultDto {
   source: 'CONTACT' | 'SYSTEM_USER';
 }
 
+export interface CheckContactEmailsRequestDto {
+  emails: string[];
+}
+
+export interface ContactEmailStatusDto {
+  email: string;
+  inContacts: boolean;
+  isCompanyUser: boolean;
+  isSelf: boolean;
+  contactId?: string | null;
+}
+
+export interface CheckContactEmailsResponseDto {
+  statuses: Record<string, ContactEmailStatusDto>;
+}
+
 // ==========================================
 // Calendar & Event Types
 // ==========================================

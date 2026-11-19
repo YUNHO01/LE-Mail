@@ -16,6 +16,7 @@ interface ContactModalProps {
   isOpen: boolean;
   onClose: () => void;
   contact?: ContactDto | null;
+  initialValues?: { name?: string; email?: string } | null;
   groups: ContactGroupDto[];
   onSaved: () => void;
 }
@@ -40,6 +41,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
   isOpen,
   onClose,
   contact,
+  initialValues,
   groups,
   onSaved,
 }) => {
@@ -93,8 +95,8 @@ export const ContactModal: React.FC<ContactModalProps> = ({
       setAddressDetail(contact.addressDetail || '');
       setWebsiteUrl(contact.websiteUrl || '');
     } else {
-      setName('');
-      setEmail('');
+      setName(initialValues?.name || '');
+      setEmail(initialValues?.email || '');
       setPhone('');
       setCompany('');
       setDepartment('');
@@ -114,7 +116,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
     }
     setIsPostcodeModalOpen(false);
     setError(null);
-  }, [contact, isOpen]);
+  }, [contact, initialValues, isOpen]);
 
   if (!isOpen) return null;
 

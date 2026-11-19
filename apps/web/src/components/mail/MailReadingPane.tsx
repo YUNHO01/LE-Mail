@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchApi, calendarApi } from '@/lib/api';
+import { fetchApi, calendarApi, contactsApi } from '@/lib/api';
 import { fetchMailFoldersCached } from '@/lib/mail-folders-cache';
 import { SandboxedMailBody } from '@/components/mail/SandboxedMailBody';
 import {
@@ -12,8 +12,11 @@ import {
   CalendarDto,
   CreateCalendarEventDto,
   UpdateCalendarEventDto,
+  ContactEmailStatusDto,
+  ContactGroupDto,
 } from '@lemail/shared-types';
 import { EventModal } from '@/components/calendar/EventModal';
+import { ContactModal } from '@/components/contacts/ContactModal';
 import { MailAiAssistantPanel } from '@/components/ai/MailAiAssistantPanel';
 import {
   ArrowLeft,
@@ -33,6 +36,7 @@ import {
   CalendarPlus,
   ExternalLink,
   Lock,
+  UserPlus,
 } from 'lucide-react';
 
 export interface MailReadingPaneProps {
@@ -58,6 +62,60 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
   const [loading, setLoading] = useState(false);
   const [calendars, setCalendars] = useState<CalendarDto[]>([]);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+
+  const [emailStatuses, setEmailStatuses] = useState<Record<string, ContactEmailStatusDto>>({});
+  const [contactGroups, setContactGroups] = useState<ContactGroupDto[]>([]);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactInitialValues, setContactInitialValues] = useState<{
+    name?: string;
+    email?: string;
+  } | null>(null);
+
+  const extractEmail = (raw?: string | null): string => {
+    if (!raw) return '';
+    const match = raw.match(/<([^>]+)>/);
+    return (match ? match[1] : raw).trim().toLowerCase();
+  };
+
+  const canAddExternalContact = (raw?: string | null): boolean => {
+    const email = extractEmail(raw);
+    if (!email || !email.includes('@')) return false;
+    const status = emailStatuses[email];
+    return Boolean(status && !status.inContacts && !status.isCompanyUser && !status.isSelf);
+  };
+
+  const handleOpenAddContact = async (name?: string | null, rawEmail?: string | null) => {
+    const email = extractEmail(rawEmail);
+    if (!email) return;
+    const cleanedName = (name || '').replace(/["'<>]/g, '').trim();
+    const fallbackName = cleanedName && cleanedName.toLowerCase() !== email ? cleanedName : email.split('@')[0];
+    setContactInitialValues({ name: fallbackName, email });
+    try {
+      if (contactGroups.length === 0) {
+        const groups = await contactsApi.getGroups().catch(() => [] as ContactGroupDto[]);
+        setContactGroups(groups || []);
+      }
+    } finally {
+      setContactModalOpen(true);
+    }
+  };
+
+  const handleContactSaved = () => {
+    const savedEmail = extractEmail(contactInitialValues?.email);
+    if (savedEmail) {
+      setEmailStatuses((prev) => ({
+        ...prev,
+        [savedEmail]: {
+          email: savedEmail,
+          inContacts: true,
+          isCompanyUser: prev[savedEmail]?.isCompanyUser ?? false,
+          isSelf: prev[savedEmail]?.isSelf ?? false,
+          contactId: prev[savedEmail]?.contactId ?? null,
+        },
+      }));
+    }
+    setContactModalOpen(false);
+  };
 
   const handleOpenCreateCalendarEvent = async () => {
     try {
@@ -91,6 +149,29 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         const data = await fetchApi<MailMessageDto>(`/mails/${mailId}`);
         if (cancelled) return;
         setMail(data);
+
+        const candidateEmails = Array.from(
+          new Set(
+            [
+              extractEmail(data.sender),
+              ...(data.recipients || []).map((r) => extractEmail(r.address)),
+            ].filter((e) => e && e.includes('@')),
+          ),
+        );
+        if (candidateEmails.length > 0) {
+          contactsApi
+            .checkEmails(candidateEmails)
+            .then((res) => {
+              if (!cancelled && res?.statuses) {
+                setEmailStatuses(res.statuses);
+              }
+            })
+            .catch(() => {
+              if (!cancelled) setEmailStatuses({});
+            });
+        } else {
+          setEmailStatuses({});
+        }
 
         const folders = await fetchMailFoldersCached();
         if (cancelled) return;
@@ -429,27 +510,61 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
                 {senderInitial}
               </div>
               <div className="text-[13px] min-w-0">
-                <div className="font-semibold text-[#1d1d1f] truncate">
-                  {senderDisplayName && !mail.sender.includes(senderDisplayName) ? (
-                    <>
-                      <span>{senderDisplayName}</span>{' '}
-                      <span className="font-normal text-[#6e6e73]">&lt;{mail.sender}&gt;</span>
-                    </>
-                  ) : (
-                    mail.sender
+                <div className="flex flex-wrap items-center gap-1.5 font-semibold text-[#1d1d1f]">
+                  <span className="truncate">
+                    {senderDisplayName && !mail.sender.includes(senderDisplayName) ? (
+                      <>
+                        <span>{senderDisplayName}</span>{' '}
+                        <span className="font-normal text-[#6e6e73]">&lt;{mail.sender}&gt;</span>
+                      </>
+                    ) : (
+                      mail.sender
+                    )}
+                  </span>
+                  {canAddExternalContact(mail.sender) && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddContact(senderDisplayName, mail.sender)}
+                      title="주소록에 추가"
+                      className="inline-flex items-center gap-1 rounded-md border border-[#0071e3]/25 bg-[#0071e3]/8 px-2 py-0.5 text-[11px] font-medium text-[#0071e3] hover:bg-[#0071e3]/15 transition shrink-0"
+                    >
+                      <UserPlus className="h-3 w-3" />
+                      <span>주소록 추가</span>
+                    </button>
                   )}
                 </div>
-                <div className="text-[12px] text-[#6e6e73] mt-0.5 break-all">
-                  받는사람:{' '}
-                  {mail.recipients && mail.recipients.length > 0
-                    ? mail.recipients
-                        .map((r) =>
-                          r.name && !r.address.includes(r.name)
-                            ? `${r.name} <${r.address}>`
-                            : r.address,
-                        )
-                        .join(', ')
-                    : '지정되지 않음'}
+                <div className="text-[12px] text-[#6e6e73] mt-0.5 break-all flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  <span>받는사람:</span>
+                  {mail.recipients && mail.recipients.length > 0 ? (
+                    mail.recipients.map((r, idx) => {
+                      const label =
+                        r.name && !r.address.includes(r.name)
+                          ? `${r.name} <${r.address}>`
+                          : r.address;
+                      const addable = canAddExternalContact(r.address);
+                      return (
+                        <span key={r.id || `${r.address}-${idx}`} className="inline-flex items-center gap-1">
+                          <span>
+                            {label}
+                            {idx < mail.recipients!.length - 1 ? ',' : ''}
+                          </span>
+                          {addable && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAddContact(r.name, r.address)}
+                              title={`${r.address} 주소록에 추가`}
+                              aria-label={`${r.address} 주소록에 추가`}
+                              className="inline-flex items-center justify-center rounded p-0.5 text-[#0071e3] hover:bg-[#0071e3]/10 transition"
+                            >
+                              <UserPlus className="h-3 w-3" />
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span>지정되지 않음</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -524,6 +639,14 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             : [],
         }}
         onSave={handleSaveCalendarEvent}
+      />
+
+      <ContactModal
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
+        initialValues={contactInitialValues}
+        groups={contactGroups}
+        onSaved={handleContactSaved}
       />
     </div>
   );

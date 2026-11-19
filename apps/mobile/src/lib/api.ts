@@ -99,6 +99,15 @@ export const contactsApi = {
       `/contacts/search?q=${encodeURIComponent(q)}`,
     ),
 
+  checkEmails: (emails: string[]) =>
+    fetchApi<import('@lemail/shared-types').CheckContactEmailsResponseDto>(
+      '/contacts/check-emails',
+      {
+        method: 'POST',
+        body: JSON.stringify({ emails }),
+      },
+    ),
+
   getGroups: () =>
     fetchApi<import('@lemail/shared-types').ContactGroupDto[]>('/contacts/groups'),
 

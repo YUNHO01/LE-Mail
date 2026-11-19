@@ -7,7 +7,7 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { ContactsImportExportService } from './contacts-import-export.service';
-import { DuplicateContactAction, ContactSearchResultDto, ImportContactsResultDto, UserRole, UserDto } from '@lemail/shared-types';
+import { DuplicateContactAction, ContactSearchResultDto, ImportContactsResultDto, UserRole, UserDto, CheckContactEmailsResponseDto, ContactEmailStatusDto } from '@lemail/shared-types';
 
 @Injectable()
 export class ContactsService {
@@ -319,6 +319,80 @@ export class ContactsService {
     }
 
     return results.slice(0, 15);
+  }
+
+  /**
+   * 이메일 주소 목록에 대해 개인 주소록 등록 여부 / 사내 사용자 여부 / 본인 여부를 일괄 확인
+   */
+  async checkEmails(
+    userId: string,
+    emails: string[],
+  ): Promise<CheckContactEmailsResponseDto> {
+    const normalizedEmails = Array.from(
+      new Set(
+        (emails || [])
+          .map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : ''))
+          .filter((e) => e.length > 0 && e.includes('@')),
+      ),
+    ).slice(0, 100);
+
+    const statuses: Record<string, ContactEmailStatusDto> = {};
+    if (normalizedEmails.length === 0) {
+      return { statuses };
+    }
+
+    const [matchedUsers, matchedContacts] = await Promise.all([
+      this.userRepo
+        .createQueryBuilder('u')
+        .select(['u.id', 'u.email', 'u.isActive'])
+        .where('u.id = :userId OR (u.is_active = true AND LOWER(u.email) IN (:...emails))', {
+          userId,
+          emails: normalizedEmails,
+        })
+        .getMany(),
+      this.contactRepo
+        .createQueryBuilder('c')
+        .select(['c.id', 'c.email'])
+        .where(
+          'c.user_id = :userId AND c.email IS NOT NULL AND c.email != "" AND LOWER(c.email) IN (:...emails)',
+          { userId, emails: normalizedEmails },
+        )
+        .getMany(),
+    ]);
+
+    let selfEmail = '';
+    const companyUserEmails = new Set<string>();
+    for (const u of matchedUsers) {
+      const lower = (u.email || '').trim().toLowerCase();
+      if (!lower) continue;
+      if (u.id === userId) {
+        selfEmail = lower;
+      }
+      if (u.isActive) {
+        companyUserEmails.add(lower);
+      }
+    }
+
+    const contactIdByEmail = new Map<string, string>();
+    for (const c of matchedContacts) {
+      const lower = (c.email || '').trim().toLowerCase();
+      if (lower && !contactIdByEmail.has(lower)) {
+        contactIdByEmail.set(lower, c.id);
+      }
+    }
+
+    for (const email of normalizedEmails) {
+      const contactId = contactIdByEmail.get(email) || null;
+      statuses[email] = {
+        email,
+        inContacts: contactId !== null,
+        isCompanyUser: companyUserEmails.has(email),
+        isSelf: selfEmail !== '' && email === selfEmail,
+        contactId,
+      };
+    }
+
+    return { statuses };
   }
 
   /**
