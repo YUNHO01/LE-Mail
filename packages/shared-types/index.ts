@@ -988,6 +988,7 @@ export interface UserAiSettingsDto {
   customBaseUrl: string | null;
   responseTone: AiResponseTone;
   preferredLanguage: string;
+  autoSummarizeOnRead: boolean;
 }
 
 export interface UpdateUserAiSettingsDto {
@@ -999,6 +1000,7 @@ export interface UpdateUserAiSettingsDto {
   customBaseUrl?: string | null;
   responseTone?: AiResponseTone;
   preferredLanguage?: string;
+  autoSummarizeOnRead?: boolean;
 }
 
 export interface TestAiConnectionDto {
@@ -1018,6 +1020,8 @@ export interface AiMailSummaryResultDto {
   summary: string;
   actionItems: string[];
   keyDates?: string[];
+  cached?: boolean;
+  summarizedAt?: string;
 }
 
 export interface AiMailDraftResultDto {

@@ -66,6 +66,9 @@ export class UserAiSetting {
   })
   preferredLanguage: string;
 
+  @Column({ name: 'auto_summarize_on_read', type: 'boolean', default: false })
+  autoSummarizeOnRead: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

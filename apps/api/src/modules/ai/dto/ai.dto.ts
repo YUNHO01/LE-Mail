@@ -50,6 +50,11 @@ export class UpdateUserAiSettingsDto {
   @IsString()
   @MaxLength(20)
   preferredLanguage?: string;
+
+  @ApiPropertyOptional({ description: '메일 읽기 시 AI 자동 요약 활성화 여부' })
+  @IsOptional()
+  @IsBoolean()
+  autoSummarizeOnRead?: boolean;
 }
 
 export class TestAiConnectionDto {
@@ -76,6 +81,17 @@ export class TestAiConnectionDto {
 }
 
 export class AiMailSummarizeDto {
+  @ApiPropertyOptional({ description: '메일 ID (mail_message.id 또는 user_mail.id, 전달 시 DB 요약 캐싱 및 중복 요청 방지 적용)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(36)
+  mailId?: string;
+
+  @ApiPropertyOptional({ description: '캐시 무시 및 AI 강제 재요약 여부' })
+  @IsOptional()
+  @IsBoolean()
+  forceRefresh?: boolean;
+
   @ApiPropertyOptional({ description: '메일 제목' })
   @IsOptional()
   @IsString()

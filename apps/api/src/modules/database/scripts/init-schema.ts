@@ -210,9 +210,28 @@ const schemaStatements = [
     \`custom_base_url\` VARCHAR(500) NULL,
     \`response_tone\` ENUM('PROFESSIONAL', 'FRIENDLY', 'CONCISE') NOT NULL DEFAULT 'PROFESSIONAL',
     \`preferred_language\` VARCHAR(20) NOT NULL DEFAULT 'ko',
+    \`auto_summarize_on_read\` BOOLEAN NOT NULL DEFAULT FALSE,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE INDEX \`uq_user_ai_user_id\` (\`user_id\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`user_mail_ai_summaries\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`user_id\` VARCHAR(36) NOT NULL,
+    \`message_id\` VARCHAR(36) NOT NULL,
+    \`preferred_language\` VARCHAR(20) NOT NULL DEFAULT 'ko',
+    \`content_hash\` VARCHAR(64) NOT NULL,
+    \`provider\` VARCHAR(30) NOT NULL DEFAULT 'OPENAI',
+    \`model\` VARCHAR(100) NOT NULL DEFAULT 'gpt-4o-mini',
+    \`summary\` TEXT NOT NULL,
+    \`action_items_json\` TEXT NULL,
+    \`key_dates_json\` TEXT NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE INDEX \`uq_user_mail_ai_summary\` (\`user_id\`, \`message_id\`),
+    CONSTRAINT \`fk_user_mail_ai_summary_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`user\` (\`id\`) ON DELETE CASCADE,
+    CONSTRAINT \`fk_user_mail_ai_summary_message\` FOREIGN KEY (\`message_id\`) REFERENCES \`mail_message\` (\`id\`) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
   `CREATE TABLE IF NOT EXISTS \`system_licenses\` (
@@ -691,6 +710,18 @@ export async function syncDatabaseSchema(
     await query("DELETE FROM `user_ai_settings` WHERE `user_id` = '[object Object]';");
   } catch (err: any) {
     logger.warn(`Cleanup note for user_ai_settings: ${err.message}`);
+  }
+
+  // Migrate user_ai_settings.auto_summarize_on_read column
+  try {
+    await query(
+      'ALTER TABLE `user_ai_settings` ADD COLUMN `auto_summarize_on_read` BOOLEAN NOT NULL DEFAULT FALSE AFTER `preferred_language`;',
+    );
+    console.log('Added column auto_summarize_on_read to user_ai_settings table.');
+  } catch (err: any) {
+    if (getMysqlErrno(err) !== 1060) {
+      logger.warn(`Column migration note for user_ai_settings.auto_summarize_on_read: ${err.message}`);
+    }
   }
 }
 

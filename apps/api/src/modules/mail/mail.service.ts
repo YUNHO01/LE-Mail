@@ -319,6 +319,43 @@ export class MailService {
     };
   }
 
+  /**
+   * 대상 편지함에 대해 중복되지 않는 연속 UID 블록을 원자적으로 할당합니다.
+   * folder.uidnext와 실제 user_mail.uid 최대값 중 더 큰 값 기준으로 할당하여
+   * idx_folder_uid 유니크 인덱스 충돌을 방지합니다.
+   */
+  private async allocateFolderUids(
+    folder: MailFolder,
+    count: number,
+  ): Promise<number> {
+    if (count <= 0) {
+      return folder.uidnext || 1;
+    }
+
+    return this.folderRepo.manager.transaction(async (manager) => {
+      const lockedFolder = await manager
+        .createQueryBuilder(MailFolder, 'f')
+        .setLock('pessimistic_write')
+        .where('f.id = :id', { id: folder.id })
+        .getOne();
+
+      const maxRow = await manager
+        .createQueryBuilder(UserMail, 'um')
+        .select('COALESCE(MAX(um.uid), 0)', 'maxUid')
+        .where('um.folderId = :folderId', { folderId: folder.id })
+        .getRawOne<{ maxUid: string | number }>();
+
+      const currentMaxUid = Number(maxRow?.maxUid || 0);
+      const currentUidnext = lockedFolder?.uidnext || folder.uidnext || 1;
+      const startUid = Math.max(currentUidnext, currentMaxUid + 1);
+      const nextUidnext = startUid + count;
+
+      await manager.update(MailFolder, { id: folder.id }, { uidnext: nextUidnext });
+      folder.uidnext = nextUidnext;
+      return startUid;
+    });
+  }
+
   async moveMail(userId: string, messageId: string, targetFolderId: string) {
     const targetFolder = await this.folderRepo.findOne({
       where: { id: targetFolderId, userId },
@@ -331,12 +368,9 @@ export class MailService {
       where: { userId, messageId },
     });
 
-    const nextUid = targetFolder.uidnext || 1;
-    targetFolder.uidnext = nextUid + 1;
-    await this.folderRepo.save(targetFolder);
-
     if (userMails.length === 0) {
       // 기존 매핑이 없으면 새로 생성
+      const nextUid = await this.allocateFolderUids(targetFolder, 1);
       const userMail = this.userMailRepo.create({
         userId,
         messageId,
@@ -354,13 +388,18 @@ export class MailService {
       );
       return saved;
     } else {
-      for (const um of userMails) {
-        um.folderId = targetFolder.id;
-        um.uid = nextUid;
+      const mailsToMove = userMails.filter((um) => um.folderId !== targetFolder.id);
+      if (mailsToMove.length === 0) {
+        return userMails[0];
       }
-      const saved = await this.userMailRepo.save(userMails);
+      let nextUid = await this.allocateFolderUids(targetFolder, mailsToMove.length);
+      for (const um of mailsToMove) {
+        um.folderId = targetFolder.id;
+        um.uid = nextUid++;
+      }
+      const saved = await this.userMailRepo.save(mailsToMove);
       this.logger.log(
-        `Moved mail ${messageId} to folder [${targetFolder.name}] (${targetFolder.id}, UID: ${nextUid}) for user ${userId}`,
+        `Moved mail ${messageId} to folder [${targetFolder.name}] (${targetFolder.id}, UID: ${mailsToMove.map((m) => m.uid).join(',')}) for user ${userId}`,
       );
       return saved[0];
     }
@@ -505,6 +544,8 @@ export class MailService {
           type: FolderType.TRASH,
           isSystem: true,
           sortOrder: 5,
+          uidvalidity: Math.floor(Date.now() / 1000),
+          uidnext: 1,
         }),
       );
     }
@@ -536,10 +577,15 @@ export class MailService {
 
     // [완전삭제가 아니며, 휴지통이 아닐 때] -> 휴지통으로 이동
     if (!permanent && !allInTrash) {
-      for (const um of userMails) {
+      const mailsToMove = userMails.filter((um) => um.folderId !== trashFolder.id);
+      let nextUid = await this.allocateFolderUids(trashFolder, mailsToMove.length);
+      for (const um of mailsToMove) {
         um.folderId = trashFolder.id;
+        um.uid = nextUid++;
       }
-      await this.userMailRepo.save(userMails);
+      if (mailsToMove.length > 0) {
+        await this.userMailRepo.save(mailsToMove);
+      }
       this.logger.log(
         `[Delete] Moved mail ${messageId} to trash for user ${userId}`,
       );

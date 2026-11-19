@@ -2,11 +2,26 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { ImageLightboxModal, LightboxImageItem } from './ImageLightboxModal';
 
 interface SandboxedMailBodyProps {
   html: string;
   className?: string;
   title?: string;
+}
+
+function isSafeImageSrc(src: unknown): src is string {
+  if (typeof src !== 'string') return false;
+  const trimmed = src.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('/')) return true;
+  const lower = trimmed.toLowerCase();
+  return (
+    lower.startsWith('https://') ||
+    lower.startsWith('http://') ||
+    lower.startsWith('data:image/') ||
+    lower.startsWith('blob:')
+  );
 }
 
 /**
@@ -21,6 +36,10 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const instanceId = useId();
   const [height, setHeight] = useState<number>(200);
+  const [lightbox, setLightbox] = useState<{
+    images: LightboxImageItem[];
+    index: number;
+  } | null>(null);
 
   const srcDoc = useMemo(() => {
     const cleanHtml = sanitizeHtml(html);
@@ -47,6 +66,10 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
   img {
     max-width: 100%;
     height: auto;
+    cursor: zoom-in;
+  }
+  a[href] img {
+    cursor: pointer;
   }
   table {
     max-width: 100%;
@@ -91,6 +114,48 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
   window.addEventListener('load', postHeight);
   setTimeout(postHeight, 50);
   setTimeout(postHeight, 250);
+
+  function isExpandableImage(img) {
+    if (!img || img.tagName !== 'IMG') return false;
+    if (img.closest && img.closest('a[href]')) return false;
+    var src = img.currentSrc || img.getAttribute('src') || '';
+    if (!src) return false;
+    var w = img.naturalWidth || img.clientWidth || 0;
+    var h = img.naturalHeight || img.clientHeight || 0;
+    if (w > 0 && h > 0 && w <= 16 && h <= 16) return false;
+    return true;
+  }
+
+  var rootEl = document.getElementById('__lemail_root');
+  if (rootEl) {
+    rootEl.addEventListener('click', function(e) {
+      var target = e.target;
+      var img = target && target.closest ? target.closest('img') : (target && target.tagName === 'IMG' ? target : null);
+      if (!isExpandableImage(img)) return;
+
+      var allImgs = rootEl.querySelectorAll('img');
+      var images = [];
+      var clickedIndex = 0;
+      for (var i = 0; i < allImgs.length; i++) {
+        var item = allImgs[i];
+        if (!isExpandableImage(item)) continue;
+        var itemSrc = item.currentSrc || item.getAttribute('src') || '';
+        if (item === img) {
+          clickedIndex = images.length;
+        }
+        images.push({ src: itemSrc, alt: item.getAttribute('alt') || '' });
+      }
+      if (images.length > 0) {
+        e.preventDefault();
+        window.parent.postMessage({
+          type: 'lemail-mail-body-image-click',
+          id: id,
+          images: images,
+          index: clickedIndex
+        }, '*');
+      }
+    });
+  }
 })();
 </script>
 </body>
@@ -100,16 +165,57 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.source !== iframeRef.current?.contentWindow) return;
-      const data = event.data;
+      const rawData: unknown = event.data;
+      if (!rawData || typeof rawData !== 'object') return;
+      const data = rawData as {
+        id?: unknown;
+        type?: unknown;
+        height?: unknown;
+        images?: unknown;
+        index?: unknown;
+      };
+      if (data.id !== instanceId) return;
+
       if (
-        data &&
         data.type === 'lemail-mail-body-height' &&
-        data.id === instanceId &&
         typeof data.height === 'number' &&
         Number.isFinite(data.height)
       ) {
-        const clamped = Math.max(80, Math.min(20000, Math.ceil(data.height) + 8));
+        const clamped = Math.max(
+          80,
+          Math.min(20000, Math.ceil(data.height) + 8),
+        );
         setHeight(clamped);
+        return;
+      }
+
+      if (
+        data.type === 'lemail-mail-body-image-click' &&
+        Array.isArray(data.images)
+      ) {
+        const rawIndex =
+          typeof data.index === 'number' && Number.isInteger(data.index)
+            ? data.index
+            : 0;
+        const safeImages: LightboxImageItem[] = [];
+        let safeIndex = 0;
+
+        (data.images as unknown[]).forEach((item: unknown, idx: number) => {
+          if (!item || typeof item !== 'object') return;
+          const record = item as { src?: unknown; alt?: unknown };
+          if (!isSafeImageSrc(record.src)) return;
+          if (idx === rawIndex) {
+            safeIndex = safeImages.length;
+          }
+          safeImages.push({
+            src: record.src.trim(),
+            alt: typeof record.alt === 'string' ? record.alt : '',
+          });
+        });
+
+        if (safeImages.length > 0) {
+          setLightbox({ images: safeImages, index: safeIndex });
+        }
       }
     };
     window.addEventListener('message', handleMessage);
@@ -117,13 +223,21 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
   }, [instanceId]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      title={title}
-      srcDoc={srcDoc}
-      sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-      className={`w-full border-0 bg-transparent block ${className}`}
-      style={{ height: `${height}px` }}
-    />
+    <>
+      <iframe
+        ref={iframeRef}
+        title={title}
+        srcDoc={srcDoc}
+        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+        className={`w-full border-0 bg-transparent block ${className}`}
+        style={{ height: `${height}px` }}
+      />
+      <ImageLightboxModal
+        isOpen={!!lightbox}
+        images={lightbox?.images ?? []}
+        initialIndex={lightbox?.index ?? 0}
+        onClose={() => setLightbox(null)}
+      />
+    </>
   );
 };

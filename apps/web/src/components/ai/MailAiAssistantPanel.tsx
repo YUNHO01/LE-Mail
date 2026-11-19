@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Sparkles,
   FileText,
@@ -12,6 +12,7 @@ import {
   Loader2,
   CheckCircle2,
   Copy,
+  RefreshCw,
   X,
 } from 'lucide-react';
 import { fetchApi, contactsApi } from '@/lib/api';
@@ -52,6 +53,8 @@ function toIsoDateTime(value: string): string {
   return Number.isNaN(d.getTime()) ? trimmed : d.toISOString();
 }
 
+const summaryClientCache = new Map<string, AiMailSummaryResultDto>();
+
 interface MailAiAssistantPanelProps {
   mailId: string;
   subject: string;
@@ -73,9 +76,10 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
   attachments = [],
   onReplyWithDraft,
 }) => {
-  const { canUseAi, canAnalyzeImage } = useAiAssistant();
+  const { loaded, canUseAi, canAnalyzeImage, autoSummarizeOnRead } = useAiAssistant();
 
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [autoSummarizing, setAutoSummarizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
@@ -85,6 +89,7 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
   const [calendarDraft, setCalendarDraft] = useState<AiParsedCalendarEventDto | null>(null);
   const [imageResult, setImageResult] = useState<AiImageAnalysisResultDto | null>(null);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
+  const lastAutoSummarizedMailIdRef = useRef<string | null>(null);
 
   const imageCandidates = useMemo(() => {
     const list: { label: string; attachmentId?: string; dataUrl?: string }[] = [];
@@ -104,8 +109,6 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
     return list;
   }, [attachments, bodyHtml]);
 
-  if (!canUseAi) return null;
-
   const resetResults = () => {
     setError(null);
     setStatusMsg(null);
@@ -116,19 +119,90 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
     setImageResult(null);
   };
 
-  const handleSummarize = async () => {
+  useEffect(() => {
+    setError(null);
+    setStatusMsg(null);
+    setDraftResult(null);
+    setContactDraft(null);
+    setCalendarDraft(null);
+    setImageResult(null);
+    setAutoSummarizing(false);
+
+    if (!mailId) {
+      setSummaryResult(null);
+      return;
+    }
+
+    const cached = summaryClientCache.get(mailId);
+    if (cached) {
+      setSummaryResult(cached);
+      return;
+    }
+
+    setSummaryResult(null);
+
+    if (!loaded || !canUseAi || !autoSummarizeOnRead) return;
+    if (!bodyHtml?.trim() && !bodyText?.trim()) return;
+    if (lastAutoSummarizedMailIdRef.current === mailId) return;
+
+    let cancelled = false;
+    lastAutoSummarizedMailIdRef.current = mailId;
+    setAutoSummarizing(true);
+
+    fetchApi<AiMailSummaryResultDto>('/ai/mail/summarize', {
+      method: 'POST',
+      body: JSON.stringify({
+        mailId,
+        subject,
+        sender: senderName ? `${senderName} <${senderEmail || ''}>` : senderEmail,
+        bodyHtml,
+        bodyText,
+      }),
+    })
+      .then((res) => {
+        if (cancelled) return;
+        summaryClientCache.set(mailId, res);
+        setSummaryResult(res);
+      })
+      .catch(() => {
+        // 자동 요약 실패 시 메일 읽기를 방해하지 않도록 조용히 무시
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAutoSummarizing(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mailId, loaded, canUseAi, autoSummarizeOnRead, subject, senderName, senderEmail, bodyHtml, bodyText]);
+
+  if (!canUseAi) return null;
+
+  const handleSummarize = async (forceRefresh = false) => {
     try {
+      if (!forceRefresh && mailId && summaryClientCache.has(mailId)) {
+        resetResults();
+        setSummaryResult(summaryClientCache.get(mailId)!);
+        return;
+      }
       resetResults();
       setBusyAction('summarize');
       const res = await fetchApi<AiMailSummaryResultDto>('/ai/mail/summarize', {
         method: 'POST',
         body: JSON.stringify({
+          mailId,
+          forceRefresh,
           subject,
           sender: senderName ? `${senderName} <${senderEmail || ''}>` : senderEmail,
           bodyHtml,
           bodyText,
         }),
       });
+      if (mailId) {
+        summaryClientCache.set(mailId, res);
+      }
       setSummaryResult(res);
     } catch (e: any) {
       setError(e.message);
@@ -288,7 +362,7 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
         <button
           type="button"
           disabled={isBusy}
-          onClick={handleSummarize}
+          onClick={() => handleSummarize(false)}
           className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
           {busyAction === 'summarize' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <FileText className="h-3 w-3 text-[#0071e3]" />}
@@ -376,16 +450,44 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
         </div>
       )}
 
+      {autoSummarizing && !summaryResult && (
+        <div className="flex items-center gap-2 rounded-xl border border-[#0071e3]/20 bg-[#0071e3]/[0.05] px-4 py-3 text-xs text-[#1d1d1f]/80">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#0071e3] shrink-0" />
+          <span>AI가 메일 핵심 내용을 자동으로 요약하고 있습니다...</span>
+        </div>
+      )}
+
       {summaryResult && (
         <div className="relative rounded-xl border border-black/[0.08] bg-white p-4 text-xs space-y-2">
+          <div className="flex items-center justify-between gap-2 pr-6">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-[#1d1d1f]">
+                {autoSummarizeOnRead ? 'AI 자동 요약' : '메일 요약'}
+              </p>
+              {summaryResult.cached && (
+                <span className="rounded-md bg-[#f5f5f7] px-1.5 py-0.5 text-[10px] font-medium text-[#86868b]">
+                  저장된 요약
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => handleSummarize(true)}
+              title="최신 기준으로 다시 요약"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-[#0071e3] hover:bg-[#0071e3]/[0.08] disabled:opacity-40 transition"
+            >
+              <RefreshCw className={`h-3 w-3 ${busyAction === 'summarize' ? 'animate-spin' : ''}`} />
+              다시 요약
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setSummaryResult(null)}
-            className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
+            className="absolute right-3 top-3.5 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
-          <p className="font-semibold text-[#1d1d1f]">메일 요약</p>
           <p className="text-[#1d1d1f]/80 leading-relaxed whitespace-pre-wrap">{summaryResult.summary}</p>
           {summaryResult.actionItems.length > 0 && (
             <div>
@@ -393,6 +495,16 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
               <ul className="list-disc pl-4 space-y-0.5 text-[#6e6e73]">
                 {summaryResult.actionItems.map((item, idx) => (
                   <li key={idx}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {summaryResult.keyDates && summaryResult.keyDates.length > 0 && (
+            <div>
+              <p className="font-semibold text-[#0071e3] mb-1">주요 일정</p>
+              <ul className="list-disc pl-4 space-y-0.5 text-[#6e6e73]">
+                {summaryResult.keyDates.map((d, idx) => (
+                  <li key={idx}>{d}</li>
                 ))}
               </ul>
             </div>

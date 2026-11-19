@@ -27,6 +27,7 @@ import {
   OrgSyncLog,
   UserPasskey,
   UserAiSetting,
+  UserMailAiSummary,
   IntegrationApiKey,
 } from './entities';
 
@@ -68,6 +69,7 @@ import {
             OrgSyncLog,
             UserPasskey,
             UserAiSetting,
+            UserMailAiSummary,
             IntegrationApiKey,
           ],
           synchronize: false,
@@ -100,6 +102,7 @@ import {
       Department,
       OrgSyncLog,
       UserAiSetting,
+      UserMailAiSummary,
     ]),
   ],
   exports: [TypeOrmModule],

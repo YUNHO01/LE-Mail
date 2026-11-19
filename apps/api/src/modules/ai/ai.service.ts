@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import {
   AiImageAnalysisResultDto,
@@ -19,9 +20,13 @@ import {
   AiResponseTone,
   TestAiConnectionResultDto,
   UserAiSettingsDto,
+  UserRole,
 } from '@lemail/shared-types';
 import { UserAiSetting } from '../database/entities/user-ai-setting.entity';
+import { UserMailAiSummary } from '../database/entities/user-mail-ai-summary.entity';
 import { UserMail } from '../database/entities/user-mail.entity';
+import { MailMessage } from '../database/entities/mail-message.entity';
+import { User } from '../database/entities/user.entity';
 import { MailAttachment } from '../database/entities/mail-attachment.entity';
 import { SettingsService } from '../settings/settings.service';
 import { CryptoService } from '../../common/crypto/crypto.service';
@@ -41,12 +46,19 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+  private readonly inFlightSummaries = new Map<string, Promise<AiMailSummaryResultDto>>();
 
   constructor(
     @InjectRepository(UserAiSetting)
     private readonly userAiRepo: Repository<UserAiSetting>,
+    @InjectRepository(UserMailAiSummary)
+    private readonly summaryRepo: Repository<UserMailAiSummary>,
     @InjectRepository(UserMail)
     private readonly userMailRepo: Repository<UserMail>,
+    @InjectRepository(MailMessage)
+    private readonly messageRepo: Repository<MailMessage>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     @InjectRepository(MailAttachment)
     private readonly attachmentRepo: Repository<MailAttachment>,
     private readonly settingsService: SettingsService,
@@ -90,6 +102,7 @@ export class AiService {
         customBaseUrl: null,
         responseTone: AiResponseTone.PROFESSIONAL,
         preferredLanguage: 'ko',
+        autoSummarizeOnRead: false,
       };
     }
 
@@ -112,6 +125,7 @@ export class AiService {
       customBaseUrl: setting.customBaseUrl,
       responseTone: setting.responseTone,
       preferredLanguage: setting.preferredLanguage,
+      autoSummarizeOnRead: Boolean(setting.autoSummarizeOnRead),
     };
   }
 
@@ -146,6 +160,9 @@ export class AiService {
     }
     if (dto.preferredLanguage) {
       setting.preferredLanguage = dto.preferredLanguage.trim();
+    }
+    if (dto.autoSummarizeOnRead !== undefined) {
+      setting.autoSummarizeOnRead = Boolean(dto.autoSummarizeOnRead);
     }
 
     if (dto.clearApiKey) {
@@ -216,32 +233,95 @@ export class AiService {
     dto: AiMailSummarizeDto,
   ): Promise<AiMailSummaryResultDto> {
     const { policy, setting, apiKey } = await this.resolveActiveUserAi(userId);
-    const body = this.sanitizeAndTruncate(
-      dto.bodyText || dto.bodyHtml || '',
-      policy.maxContextChars,
-    );
+    const strippedBody = this.stripQuotedMailContent(dto.bodyHtml, dto.bodyText);
+    const body = this.sanitizeAndTruncate(strippedBody, policy.maxContextChars);
 
     if (!body) {
       throw new BadRequestException('요약할 메일 본문이 비어 있습니다.');
     }
 
     const lang = setting.preferredLanguage || 'ko';
-    const raw = await this.adapter.generateText({
-      provider: setting.provider,
-      model: setting.model,
-      apiKey,
-      customBaseUrl: setting.customBaseUrl,
-      systemPrompt: `You are an enterprise email assistant. Respond strictly in JSON with keys: "summary" (string, concise 2-4 sentences in ${lang}), "actionItems" (string[], concrete tasks or requests), and "keyDates" (string[], mentioned deadlines or meeting dates). Do not include markdown fences.`,
-      userPrompt: `Subject: ${dto.subject || '(제목 없음)'}\nFrom: ${dto.sender || '(알 수 없음)'}\n\nBody:\n${body}`,
-      maxTokens: 1000,
-    });
+    let messageId: string | null = null;
+    if (dto.mailId) {
+      messageId = await this.resolveAuthorizedMessageId(userId, dto.mailId);
+    }
 
-    const parsed = this.extractJson<Partial<AiMailSummaryResultDto>>(raw);
-    return {
-      summary: parsed?.summary || raw,
-      actionItems: Array.isArray(parsed?.actionItems) ? parsed.actionItems : [],
-      keyDates: Array.isArray(parsed?.keyDates) ? parsed.keyDates : [],
+    const contentHash = crypto
+      .createHash('sha256')
+      .update(`${dto.subject || ''}\n${body}`)
+      .digest('hex');
+
+    if (messageId && !dto.forceRefresh) {
+      const cached = await this.summaryRepo.findOne({
+        where: { userId, messageId },
+      });
+      if (
+        cached &&
+        cached.preferredLanguage === lang &&
+        cached.contentHash === contentHash
+      ) {
+        return {
+          summary: cached.summary,
+          actionItems: this.parseJsonStringArray(cached.actionItemsJson),
+          keyDates: this.parseJsonStringArray(cached.keyDatesJson),
+          cached: true,
+          summarizedAt: cached.updatedAt.toISOString(),
+        };
+      }
+    }
+
+    const inFlightKey = messageId ? `${userId}:${messageId}:${lang}` : null;
+    if (inFlightKey && !dto.forceRefresh) {
+      const existingPromise = this.inFlightSummaries.get(inFlightKey);
+      if (existingPromise) {
+        return existingPromise;
+      }
+    }
+
+    const executeSummary = async (): Promise<AiMailSummaryResultDto> => {
+      const raw = await this.adapter.generateText({
+        provider: setting.provider,
+        model: setting.model,
+        apiKey,
+        customBaseUrl: setting.customBaseUrl,
+        systemPrompt: `You are an enterprise email assistant. Summarize ONLY the latest/topmost email message content and ignore any remaining quoted replies, forwarded history, or boilerplate signatures. Respond strictly in JSON with keys: "summary" (string, concise 2-4 sentences in ${lang}), "actionItems" (string[], concrete tasks or requests), and "keyDates" (string[], mentioned deadlines or meeting dates). Do not include markdown fences.`,
+        userPrompt: `Subject: ${dto.subject || '(제목 없음)'}\nFrom: ${dto.sender || '(알 수 없음)'}\n\nBody:\n${body}`,
+        maxTokens: 1000,
+      });
+
+      const parsed = this.extractJson<Partial<AiMailSummaryResultDto>>(raw);
+      const result: AiMailSummaryResultDto = {
+        summary: parsed?.summary || raw,
+        actionItems: Array.isArray(parsed?.actionItems) ? parsed.actionItems : [],
+        keyDates: Array.isArray(parsed?.keyDates) ? parsed.keyDates : [],
+        cached: false,
+        summarizedAt: new Date().toISOString(),
+      };
+
+      if (messageId) {
+        await this.upsertMailSummary({
+          userId,
+          messageId,
+          preferredLanguage: lang,
+          contentHash,
+          provider: setting.provider,
+          model: setting.model,
+          result,
+        });
+      }
+
+      return result;
     };
+
+    if (!inFlightKey || dto.forceRefresh) {
+      return executeSummary();
+    }
+
+    const promise = executeSummary().finally(() => {
+      this.inFlightSummaries.delete(inFlightKey);
+    });
+    this.inFlightSummaries.set(inFlightKey, promise);
+    return promise;
   }
 
   async draftMail(
@@ -459,6 +539,164 @@ export class AiService {
     throw new BadRequestException(
       '해석할 이미지(imageDataUrl 또는 mailId + attachmentId)를 지정해 주세요.',
     );
+  }
+
+  private async resolveAuthorizedMessageId(
+    userId: string,
+    mailId: string,
+  ): Promise<string> {
+    const userMail = await this.userMailRepo.findOne({
+      where: [
+        { messageId: mailId, userId },
+        { id: mailId, userId },
+      ],
+    });
+    if (userMail) {
+      return userMail.messageId;
+    }
+
+    const message = await this.messageRepo.findOne({
+      where: { id: mailId },
+      relations: { recipients: true },
+    });
+    if (!message) {
+      throw new NotFoundException('해당 메일을 찾을 수 없습니다.');
+    }
+
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new ForbiddenException('유효하지 않은 사용자입니다.');
+    }
+    if (user.role === UserRole.SYSTEM_ADMIN) {
+      return message.id;
+    }
+
+    const userEmail = user.email?.toLowerCase();
+    const isSenderOrRecipient =
+      userEmail &&
+      (message.sender?.toLowerCase().includes(userEmail) ||
+        message.recipients?.some((r) => r.address?.toLowerCase() === userEmail));
+
+    if (isSenderOrRecipient) {
+      return message.id;
+    }
+
+    throw new ForbiddenException('해당 메일에 접근 권한이 없습니다.');
+  }
+
+  private stripQuotedMailContent(bodyHtml?: string, bodyText?: string): string {
+    const rawFallback = (bodyText || bodyHtml || '').trim();
+    if (!rawFallback) return '';
+
+    let text = '';
+    if (bodyHtml && bodyHtml.trim()) {
+      let cleanedHtml = bodyHtml
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ');
+
+      // Cut at explicit reply/forward separator markers in HTML
+      const htmlMarkerMatch =
+        /(-{5}\s*Original Message\s*-{5}|-{10}\s*Forwarded message\s*-{9,10}|-{3,}\s*원본\s*메일\s*-{3,})/i.exec(
+          cleanedHtml,
+        );
+      if (htmlMarkerMatch && htmlMarkerMatch.index > 0) {
+        cleanedHtml = cleanedHtml.slice(0, htmlMarkerMatch.index);
+      }
+
+      // Remove common quoted HTML containers (Gmail, Outlook, Yahoo, standard blockquote)
+      cleanedHtml = cleanedHtml
+        .replace(/<div[^>]*\bid=["']divRplyFwdMsg["'][^>]*>[\s\S]*$/i, '')
+        .replace(/<div[^>]*\bclass=["'][^"']*\b(?:gmail_quote|gmail_quote_container|yahoo_quoted)\b[^"']*["'][^>]*>[\s\S]*$/i, '');
+
+      // Remove innermost <blockquote>...</blockquote> iteratively to handle nested quotes safely
+      let prevHtml = '';
+      while (prevHtml !== cleanedHtml) {
+        prevHtml = cleanedHtml;
+        cleanedHtml = cleanedHtml.replace(
+          /<blockquote\b[^>]*>(?:(?!<blockquote\b)[\s\S])*?<\/blockquote>/gi,
+          ' ',
+        );
+      }
+
+      text = cleanedHtml
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div|li|blockquote|h[1-6]|tr)>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ');
+    } else if (bodyText) {
+      text = bodyText;
+    }
+
+    const strippedText = this.stripQuotedTextLines(text);
+    return strippedText || rawFallback;
+  }
+
+  private stripQuotedTextLines(input: string): string {
+    if (!input) return '';
+    let text = input.replace(/\r\n/g, '\n');
+
+    const cutPatterns: RegExp[] = [
+      /(?:^|\n)\s*-{5}\s*Original Message\s*-{5}/i,
+      /(?:^|\n)\s*-{10}\s*Forwarded message\s*-{9,10}/i,
+      /(?:^|\n)\s*-{3,}\s*원본\s*메일\s*-{3,}/i,
+      /(?:^|\n)\s*On\s+[^\n]{5,120}\s+wrote:\s*(?:\n|$)/i,
+      /(?:^|\n)\s*[^\n]{2,80}(?:님이\s*작성|작성)\s*:\s*(?:\n|$)/i,
+      /(?:^|\n)\s*From:\s*[^\n]+\n\s*(?:Sent|Date):\s*[^\n]+\n\s*To:\s*[^\n]+/i,
+      /(?:^|\n)\s*보낸\s*사람:\s*[^\n]+\n\s*(?:보낸\s*날짜|날짜):\s*[^\n]+/i,
+    ];
+
+    for (const pattern of cutPatterns) {
+      const match = pattern.exec(text);
+      if (match && match.index > 0) {
+        text = text.slice(0, match.index);
+      }
+    }
+
+    const lines = text.split('\n').filter((line) => !/^\s*>/.test(line));
+    return lines.join('\n').trim();
+  }
+
+  private parseJsonStringArray(raw: string | null): string[] {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((v) => typeof v === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async upsertMailSummary(params: {
+    userId: string;
+    messageId: string;
+    preferredLanguage: string;
+    contentHash: string;
+    provider: string;
+    model: string;
+    result: AiMailSummaryResultDto;
+  }): Promise<void> {
+    try {
+      const existing = await this.summaryRepo.findOne({
+        where: { userId: params.userId, messageId: params.messageId },
+      });
+
+      const entity = existing || this.summaryRepo.create({
+        userId: params.userId,
+        messageId: params.messageId,
+      });
+
+      entity.preferredLanguage = params.preferredLanguage;
+      entity.contentHash = params.contentHash;
+      entity.provider = params.provider;
+      entity.model = params.model;
+      entity.summary = params.result.summary;
+      entity.actionItemsJson = JSON.stringify(params.result.actionItems || []);
+      entity.keyDatesJson = JSON.stringify(params.result.keyDates || []);
+
+      await this.summaryRepo.save(entity);
+    } catch (err: any) {
+      this.logger.warn(`Failed to cache AI mail summary: ${err?.message}`);
+    }
   }
 
   private sanitizeAndTruncate(input: string, maxChars: number): string {

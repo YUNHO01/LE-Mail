@@ -8,6 +8,7 @@ export interface AiAvailability {
   loaded: boolean;
   canUseAi: boolean;
   canAnalyzeImage: boolean;
+  autoSummarizeOnRead: boolean;
 }
 
 export function useAiAssistant(): AiAvailability {
@@ -15,6 +16,7 @@ export function useAiAssistant(): AiAvailability {
     loaded: false,
     canUseAi: false,
     canAnalyzeImage: false,
+    autoSummarizeOnRead: false,
   });
 
   useEffect(() => {
@@ -32,11 +34,18 @@ export function useAiAssistant(): AiAvailability {
           canUseAi: allowed && enabled,
           canAnalyzeImage:
             allowed && enabled && Boolean(policy?.imageAnalysisEnabled),
+          autoSummarizeOnRead:
+            allowed && enabled && Boolean(settings?.autoSummarizeOnRead),
         });
       })
       .catch(() => {
         if (!active) return;
-        setState({ loaded: true, canUseAi: false, canAnalyzeImage: false });
+        setState({
+          loaded: true,
+          canUseAi: false,
+          canAnalyzeImage: false,
+          autoSummarizeOnRead: false,
+        });
       });
 
     return () => {

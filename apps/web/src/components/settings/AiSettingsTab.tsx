@@ -74,6 +74,7 @@ export function AiSettingsTab() {
     AiResponseTone.PROFESSIONAL,
   );
   const [preferredLanguage, setPreferredLanguage] = useState('ko');
+  const [autoSummarizeOnRead, setAutoSummarizeOnRead] = useState(false);
 
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error' | 'info';
@@ -105,6 +106,7 @@ export function AiSettingsTab() {
         setCustomBaseUrl(userSet.customBaseUrl || '');
         setResponseTone(userSet.responseTone || AiResponseTone.PROFESSIONAL);
         setPreferredLanguage(userSet.preferredLanguage || 'ko');
+        setAutoSummarizeOnRead(Boolean(userSet.autoSummarizeOnRead));
       } catch (e: any) {
         setFeedback({
           type: 'error',
@@ -165,11 +167,13 @@ export function AiSettingsTab() {
           customBaseUrl: provider === AiProvider.CUSTOM ? customBaseUrl.trim() || null : null,
           responseTone,
           preferredLanguage,
+          autoSummarizeOnRead: clearKey ? false : autoSummarizeOnRead,
         }),
       });
       setIsEnabled(updated.isEnabled);
       setHasApiKey(updated.hasApiKey);
       setMaskedApiKey(updated.maskedApiKey);
+      setAutoSummarizeOnRead(Boolean(updated.autoSummarizeOnRead));
       setApiKeyInput('');
       setFeedback({
         type: 'success',
@@ -395,8 +399,33 @@ export function AiSettingsTab() {
         </div>
       </div>
 
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3.5">
+        <div>
+          <p className="text-xs font-semibold text-slate-800">
+            메일 읽기 시 AI 자동 요약
+          </p>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            메일을 열면 상단에 핵심 요약과 할 일을 자동으로 표시합니다. (답신/이전 원본 인용 내용은 제외되며, 한 번 요약된 메일은 DB에 저장되어 재요청하지 않습니다.)
+          </p>
+        </div>
+
+        <label className="inline-flex shrink-0 cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={autoSummarizeOnRead}
+            disabled={!isEnabled}
+            onChange={(e) => setAutoSummarizeOnRead(e.target.checked)}
+            className="peer sr-only"
+          />
+          <div className="h-6 w-11 rounded-full bg-slate-200 peer-disabled:opacity-50 peer-checked:bg-violet-600 relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
+          <span className="text-xs font-semibold text-slate-700 w-9">
+            {autoSummarizeOnRead ? 'ON' : 'OFF'}
+          </span>
+        </label>
+      </div>
+
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600">
-        안내: 메일 요약, 답장 초안, 서명 연락처 추출, 일정 등록 등 AI 버튼을 클릭할 때만 해당 텍스트가 선택한 외부 AI 서버로 전송됩니다. (첨부파일은 전송되지 않습니다.)
+        안내: 메일 요약, 답장 초안, 서명 연락처 추출, 일정 등록 등 AI 기능을 사용할 때(자동 요약 활성화 시 메일 열람 시점 포함) 해당 본문 텍스트가 선택한 외부 AI 서버로 전송됩니다. (첨부파일은 전송되지 않습니다.)
       </div>
 
       <div className="flex items-center justify-between pt-2">
