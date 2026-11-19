@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.4](https://github.com/YUNHO01/LE-Mail/compare/v1.5.3...v1.5.4) (2026-11-19)
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 로그인 시 페이지 로딩 추가 ([d789b7d](https://github.com/YUNHO01/LE-Mail/commit/d789b7d0eb58326bd39efed8aae78c27186b89c0))
+* AI 어시스턴스 자동요약 옵션 추가 및 오류 수정 ([a79b8ae](https://github.com/YUNHO01/LE-Mail/commit/a79b8aecb17feed97120a4a04c4c612519f99751))
+
 ### [1.5.3](https://github.com/YUNHO01/LE-Mail/compare/v1.5.2...v1.5.3) (2026-11-19)
 
 
