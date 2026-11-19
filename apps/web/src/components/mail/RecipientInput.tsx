@@ -1,9 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useRef, KeyboardEvent, ClipboardEvent } from 'react';
+import React, { useState, useEffect, useRef, KeyboardEvent, ClipboardEvent, DragEvent } from 'react';
 import { X, AlertCircle, User, Building2, Star } from 'lucide-react';
 import { contactsApi } from '@/lib/api';
 import { ContactSearchResultDto } from '@lemail/shared-types';
+
+export type RecipientFieldType = 'to' | 'cc' | 'bcc';
+
+export const RECIPIENT_DRAG_MIME = 'application/x-lemail-recipient';
+
+export interface RecipientDragPayload {
+  sourceField: RecipientFieldType;
+  sourceIndex: number;
+  value: string;
+}
 
 interface RecipientInputProps {
   label: string;
@@ -11,6 +21,13 @@ interface RecipientInputProps {
   onChange: (recipients: string[]) => void;
   placeholder?: string;
   rightAction?: React.ReactNode;
+  fieldType?: RecipientFieldType;
+  onDropRecipient?: (
+    sourceField: RecipientFieldType,
+    sourceIndex: number,
+    targetField: RecipientFieldType,
+    targetIndex?: number,
+  ) => void;
 }
 
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
@@ -30,9 +47,21 @@ export const RecipientInput: React.FC<RecipientInputProps> = ({
   onChange,
   placeholder = '이메일 주소 입력 후 Enter',
   rightAction,
+  fieldType,
+  onDropRecipient,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // 인라인 칩 수정 상태
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // 드래그 앤 드롭 상태
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [dragOverChipIndex, setDragOverChipIndex] = useState<number | null>(null);
 
   // 자동완성 상태
   const [suggestions, setSuggestions] = useState<ContactSearchResultDto[]>([]);
@@ -42,6 +71,13 @@ export const RecipientInput: React.FC<RecipientInputProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingIndex !== null) {
+      editInputRef.current?.focus();
+      editInputRef.current?.select();
+    }
+  }, [editingIndex]);
 
   // 외부 클릭 시 추천 닫기
   useEffect(() => {
@@ -190,30 +226,220 @@ export const RecipientInput: React.FC<RecipientInputProps> = ({
 
   const removeRecipient = (indexToRemove: number) => {
     onChange(recipients.filter((_, idx) => idx !== indexToRemove));
+    if (editingIndex === indexToRemove) {
+      setEditingIndex(null);
+      setEditingValue('');
+    }
+  };
+
+  const startEditing = (idx: number, currentEntry: string) => {
+    setEditingIndex(idx);
+    setEditingValue(currentEntry);
+    setError(null);
+    setShowSuggestions(false);
+  };
+
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setEditingValue('');
+    setError(null);
+  };
+
+  const commitEdit = (idx: number) => {
+    const trimmed = editingValue.trim();
+    if (!trimmed) {
+      removeRecipient(idx);
+      setEditingIndex(null);
+      setEditingValue('');
+      setError(null);
+      return;
+    }
+
+    const pure = extractPureEmail(trimmed);
+    if (!EMAIL_REGEX.test(pure)) {
+      setError(`유효하지 않은 이메일 형식: ${trimmed}`);
+      return;
+    }
+
+    const otherPureEmails = recipients
+      .filter((_, i) => i !== idx)
+      .map((item) => extractPureEmail(item).toLowerCase());
+
+    if (otherPureEmails.includes(pure.toLowerCase())) {
+      setError(`이미 등록된 수신자입니다: ${pure}`);
+      return;
+    }
+
+    const next = [...recipients];
+    next[idx] = trimmed;
+    onChange(next);
+    setEditingIndex(null);
+    setEditingValue('');
+    setError(null);
+  };
+
+  const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement>, idx: number) => {
+    if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
+      e.preventDefault();
+      commitEdit(idx);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
+  };
+
+  const isRecipientDragEvent = (e: DragEvent<HTMLElement>) =>
+    Boolean(fieldType && onDropRecipient && e.dataTransfer.types.includes(RECIPIENT_DRAG_MIME));
+
+  const handleChipDragStart = (e: DragEvent<HTMLSpanElement>, idx: number, entry: string) => {
+    if (!fieldType || !onDropRecipient || editingIndex === idx) {
+      e.preventDefault();
+      return;
+    }
+    const payload: RecipientDragPayload = {
+      sourceField: fieldType,
+      sourceIndex: idx,
+      value: entry,
+    };
+    e.dataTransfer.setData(RECIPIENT_DRAG_MIME, JSON.stringify(payload));
+    e.dataTransfer.setData('text/plain', entry);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingIndex(idx);
+  };
+
+  const handleChipDragEnd = () => {
+    setDraggingIndex(null);
+    setIsDragOver(false);
+    setDragOverChipIndex(null);
+  };
+
+  const handleContainerDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (!isRecipientDragEvent(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleContainerDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+      setDragOverChipIndex(null);
+    }
+  };
+
+  const handleDropOnTarget = (e: DragEvent<HTMLElement>, targetIndex?: number) => {
+    if (!fieldType || !onDropRecipient) return;
+    const raw = e.dataTransfer.getData(RECIPIENT_DRAG_MIME);
+    if (!raw) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    setDragOverChipIndex(null);
+    setDraggingIndex(null);
+
+    try {
+      const payload = JSON.parse(raw) as RecipientDragPayload;
+      if (payload && payload.sourceField && typeof payload.sourceIndex === 'number') {
+        onDropRecipient(payload.sourceField, payload.sourceIndex, fieldType, targetIndex);
+      }
+    } catch {
+      // ignore invalid drag payload
+    }
   };
 
   return (
-    <div className="flex flex-col gap-1 relative" ref={containerRef}>
-      <div className="flex items-start gap-3 border-b border-slate-200 py-2.5 px-3 focus-within:border-sky-500 focus-within:bg-sky-50/20 transition-all">
+    <div
+      className="flex flex-col gap-1 relative"
+      ref={containerRef}
+      data-recipient-field={fieldType}
+      onDragOver={handleContainerDragOver}
+      onDragLeave={handleContainerDragLeave}
+      onDrop={(e) => handleDropOnTarget(e)}
+    >
+      <div
+        className={`flex items-start gap-3 border-b py-2.5 px-3 transition-all ${
+          isDragOver
+            ? 'border-sky-500 bg-sky-50/70 ring-1 ring-inset ring-sky-400/60 rounded-lg'
+            : 'border-slate-200 focus-within:border-sky-500 focus-within:bg-sky-50/20'
+        }`}
+      >
         <label className="w-20 text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0 pt-1.5">
           {label}
         </label>
         <div className="flex flex-wrap items-center gap-1.5 flex-1 min-h-[32px] relative">
-          {recipients.map((entry, idx) => (
-            <span
-              key={`${entry}-${idx}`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200 py-1 pl-3 pr-2 text-xs font-medium text-slate-800 transition hover:bg-slate-200"
-            >
-              <span>{entry}</span>
-              <button
-                type="button"
-                onClick={() => removeRecipient(idx)}
-                className="rounded-full p-0.5 text-slate-400 hover:bg-slate-300 hover:text-slate-700"
+          {recipients.map((entry, idx) => {
+            const isEditing = editingIndex === idx;
+            const isDragging = draggingIndex === idx;
+            const isChipDragOver = dragOverChipIndex === idx && draggingIndex !== idx;
+            const canDrag = Boolean(fieldType && onDropRecipient && !isEditing);
+
+            if (isEditing) {
+              return (
+                <span
+                  key={`edit-${idx}`}
+                  className="inline-flex items-center rounded-full bg-white border-2 border-sky-500 py-0.5 px-2.5 text-xs shadow-sm"
+                >
+                  <input
+                    ref={editInputRef}
+                    type="text"
+                    value={editingValue}
+                    onChange={(e) => {
+                      setEditingValue(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    onKeyDown={(e) => handleEditKeyDown(e, idx)}
+                    onBlur={() => commitEdit(idx)}
+                    size={Math.max(editingValue.length + 2, 16)}
+                    className="bg-transparent text-xs font-medium text-slate-900 focus:outline-none min-w-[120px] max-w-[320px]"
+                    aria-label="수신자 이메일 수정"
+                  />
+                </span>
+              );
+            }
+
+            return (
+              <span
+                key={`${entry}-${idx}`}
+                draggable={canDrag}
+                onDragStart={(e) => handleChipDragStart(e, idx, entry)}
+                onDragEnd={handleChipDragEnd}
+                onDragOver={(e) => {
+                  if (!isRecipientDragEvent(e)) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (dragOverChipIndex !== idx) setDragOverChipIndex(idx);
+                  if (!isDragOver) setIsDragOver(true);
+                }}
+                onDrop={(e) => handleDropOnTarget(e, idx)}
+                className={`inline-flex items-center gap-1.5 rounded-full border py-1 pl-3 pr-2 text-xs font-medium transition ${
+                  canDrag ? 'cursor-grab active:cursor-grabbing' : ''
+                } ${
+                  isDragging
+                    ? 'opacity-40 bg-slate-200 border-slate-300 text-slate-500'
+                    : isChipDragOver
+                      ? 'bg-sky-50 border-sky-400 text-sky-900 ring-2 ring-sky-300/60'
+                      : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'
+                }`}
               >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
+                <span
+                  onClick={() => startEditing(idx, entry)}
+                  title="클릭하여 수정, 드래그하여 이동"
+                  className="cursor-text select-none"
+                >
+                  {entry}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeRecipient(idx)}
+                  className="rounded-full p-0.5 text-slate-400 hover:bg-slate-300 hover:text-slate-700"
+                  aria-label="수신자 삭제"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
+          })}
 
           <input
             ref={inputRef}

@@ -6,7 +6,11 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { fetchApi } from '@/lib/api';
-import { RecipientInput, extractPureEmail } from '@/components/mail/RecipientInput';
+import {
+    RecipientInput,
+    extractPureEmail,
+    RecipientFieldType,
+} from '@/components/mail/RecipientInput';
 import {
     ComposeAddressBookPanel,
     RecipientEntry,
@@ -156,6 +160,51 @@ function ComposeMailContent() {
 
         if (target === 'cc') setShowCc(true);
         if (target === 'bcc') setShowBcc(true);
+    };
+
+    const [dragHoverField, setDragHoverField] = useState<RecipientFieldType | null>(null);
+
+    const moveRecipient = (
+        sourceField: RecipientFieldType,
+        sourceIndex: number,
+        targetField: RecipientFieldType,
+        targetIndex?: number,
+    ) => {
+        const getList = (field: RecipientFieldType) =>
+            field === 'to' ? to : field === 'cc' ? cc : bcc;
+
+        const sourceList = [...getList(sourceField)];
+        if (sourceIndex < 0 || sourceIndex >= sourceList.length) return;
+        const [movedItem] = sourceList.splice(sourceIndex, 1);
+        if (!movedItem) return;
+
+        if (sourceField === targetField) {
+            const insertAt =
+                targetIndex !== undefined
+                    ? targetIndex > sourceIndex
+                        ? targetIndex - 1
+                        : targetIndex
+                    : sourceList.length;
+            sourceList.splice(insertAt, 0, movedItem);
+            getRecipientSetter(sourceField)(sourceList);
+            return;
+        }
+
+        const targetList = [...getList(targetField)];
+        const movedPure = extractPureEmail(movedItem).toLowerCase();
+        const alreadyExists = targetList.some(
+            (item) => extractPureEmail(item).toLowerCase() === movedPure,
+        );
+
+        getRecipientSetter(sourceField)(sourceList);
+        if (!alreadyExists) {
+            const insertAt = targetIndex !== undefined ? targetIndex : targetList.length;
+            targetList.splice(insertAt, 0, movedItem);
+            getRecipientSetter(targetField)(targetList);
+        }
+
+        if (targetField === 'cc') setShowCc(true);
+        if (targetField === 'bcc') setShowBcc(true);
     };
 
     const [sending, setSending] = useState(false);
@@ -596,14 +645,23 @@ function ComposeMailContent() {
             <div className="flex-1 flex flex-col divide-y divide-slate-100">
                 <RecipientInput
                     label="받는사람"
+                    fieldType="to"
                     recipients={to}
                     onChange={setTo}
+                    isDropTargetActive={dragHoverField === 'to'}
+                    onDragHoverFieldChange={setDragHoverField}
+                    onRequestExpandFields={() => {
+                        setShowCc(true);
+                        setShowBcc(true);
+                    }}
+                    onDropRecipient={moveRecipient}
                     placeholder="이메일 입력"
                     rightAction={
                         <div className="flex items-center gap-1">
                             {(!showCc || !showBcc) && (
                                 <button
                                     type="button"
+                                    data-recipient-expand="true"
                                     onClick={() => {
                                         setShowCc(true);
                                         setShowBcc(true);
@@ -628,8 +686,12 @@ function ComposeMailContent() {
                 {showCc && (
                     <RecipientInput
                         label="참조"
+                        fieldType="cc"
                         recipients={cc}
                         onChange={setCc}
+                        isDropTargetActive={dragHoverField === 'cc'}
+                        onDragHoverFieldChange={setDragHoverField}
+                        onDropRecipient={moveRecipient}
                         placeholder="참조 이메일"
                         rightAction={
                             <button
@@ -649,8 +711,12 @@ function ComposeMailContent() {
                 {showBcc && (
                     <RecipientInput
                         label="숨은참조"
+                        fieldType="bcc"
                         recipients={bcc}
                         onChange={setBcc}
+                        isDropTargetActive={dragHoverField === 'bcc'}
+                        onDragHoverFieldChange={setDragHoverField}
+                        onDropRecipient={moveRecipient}
                         placeholder="숨은참조 이메일"
                         rightAction={
                             <button

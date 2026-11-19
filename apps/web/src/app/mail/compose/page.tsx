@@ -6,7 +6,13 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { fetchApi } from '@/lib/api';
-import { RecipientInput, extractPureEmail } from '@/components/mail/RecipientInput';
+import {
+    RecipientInput,
+    extractPureEmail,
+    RecipientFieldType,
+    RECIPIENT_DRAG_MIME,
+    RecipientDragPayload,
+} from '@/components/mail/RecipientInput';
 import {
     ComposeAddressBookPanel,
     RecipientEntry,
@@ -156,6 +162,64 @@ function ComposeMailContent() {
 
         if (target === 'cc') setShowCc(true);
         if (target === 'bcc') setShowBcc(true);
+    };
+
+    const moveRecipient = (
+        sourceField: RecipientFieldType,
+        sourceIndex: number,
+        targetField: RecipientFieldType,
+        targetIndex?: number,
+    ) => {
+        const getList = (field: RecipientFieldType) =>
+            field === 'to' ? to : field === 'cc' ? cc : bcc;
+
+        const sourceList = [...getList(sourceField)];
+        if (sourceIndex < 0 || sourceIndex >= sourceList.length) return;
+        const [movedItem] = sourceList.splice(sourceIndex, 1);
+        if (!movedItem) return;
+
+        if (sourceField === targetField) {
+            const insertAt =
+                targetIndex !== undefined
+                    ? targetIndex > sourceIndex
+                        ? targetIndex - 1
+                        : targetIndex
+                    : sourceList.length;
+            sourceList.splice(insertAt, 0, movedItem);
+            getRecipientSetter(sourceField)(sourceList);
+            return;
+        }
+
+        const targetList = [...getList(targetField)];
+        const movedPure = extractPureEmail(movedItem).toLowerCase();
+        const alreadyExists = targetList.some(
+            (item) => extractPureEmail(item).toLowerCase() === movedPure,
+        );
+
+        getRecipientSetter(sourceField)(sourceList);
+        if (!alreadyExists) {
+            const insertAt = targetIndex !== undefined ? targetIndex : targetList.length;
+            targetList.splice(insertAt, 0, movedItem);
+            getRecipientSetter(targetField)(targetList);
+        }
+
+        if (targetField === 'cc') setShowCc(true);
+        if (targetField === 'bcc') setShowBcc(true);
+    };
+
+    const handleExpandDrop = (e: React.DragEvent<HTMLButtonElement>, targetField: 'cc' | 'bcc') => {
+        const raw = e.dataTransfer.getData(RECIPIENT_DRAG_MIME);
+        if (!raw) return;
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            const payload = JSON.parse(raw) as RecipientDragPayload;
+            if (payload && payload.sourceField && typeof payload.sourceIndex === 'number') {
+                moveRecipient(payload.sourceField, payload.sourceIndex, targetField);
+            }
+        } catch {
+            // ignore invalid payload
+        }
     };
 
     const [sending, setSending] = useState(false);
@@ -715,8 +779,10 @@ function ComposeMailContent() {
                     {/* TO */}
                     <RecipientInput
                         label="받는사람"
+                        fieldType="to"
                         recipients={to}
                         onChange={setTo}
+                        onDropRecipient={moveRecipient}
                         placeholder="수신자 이메일 주소 입력 후 Enter"
                         rightAction={
                             (!showCc || !showBcc) && (
@@ -725,6 +791,18 @@ function ComposeMailContent() {
                                         <button
                                             type="button"
                                             onClick={() => setShowCc(true)}
+                                            onDragOver={(e) => {
+                                                if (e.dataTransfer.types.includes(RECIPIENT_DRAG_MIME)) {
+                                                    e.preventDefault();
+                                                    e.dataTransfer.dropEffect = 'move';
+                                                }
+                                            }}
+                                            onDragEnter={(e) => {
+                                                if (e.dataTransfer.types.includes(RECIPIENT_DRAG_MIME)) {
+                                                    setShowCc(true);
+                                                }
+                                            }}
+                                            onDrop={(e) => handleExpandDrop(e, 'cc')}
                                             className="font-medium text-slate-500 hover:text-sky-600 transition px-1 py-0.5 rounded hover:bg-slate-100"
                                         >
                                             참조
@@ -734,6 +812,18 @@ function ComposeMailContent() {
                                         <button
                                             type="button"
                                             onClick={() => setShowBcc(true)}
+                                            onDragOver={(e) => {
+                                                if (e.dataTransfer.types.includes(RECIPIENT_DRAG_MIME)) {
+                                                    e.preventDefault();
+                                                    e.dataTransfer.dropEffect = 'move';
+                                                }
+                                            }}
+                                            onDragEnter={(e) => {
+                                                if (e.dataTransfer.types.includes(RECIPIENT_DRAG_MIME)) {
+                                                    setShowBcc(true);
+                                                }
+                                            }}
+                                            onDrop={(e) => handleExpandDrop(e, 'bcc')}
                                             className="font-medium text-slate-500 hover:text-sky-600 transition px-1 py-0.5 rounded hover:bg-slate-100"
                                         >
                                             숨은참조
@@ -748,8 +838,10 @@ function ComposeMailContent() {
                     {showCc && (
                         <RecipientInput
                             label="참조 (Cc)"
+                            fieldType="cc"
                             recipients={cc}
                             onChange={setCc}
+                            onDropRecipient={moveRecipient}
                             placeholder="참조 이메일 주소 입력 후 Enter"
                             rightAction={
                                 <button
@@ -771,8 +863,10 @@ function ComposeMailContent() {
                     {showBcc && (
                         <RecipientInput
                             label="숨은참조"
+                            fieldType="bcc"
                             recipients={bcc}
                             onChange={setBcc}
+                            onDropRecipient={moveRecipient}
                             placeholder="숨은참조 이메일 주소 입력 후 Enter"
                             rightAction={
                                 <button
