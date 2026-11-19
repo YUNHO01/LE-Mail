@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.2](https://github.com/YUNHO01/LE-Mail/compare/v1.5.1...v1.5.2) (2026-11-19)
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 메일 릴레이 처리 시 설정 수정 ([7012fdb](https://github.com/YUNHO01/LE-Mail/commit/7012fdb32252020795954b703e397cd6fc606047))
+* 메일 중복 수신 오류 수정 ([fe58b67](https://github.com/YUNHO01/LE-Mail/commit/fe58b678244cf730159b29d5e06d56da793cfb03))
+
 ### [1.5.1](https://github.com/YUNHO01/LE-Mail/compare/v1.5.0...v1.5.1) (2026-11-18)
 
 
