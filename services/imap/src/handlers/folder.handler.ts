@@ -22,7 +22,28 @@ export interface EnrichedFolder extends FolderRow {
   hasChildren: boolean;
 }
 
+const SYSTEM_FOLDER_IMAP_NAMES: Record<string, string> = {
+  INBOX: 'INBOX',
+  SENT: '보낸 편지함',
+  DRAFTS: '임시 보관함',
+  TRASH: '지운 편지함',
+  SPAM: '정크 메일',
+};
+
 export class FolderHandler {
+  /**
+   * Resolve the IMAP mailbox name for a folder (Outlook-compatible names for system folders)
+   */
+  private static getImapFolderName(folder: FolderRow): string {
+    if (SYSTEM_FOLDER_IMAP_NAMES[folder.type]) {
+      return SYSTEM_FOLDER_IMAP_NAMES[folder.type];
+    }
+    if (folder.is_system && folder.name === '개인편지함') {
+      return '개인 편지함';
+    }
+    return folder.name;
+  }
+
   /**
    * Build hierarchical enriched folders with full path and hasChildren flags
    */
@@ -46,11 +67,7 @@ export class FolderHandler {
 
       while (curr && !visited.has(curr.id)) {
         visited.add(curr.id);
-        if (curr.type === 'INBOX') {
-          segments.unshift('INBOX');
-        } else {
-          segments.unshift(curr.name);
-        }
+        segments.unshift(this.getImapFolderName(curr));
         curr = curr.parent_id ? folderMap.get(curr.parent_id) : undefined;
       }
       return segments;
@@ -531,20 +548,8 @@ export class FolderHandler {
   }
 
   private static getFolderDisplayName(folder: FolderRow): string {
-    switch (folder.type) {
-      case 'INBOX':
-        return 'INBOX';
-      case 'SENT':
-        return ImapUtils.encodeModifiedUtf7(folder.name || '보낸편지함');
-      case 'DRAFTS':
-        return ImapUtils.encodeModifiedUtf7(folder.name || '임시보관함');
-      case 'TRASH':
-        return ImapUtils.encodeModifiedUtf7(folder.name || '휴지통');
-      case 'SPAM':
-        return ImapUtils.encodeModifiedUtf7(folder.name || '스팸메일함');
-      default:
-        return ImapUtils.encodeModifiedUtf7(folder.name);
-    }
+    const imapName = this.getImapFolderName(folder);
+    return imapName === 'INBOX' ? 'INBOX' : ImapUtils.encodeModifiedUtf7(imapName);
   }
 
   private static getFolderAttributes(folder: EnrichedFolder): string[] {
