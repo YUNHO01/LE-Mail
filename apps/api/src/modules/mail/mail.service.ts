@@ -1340,19 +1340,33 @@ export class MailService {
     const relayConfig = await this.settingsService.getRelayConfig();
     const relayEnabled = relayConfig.relayEnabled;
 
+    const extractEmailAddress = (value?: string | null): string => {
+      if (!value) return '';
+      const trimmed = value.trim();
+      const angleMatch = trimmed.match(/<([^<>\s]+@[^<>\s]+)>/);
+      return angleMatch ? angleMatch[1].trim() : trimmed;
+    };
+
+    const isValidEmailAddress = (value?: string | null): boolean => {
+      if (!value) return false;
+      return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value.trim());
+    };
+
+    const normalizedSender = extractEmailAddress(sender);
+
     // 원본 EML 파일이 존재하면 무결성 유지를 위해 raw 스트림/파일 전송 우선 활용
     let mailOptions: nodemailer.SendMailOptions;
     if (rawFilePath && existsSync(rawFilePath)) {
       mailOptions = {
         envelope: {
-          from: sender,
+          from: normalizedSender,
           to: allExternal,
         },
         raw: { path: rawFilePath },
       };
     } else {
       mailOptions = {
-        from: senderName ? `"${senderName}" <${sender}>` : sender,
+        from: senderName ? `"${senderName}" <${normalizedSender}>` : normalizedSender,
         to: externalTo.length > 0 ? externalTo : undefined,
         cc: externalCc.length > 0 ? externalCc : undefined,
         bcc: externalBcc.length > 0 ? externalBcc : undefined,
@@ -1365,7 +1379,7 @@ export class MailService {
     }
 
     if (relayEnabled && relayConfig.relayHost) {
-      // [방식 1] 외부 SMTP 릴레이 (Gmail SMTP, 사내/외부 SMTP 등)
+      // [방식 1] 외부 SMTP 릴레이 (AWS SES, Gmail SMTP, 사내/외부 SMTP 등)
       try {
         const relayHost = relayConfig.relayHost;
         const relayPort = relayConfig.relayPort;
@@ -1396,9 +1410,14 @@ export class MailService {
           };
         }
 
-        // 릴레이 발송 시 봉투 발신자(envelope.from)를 인증 계정으로 보정하여
-        // 상위 메일 서버의 발신자 위조 거부(553 Sender address rejected) 방지
-        const effectiveEnvelopeFrom = relayUser || sender;
+        // 릴레이 인증 계정이 유효한 이메일 주소인 경우(예: Gmail/Naver SMTP)에만 봉투 발신자 보정.
+        // AWS SES(AKIA...), SendGrid(apikey) 등 비이메일 SMTP 아이디를 사용할 때 이를 MAIL FROM으로 넣으면
+        // '501 Invalid MAIL FROM address provided' 오류가 발생하므로 실제 발신자 이메일을 유지함.
+        const normalizedRelayUser = extractEmailAddress(relayUser);
+        const useRelayUserAsFrom = isValidEmailAddress(normalizedRelayUser);
+        const effectiveEnvelopeFrom = useRelayUserAsFrom
+          ? normalizedRelayUser
+          : normalizedSender;
 
         let relayMailOptions: nodemailer.SendMailOptions;
         if (rawFilePath && existsSync(rawFilePath)) {
@@ -1411,9 +1430,9 @@ export class MailService {
           };
         } else {
           relayMailOptions = {
-            from: relayUser
-              ? `"${senderName || sender}" <${relayUser}>`
-              : (senderName ? `"${senderName}" <${sender}>` : sender),
+            from: useRelayUserAsFrom
+              ? `"${senderName || normalizedSender}" <${normalizedRelayUser}>`
+              : (senderName ? `"${senderName}" <${normalizedSender}>` : normalizedSender),
             envelope: {
               from: effectiveEnvelopeFrom,
               to: allExternal,
