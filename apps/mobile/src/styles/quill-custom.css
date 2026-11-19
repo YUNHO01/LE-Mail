@@ -123,3 +123,120 @@
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
   padding: 8px 12px !important;
 }
+
+/* 폰트 크기 드롭다운 라벨 */
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size {
+  width: 72px !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-options {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item::before {
+  content: '14px' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before {
+  content: '10px' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before {
+  content: '12px' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16px"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16px"]::before {
+  content: '16px' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before {
+  content: '18px' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before {
+  content: '20px' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before {
+  content: '24px' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before {
+  content: '28px' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before {
+  content: '32px' !important;
+}
+
+/* 에디터 내 표 스타일 (읽기 뷰어와 일관 유지) */
+.lemail-quill-wrapper .ql-editor table {
+  border-collapse: collapse;
+  max-width: 100%;
+}
+.lemail-quill-wrapper .ql-editor td,
+.lemail-quill-wrapper .ql-editor th {
+  border: 1px solid #cbd5e1 !important;
+  padding: 6px 10px !important;
+}
+
+/* 에디터 내 이미지 비율 유지 및 선택 커서 */
+.lemail-quill-wrapper .ql-editor img {
+  max-width: 100%;
+  height: auto;
+  cursor: pointer;
+}
+
+/* 폰트 패밀리 드롭다운 라벨 및 미리보기 */
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font {
+  width: 112px !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-options {
+  max-height: 240px;
+  overflow-y: auto;
+  width: 140px;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item::before {
+  content: '기본 글꼴' !important;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Malgun Gothic"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Malgun Gothic"]::before {
+  content: '맑은 고딕' !important;
+  font-family: 'Malgun Gothic', sans-serif;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Nanum Gothic"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Nanum Gothic"]::before {
+  content: '나눔고딕' !important;
+  font-family: 'Nanum Gothic', sans-serif;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Nanum Myeongjo"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Nanum Myeongjo"]::before {
+  content: '나눔명조' !important;
+  font-family: 'Nanum Myeongjo', serif;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="NanumBarunGothic"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="NanumBarunGothic"]::before {
+  content: '나눔바른고딕' !important;
+  font-family: 'NanumBarunGothic', sans-serif;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Nanum Pen Script"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Nanum Pen Script"]::before {
+  content: '나눔손글씨펜' !important;
+  font-family: 'Nanum Pen Script', cursive;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Arial"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Arial"]::before {
+  content: 'Arial' !important;
+  font-family: Arial, sans-serif;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Georgia"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Georgia"]::before {
+  content: 'Georgia' !important;
+  font-family: Georgia, serif;
+}
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Courier New"]::before,
+.lemail-quill-wrapper .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Courier New"]::before {
+  content: 'Courier New' !important;
+  font-family: 'Courier New', monospace;
+}

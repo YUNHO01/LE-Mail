@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { fetchApi } from '@/lib/api';
+import { ensureMailTableBorders } from '@/lib/sanitize';
 import {
     RecipientInput,
     extractPureEmail,
@@ -446,7 +447,7 @@ function ComposeMailContent() {
                 cc: cc.length > 0 ? cc.map(extractPureEmail) : undefined,
                 bcc: bcc.length > 0 ? bcc.map(extractPureEmail) : undefined,
                 subject: subject.trim() || '(제목 없음)',
-                bodyHtml: bodyHtml || '<p></p>',
+                bodyHtml: ensureMailTableBorders(bodyHtml || '<p></p>'),
                 bodyText: bodyText || '',
                 attachments: attachments.map((att) => ({
                     filename: att.filename,
@@ -507,7 +508,7 @@ function ComposeMailContent() {
                 cc: cc.length > 0 ? cc.map(extractPureEmail) : undefined,
                 bcc: bcc.length > 0 ? bcc.map(extractPureEmail) : undefined,
                 subject: subject.trim() || '(임시저장 메일)',
-                bodyHtml: bodyHtml || '<p></p>',
+                bodyHtml: ensureMailTableBorders(bodyHtml || '<p></p>'),
                 bodyText: bodyText || '',
             };
 

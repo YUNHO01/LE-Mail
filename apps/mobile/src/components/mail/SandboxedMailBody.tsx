@@ -44,6 +44,7 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
   const srcDoc = useMemo(() => {
     const cleanHtml = sanitizeHtml(html);
     const safeId = JSON.stringify(instanceId);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
     return `<!doctype html>
 <html lang="ko">
@@ -52,6 +53,34 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <base target="_blank" />
 <style>
+  @font-face {
+    font-family: 'Nanum Gothic';
+    src: url('${origin}/fonts/NanumGothic.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Nanum Myeongjo';
+    src: url('${origin}/fonts/NanumMyeongjo.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'NanumBarunGothic';
+    src: url('${origin}/fonts/NanumBarunGothic.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Nanum Pen Script';
+    src: url('${origin}/fonts/NanumPenScript.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
   html, body {
     margin: 0;
     padding: 0;
@@ -73,6 +102,18 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
   }
   table {
     max-width: 100%;
+  }
+  table:has(td[data-row], th[data-row]),
+  table[border]:not([border="0"]) {
+    border-collapse: collapse;
+  }
+  td[data-row],
+  th[data-row],
+  table[border]:not([border="0"]) td,
+  table[border]:not([border="0"]) th {
+    border: 1px solid #cbd5e1;
+    padding: 6px 10px;
+    vertical-align: top;
   }
   pre, code {
     white-space: pre-wrap;

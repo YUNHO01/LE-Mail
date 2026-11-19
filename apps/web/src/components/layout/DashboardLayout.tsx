@@ -41,7 +41,10 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
         pathname === '/mail/compose' ||
         pathname === '/mail/contacts' ||
         pathname === '/mail/calendar' ||
-        pathname?.startsWith('/mail/folder/');
+        pathname?.startsWith('/mail/folder/') ||
+        (pathname?.startsWith('/mail/') &&
+            pathname !== '/mail/settings' &&
+            !pathname.startsWith('/mail/view'));
 
     return (
         <div

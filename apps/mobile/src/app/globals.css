@@ -3,6 +3,35 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Nanum Gothic';
+  src: url('/fonts/NanumGothic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Nanum Myeongjo';
+  src: url('/fonts/NanumMyeongjo.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NanumBarunGothic';
+  src: url('/fonts/NanumBarunGothic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Nanum Pen Script';
+  src: url('/fonts/NanumPenScript.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #F2F2F7;
   --foreground: #0f172a;

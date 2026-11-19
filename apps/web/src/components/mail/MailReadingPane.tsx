@@ -453,8 +453,8 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Reading Area */}
-      <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6">
+      {/* Fixed Mail Header (Subject + Sender/Recipients Metadata) */}
+      <div className="shrink-0 max-h-[38vh] overflow-y-auto border-b border-black/[0.06] bg-white px-6 sm:px-8 pt-5 pb-4">
         <div className="max-w-4xl">
           {/* Subject & Badges */}
           <div className="flex items-start justify-between gap-3">
@@ -487,7 +487,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
           </div>
 
           {/* Sender Metadata */}
-          <div className="mt-5 pb-5 border-b border-black/[0.06] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0">
               <div
                 className={`w-9 h-9 rounded-full text-white font-semibold text-sm flex items-center justify-center shrink-0 shadow-xs ${
@@ -574,9 +574,14 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
               <span>{new Date(mail.createdAt).toLocaleString('ko-KR')}</span>
             </div>
           </div>
+        </div>
+      </div>
 
+      {/* Scrollable Body Area (AI Assistant + Attachments + Mail Body) */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-5">
+        <div className="max-w-4xl">
           {/* AI Assistant Panel */}
-          <div className="mt-4 overflow-hidden rounded-xl border border-black/[0.06]">
+          <div className="overflow-hidden rounded-xl border border-black/[0.06]">
             <MailAiAssistantPanel
               mailId={mail.id}
               subject={mail.subject || ''}
