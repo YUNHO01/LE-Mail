@@ -440,8 +440,8 @@ export class CalendarService {
         if (searchLower && !h.name.toLowerCase().includes(searchLower)) {
           continue;
         }
-        const dayStart = new Date(`${h.date}T00:00:00`);
-        const dayEnd = new Date(`${h.date}T23:59:59`);
+        const dayStart = new Date(`${h.date}T00:00:00+09:00`);
+        const dayEnd = new Date(`${h.date}T23:59:59+09:00`);
         result.push({
           id: `holiday-${h.date}`,
           calendarId: holidayCal.id,

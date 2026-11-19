@@ -174,8 +174,10 @@ export class HolidayService implements OnModuleInit, OnModuleDestroy {
     start: Date,
     end: Date,
   ): Promise<KoreanHolidayItem[]> {
-    const startYear = start.getFullYear();
-    const endYear = end.getFullYear();
+    const startStr = this.formatDateStr(start);
+    const endStr = this.formatDateStr(end);
+    const startYear = Number(startStr.slice(0, 4));
+    const endYear = Number(endStr.slice(0, 4));
     const allRows: SystemHoliday[] = [];
 
     for (let y = startYear; y <= endYear; y++) {
@@ -183,8 +185,6 @@ export class HolidayService implements OnModuleInit, OnModuleDestroy {
       allRows.push(...rows);
     }
 
-    const startStr = this.formatDateStr(start);
-    const endStr = this.formatDateStr(end);
     const grouped = new Map<string, string[]>();
 
     for (const row of allRows) {
@@ -203,9 +203,11 @@ export class HolidayService implements OnModuleInit, OnModuleDestroy {
   }
 
   private formatDateStr(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    // KST(UTC+9) 기준 YYYY-MM-DD 추출 (서버 타임존이 UTC여도 한국 날짜 유지)
+    const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    const y = kst.getUTCFullYear();
+    const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(kst.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
 

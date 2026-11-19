@@ -68,9 +68,7 @@ export const MailComposeAiBar: React.FC<MailComposeAiBarProps> = ({
         }),
       });
       const draftHtml = plainTextToParagraphHtml(res.body);
-      const nextBodyHtml = splitResult.preservedTailHtml
-        ? `${draftHtml}${splitResult.preservedTailHtml}`
-        : draftHtml;
+      const nextBodyHtml = `${draftHtml}${splitResult.editableImagesHtml}${splitResult.preservedTailHtml}`;
       const nextBodyText = splitResult.preservedTailText
         ? `${res.body}\n\n${splitResult.preservedTailText}`
         : res.body;

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { MailMessageDto, MailFolderDto, FolderType } from '@lemail/shared-types';
 import { fetchApi } from '@/lib/api';
 import { fetchMailFoldersCached } from '@/lib/mail-folders-cache';
+import { groupMailsByDate } from '@/lib/mail-date-groups';
 import {
   Search,
   Paperclip,
@@ -19,6 +20,8 @@ import {
   FolderInput,
   X,
   Lock,
+  ChevronDown,
+  CalendarDays,
 } from 'lucide-react';
 
 export interface MailDataTableProps {
@@ -131,6 +134,39 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
     });
   }, [mails, chipFilter]);
 
+  const [groupByDate, setGroupByDate] = useState(true);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('lemail.mailList.groupByDate');
+    if (saved === 'false') {
+      setGroupByDate(false);
+    }
+  }, []);
+
+  const toggleGroupByDate = () => {
+    setGroupByDate((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('lemail.mailList.groupByDate', String(next));
+      }
+      return next;
+    });
+  };
+
+  const toggleGroupCollapse = (groupKey: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [groupKey]: !prev[groupKey],
+    }));
+  };
+
+  const groupedMails = useMemo(
+    () => (groupByDate ? groupMailsByDate(filteredMails) : []),
+    [groupByDate, filteredMails],
+  );
+
   const unreadCount = useMemo(
     () => (mails || []).filter((m) => !m.isRead).length,
     [mails],
@@ -198,6 +234,21 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
             </button>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={toggleGroupByDate}
+          aria-pressed={groupByDate}
+          aria-label={groupByDate ? '날짜별 그룹화 끄기' : '날짜별 그룹화 켜기'}
+          title={groupByDate ? '날짜별 그룹화 끄기' : '날짜별 그룹화 켜기'}
+          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] border active:scale-95 transition-colors ${
+            groupByDate
+              ? 'bg-[#007AFF]/10 text-[#007AFF] border-[#007AFF]/30'
+              : 'bg-white/90 text-slate-500 border-slate-200/70'
+          }`}
+        >
+          <CalendarDays className="h-4 w-4" />
+        </button>
 
         {onRefresh && (
           <button
@@ -329,8 +380,9 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
             <p className="mt-1 text-xs text-slate-400">{emptySubMessage}</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {filteredMails.map((mail) => {
+          <div>
+            {(() => {
+              const renderMailRow = (mail: MailMessageDto) => {
               const isSelected = selectedIds.includes(mail.id);
               const isSentOrDraft = type === 'sent' || type === 'drafts';
               const displayName = isSentOrDraft
@@ -432,7 +484,49 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   </div>
                 </div>
               );
-            })}
+              };
+
+              if (!groupByDate) {
+                return <div className="divide-y divide-slate-100">{filteredMails.map(renderMailRow)}</div>;
+              }
+
+              return groupedMails.map((group, groupIndex) => {
+                const isCollapsed = Boolean(collapsedGroups[group.key]);
+
+                return (
+                  <div key={group.key}>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroupCollapse(group.key)}
+                      aria-expanded={!isCollapsed}
+                      className={`flex w-full items-center justify-between bg-white px-4 ${
+                        groupIndex === 0 ? 'pt-2.5' : 'pt-3.5'
+                      } pb-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#007AFF] active:bg-slate-50`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-slate-500">
+                          {group.label}
+                        </span>
+                        <span className="text-xs font-medium text-slate-400 tabular-nums">
+                          {group.items.length}
+                        </span>
+                      </div>
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-150 ${
+                          isCollapsed ? '-rotate-90' : ''
+                        }`}
+                      />
+                    </button>
+                    <div className="mx-4 border-b border-slate-200/70" />
+                    {!isCollapsed && (
+                      <div className="divide-y divide-slate-100">
+                        {group.items.map(renderMailRow)}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
       </div>

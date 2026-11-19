@@ -9,6 +9,7 @@ import { fetchMailFoldersCached } from '@/lib/mail-folders-cache';
 import { SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { MailReadingPane } from '@/components/mail/MailReadingPane';
 import { exportTableToExcel } from '@/lib/excel';
+import { groupMailsByDate } from '@/lib/mail-date-groups';
 import {
   Search,
   Copy,
@@ -18,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  CalendarDays,
   Paperclip,
   Trash2,
   Mail,
@@ -132,6 +134,33 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const moveMenuRef = useRef<HTMLDivElement>(null);
   const [starredOverrides, setStarredOverrides] = useState<Record<string, boolean>>({});
   const [readOverrides, setReadOverrides] = useState<Record<string, boolean>>({});
+  const [groupByDate, setGroupByDate] = useState(true);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('lemail.mailList.groupByDate');
+    if (saved === 'false') {
+      setGroupByDate(false);
+    }
+  }, []);
+
+  const toggleGroupByDate = () => {
+    setGroupByDate((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('lemail.mailList.groupByDate', String(next));
+      }
+      return next;
+    });
+  };
+
+  const toggleGroupCollapse = (groupKey: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [groupKey]: !prev[groupKey],
+    }));
+  };
 
   const fetchFolders = async () => {
     try {
@@ -519,6 +548,22 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedMails = filteredMails.slice(startIndex, startIndex + pageSize);
 
+  const groupedMails = useMemo(
+    () => (groupByDate ? groupMailsByDate(paginatedMails) : []),
+    [groupByDate, paginatedMails]
+  );
+
+  const visibleMails = useMemo(() => {
+    if (!groupByDate) return paginatedMails;
+    return groupedMails.flatMap((g) => (collapsedGroups[g.key] ? [] : g.items));
+  }, [groupByDate, groupedMails, collapsedGroups, paginatedMails]);
+
+  const visibleIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    visibleMails.forEach((m, idx) => map.set(m.id, idx));
+    return map;
+  }, [visibleMails]);
+
   const displayStart = filteredMails.length === 0 ? 0 : startIndex + 1;
   const displayEnd = Math.min(startIndex + pageSize, filteredMails.length);
 
@@ -806,6 +851,19 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
             <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
+                onClick={toggleGroupByDate}
+                aria-pressed={groupByDate}
+                title={groupByDate ? '날짜별 그룹화 끄기' : '날짜별 그룹화 켜기'}
+                className={`p-1.5 rounded-lg transition ${
+                  groupByDate
+                    ? 'bg-[#007aff]/10 text-[#0071e3]'
+                    : 'text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f]'
+                }`}
+              >
+                <CalendarDays className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 onClick={toggleSelectMode}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
                   selectMode || selectedIds.length > 0
@@ -996,7 +1054,8 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
               )}
             </div>
           ) : (
-            paginatedMails.map((mail, rowIndex) => {
+            (() => {
+              const renderMailRow = (mail: MailMessageDto) => {
               const { dateStr, timeStr, compactStr } = formatDateParts(mail.createdAt);
               const { isRead, isStarred, isNew, isSecure, isAnswered, isForwarded } =
                 getMailStatusFlags(mail);
@@ -1012,16 +1071,17 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
 
               const handleRowKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
                 if (e.target !== e.currentTarget) return;
+                const currentVisibleIdx = visibleIndexMap.get(mail.id) ?? -1;
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   handleRowClick(mail);
                 } else if (e.key === 'ArrowDown' || e.key === 'j') {
                   e.preventDefault();
-                  const next = paginatedMails[rowIndex + 1];
+                  const next = currentVisibleIdx >= 0 ? visibleMails[currentVisibleIdx + 1] : undefined;
                   if (next) rowRefs.current[next.id]?.focus();
                 } else if (e.key === 'ArrowUp' || e.key === 'k') {
                   e.preventDefault();
-                  const prev = paginatedMails[rowIndex - 1];
+                  const prev = currentVisibleIdx > 0 ? visibleMails[currentVisibleIdx - 1] : undefined;
                   if (prev) rowRefs.current[prev.id]?.focus();
                 }
               };
@@ -1168,7 +1228,45 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   </div>
                 </div>
               );
-            })
+              };
+
+              if (!groupByDate) {
+                return paginatedMails.map(renderMailRow);
+              }
+
+              return groupedMails.map((group, groupIndex) => {
+                const isCollapsed = Boolean(collapsedGroups[group.key]);
+
+                return (
+                  <div key={group.key}>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroupCollapse(group.key)}
+                      aria-expanded={!isCollapsed}
+                      className={`w-full flex items-center justify-between px-4 ${
+                        groupIndex === 0 ? 'pt-2.5' : 'pt-3.5'
+                      } pb-1.5 bg-white hover:bg-black/[0.02] transition text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0071e3] print:bg-white`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[12px] font-semibold text-[#6e6e73]">
+                          {group.label}
+                        </span>
+                        <span className="text-[12px] font-medium text-[#86868b] tabular-nums">
+                          {group.items.length}
+                        </span>
+                      </div>
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 text-[#86868b] transition-transform duration-150 ${
+                          isCollapsed ? '-rotate-90' : ''
+                        }`}
+                      />
+                    </button>
+                    <div className="mx-4 border-b border-black/[0.06] mb-1" />
+                    {!isCollapsed && group.items.map(renderMailRow)}
+                  </div>
+                );
+              });
+            })()
           )}
         </div>
 

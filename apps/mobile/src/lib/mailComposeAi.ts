@@ -13,12 +13,24 @@ export interface SplitComposeBodyResult {
   editableHtml: string;
   /** 사용자가 편집 중인 상단 본문 평문 텍스트 */
   editableText: string;
+  /** 사용자가 편집 중인 상단 본문에 포함된 이미지 태그(<p><img ...></p>) HTML */
+  editableImagesHtml: string;
   /** 보존해야 할 서명 + 원본 인용문 HTML */
   preservedTailHtml: string;
   /** 보존해야 할 서명 + 원본 인용문 평문 텍스트 */
   preservedTailText: string;
   /** 원본 인용문(회신/전달 원문) 평문 텍스트 (AI 초안 생성 컨텍스트용) */
   quotedText: string;
+}
+
+/**
+ * HTML 문자열에서 모든 <img> 태그를 추출하여 Quill 호환 <p><img ...></p> HTML로 반환합니다.
+ */
+export function extractImageBlocksHtml(html: string): string {
+  if (!html) return '';
+  const matches = html.match(/<img\b[^>]*>/gi);
+  if (!matches || matches.length === 0) return '';
+  return matches.map((tag) => `<p>${tag}</p>`).join('');
 }
 
 /**
@@ -115,16 +127,29 @@ function findSignatureStartIndex(beforeQuoteHtml: string, signatureHtml?: string
     return trailingBrMatch ? exactIdx - trailingBrMatch[0].length : exactIdx;
   }
 
+  const candidateStarts: number[] = [];
+
   const sigLines = htmlToPlainText(signatureHtml)
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.length >= 2);
-  if (sigLines.length === 0) return -1;
+  if (sigLines.length > 0) {
+    const textIdx = beforeQuoteHtml.lastIndexOf(sigLines[0]);
+    if (textIdx >= 0) {
+      candidateStarts.push(findEnclosingBlockStart(beforeQuoteHtml, textIdx));
+    }
+  }
 
-  const firstSigLine = sigLines[0];
-  const textIdx = beforeQuoteHtml.lastIndexOf(firstSigLine);
-  if (textIdx >= 0) {
-    return findEnclosingBlockStart(beforeQuoteHtml, textIdx);
+  const sigImgMatch = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i.exec(signatureHtml);
+  if (sigImgMatch && sigImgMatch[1]) {
+    const imgIdx = beforeQuoteHtml.lastIndexOf(sigImgMatch[1]);
+    if (imgIdx >= 0) {
+      candidateStarts.push(findEnclosingBlockStart(beforeQuoteHtml, imgIdx));
+    }
+  }
+
+  if (candidateStarts.length > 0) {
+    return Math.min(...candidateStarts);
   }
 
   return -1;
@@ -152,6 +177,7 @@ export function splitComposeBody(
   return {
     editableHtml,
     editableText: htmlToPlainText(editableHtml),
+    editableImagesHtml: extractImageBlocksHtml(editableHtml),
     preservedTailHtml,
     preservedTailText: htmlToPlainText(preservedTailHtml),
     quotedText: htmlToPlainText(quoteTailHtml),
