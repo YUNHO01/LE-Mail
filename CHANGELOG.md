@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.5](https://github.com/YUNHO01/LE-Mail/compare/v1.5.4...v1.5.5) (2026-11-19)
+
+
+### 📦 Maintenance (유지보수 및 설정)
+
+* add Next.js TypeScript declaration files for mobile and web apps ([dd3309f](https://github.com/YUNHO01/LE-Mail/commit/dd3309f0d1f5f540ef2e2c70667e02a58dca85e3))
+
+
+### ✨ Features (기능 추가)
+
+* 메일 열람 시 보낸이 정보 주소록 추가 기능 추가 ([d95791d](https://github.com/YUNHO01/LE-Mail/commit/d95791d48e435aad6de40558c841c848ccd07bb7))
+* 메일쓰기 폰트선택, 표 관리, 이미지 크기 조절 기능 추가 ([59edba8](https://github.com/YUNHO01/LE-Mail/commit/59edba8ab3d6eddec642bd2cc7f7114840371e4a))
+
 ### [1.5.4](https://github.com/YUNHO01/LE-Mail/compare/v1.5.3...v1.5.4) (2026-11-19)
 
 
