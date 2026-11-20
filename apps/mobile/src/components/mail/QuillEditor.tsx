@@ -29,6 +29,45 @@ const IMAGE_SIZE_PRESETS = [
 const TABLE_BUTTON_SVG =
   '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="12" width="12" x="3" y="3"></rect><line class="ql-stroke" x1="3" x2="15" y1="7" y2="7"></line><line class="ql-stroke" x1="3" x2="15" y1="11" y2="11"></line><line class="ql-stroke" x1="7" x2="7" y1="7" y2="15"></line><line class="ql-stroke" x1="11" x2="11" y1="7" y2="15"></line></svg>';
 
+const TOOLBAR_TOOLTIPS: ReadonlyArray<readonly [string, string]> = [
+  ['.ql-header .ql-picker-label', '제목 스타일'],
+  ['.ql-font .ql-picker-label', '글꼴'],
+  ['.ql-size .ql-picker-label', '글자 크기'],
+  ['button.ql-bold', '굵게'],
+  ['button.ql-italic', '기울임꼴'],
+  ['button.ql-underline', '밑줄'],
+  ['button.ql-strike', '취소선'],
+  ['.ql-color .ql-picker-label', '글자 색상'],
+  ['.ql-background .ql-picker-label', '배경 색상'],
+  ['.ql-align .ql-picker-label', '정렬'],
+  ['.ql-align .ql-picker-item:not([data-value])', '왼쪽 정렬'],
+  ['.ql-align .ql-picker-item[data-value="center"]', '가운데 정렬'],
+  ['.ql-align .ql-picker-item[data-value="right"]', '오른쪽 정렬'],
+  ['.ql-align .ql-picker-item[data-value="justify"]', '양쪽 정렬'],
+  ['button.ql-list[value="ordered"]', '번호 매기기 목록'],
+  ['button.ql-list[value="bullet"]', '글머리 기호 목록'],
+  ['button.ql-indent[value="-1"]', '내어쓰기'],
+  ['button.ql-indent[value="+1"]', '들여쓰기'],
+  ['button.ql-blockquote', '인용구'],
+  ['button.ql-code-block', '코드 블록'],
+  ['button.ql-link', '링크 삽입'],
+  ['button.ql-image', '이미지 삽입'],
+  ['button.ql-table-insert', '표 추가'],
+  ['button.ql-clean', '서식 지우기'],
+];
+
+function applyToolbarTooltips(wrapperEl: HTMLElement | null) {
+  const toolbarEl = wrapperEl?.querySelector('.ql-toolbar');
+  if (!toolbarEl) return;
+
+  for (const [selector, label] of TOOLBAR_TOOLTIPS) {
+    toolbarEl.querySelectorAll(selector).forEach((el) => {
+      el.setAttribute('title', label);
+      el.setAttribute('aria-label', label);
+    });
+  }
+}
+
 interface QuillTableModule {
   getTable: (range?: { index: number; length: number } | null) => [
     { domNode?: HTMLElement } | null,
@@ -217,11 +256,7 @@ export const QuillEditor: React.FC<QuillEditorProps> = ({
 
     quillRef.current = quill;
 
-    const tableBtn = wrapperRef.current?.querySelector('.ql-table-insert');
-    if (tableBtn) {
-      tableBtn.setAttribute('title', '표 추가');
-      tableBtn.setAttribute('aria-label', '표 추가');
-    }
+    applyToolbarTooltips(wrapperRef.current);
 
     const updateTableState = () => {
       const range = quill.getSelection();

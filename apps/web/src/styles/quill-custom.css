@@ -72,6 +72,28 @@
   background-color: #e2e8f0 !important;
 }
 
+/* 아이콘형 피커(글자 색상, 배경 색상, 정렬) 크기를 일반 버튼과 동일하게 맞춤 */
+.lemail-quill-wrapper .ql-toolbar.ql-snow .ql-picker.ql-color-picker,
+.lemail-quill-wrapper .ql-toolbar.ql-snow .ql-picker.ql-icon-picker {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.lemail-quill-wrapper .ql-toolbar.ql-snow .ql-picker.ql-color-picker .ql-picker-label,
+.lemail-quill-wrapper .ql-toolbar.ql-snow .ql-picker.ql-icon-picker .ql-picker-label {
+  padding: 3px 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.lemail-quill-wrapper .ql-toolbar.ql-snow .ql-picker.ql-color-picker .ql-picker-label svg,
+.lemail-quill-wrapper .ql-toolbar.ql-snow .ql-picker.ql-icon-picker .ql-picker-label svg {
+  width: 18px !important;
+  height: 18px !important;
+  position: static !important;
+}
+
 /* 본문 컨테이너 */
 .lemail-quill-wrapper .ql-container.ql-snow {
   border: none !important;
