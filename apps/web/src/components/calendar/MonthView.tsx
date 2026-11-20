@@ -10,11 +10,13 @@ import {
   doesEventOverlapDay,
   formatTimeShort,
   layoutWeekSpanEvents,
+  formatLunarShort,
 } from './dateUtils';
 
 interface MonthViewProps {
   anchorDate: Date;
   events: CalendarEventDto[];
+  showLunar?: boolean;
   onSelectDate: (date: Date) => void;
   onSelectEvent: (event: CalendarEventDto) => void;
 }
@@ -24,6 +26,7 @@ const MAX_LANES = 3;
 export const MonthView: React.FC<MonthViewProps> = ({
   anchorDate,
   events,
+  showLunar = false,
   onSelectDate,
   onSelectEvent,
 }) => {
@@ -97,6 +100,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
                   const isToday = isSameDay(day, today);
                   const dayOfWeek = day.getDay();
                   const overflowCount = overflowCounts[colIdx];
+                  const lunarLabel = showLunar ? formatLunarShort(day) : null;
 
                   return (
                     <div
@@ -106,9 +110,9 @@ export const MonthView: React.FC<MonthViewProps> = ({
                         isCurrentMonth ? 'bg-white' : 'bg-[#f5f5f7]/45'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-1">
                         <span
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                             isToday
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : !isCurrentMonth
@@ -122,6 +126,15 @@ export const MonthView: React.FC<MonthViewProps> = ({
                         >
                           {day.getDate()}
                         </span>
+                        {lunarLabel && (
+                          <span
+                            className={`text-[10px] tabular-nums truncate ${
+                              isCurrentMonth ? 'text-[#86868b]/75' : 'text-[#86868b]/45'
+                            }`}
+                          >
+                            {lunarLabel}
+                          </span>
+                        )}
                       </div>
 
                       {overflowCount > 0 ? (

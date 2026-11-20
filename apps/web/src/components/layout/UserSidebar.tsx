@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { MailFolderTree } from '../mail/MailFolderTree';
@@ -36,6 +36,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   setSidebarOpen,
 }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isAdmin, refreshStorageUsage, licenseStatus } = useAuth();
   const brandName = formatBrandName(licenseStatus);
   const { startNavigation } = useNavigation();
@@ -68,36 +69,39 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   }, [isContacts, isCalendar, pathname]);
 
   const handleToggleMail = () => {
-    setMailExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        setContactsExpanded(false);
-        setCalendarExpanded(false);
-      }
-      return next;
-    });
+    const next = !mailExpanded;
+    setMailExpanded(next);
+    if (next) {
+      setContactsExpanded(false);
+      setCalendarExpanded(false);
+      setSidebarOpen(false);
+      startNavigation('/mail/inbox');
+      router.push('/mail/inbox');
+    }
   };
 
   const handleToggleContacts = () => {
-    setContactsExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        setMailExpanded(false);
-        setCalendarExpanded(false);
-      }
-      return next;
-    });
+    const next = !contactsExpanded;
+    setContactsExpanded(next);
+    if (next) {
+      setMailExpanded(false);
+      setCalendarExpanded(false);
+      setSidebarOpen(false);
+      startNavigation('/mail/contacts');
+      router.push('/mail/contacts');
+    }
   };
 
   const handleToggleCalendar = () => {
-    setCalendarExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        setMailExpanded(false);
-        setContactsExpanded(false);
-      }
-      return next;
-    });
+    const next = !calendarExpanded;
+    setCalendarExpanded(next);
+    if (next) {
+      setMailExpanded(false);
+      setContactsExpanded(false);
+      setSidebarOpen(false);
+      startNavigation('/mail/calendar');
+      router.push('/mail/calendar');
+    }
   };
 
   // 주소록 그룹 목록 로드

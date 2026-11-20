@@ -223,3 +223,26 @@ export function layoutWeekSpanEvents(
 
   return lanes;
 }
+
+let lunarFormatter: Intl.DateTimeFormat | null | undefined;
+
+export function formatLunarShort(date: Date): string | null {
+  try {
+    if (lunarFormatter === undefined) {
+      lunarFormatter = new Intl.DateTimeFormat('ko-KR', {
+        calendar: 'dangi',
+        month: 'numeric',
+        day: 'numeric',
+      });
+    }
+    if (!lunarFormatter) return null;
+    const parts = lunarFormatter.formatToParts(date);
+    const month = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    if (!month || !day) return null;
+    return `음 ${month}.${day}`;
+  } catch {
+    lunarFormatter = null;
+    return null;
+  }
+}

@@ -12,6 +12,7 @@ import {
   EyeOff,
   Download,
   Upload,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
@@ -60,6 +61,28 @@ function CalendarPageContent() {
   const [events, setEvents] = useState<CalendarEventDto[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showLunar, setShowLunar] = useState<boolean>(true);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('lemail_calendar_show_lunar');
+      if (saved === 'false') setShowLunar(false);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleToggleLunar = () => {
+    setShowLunar((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('lemail_calendar_show_lunar', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // 일정 모달 상태
   const [eventModalOpen, setEventModalOpen] = useState(false);
@@ -280,7 +303,7 @@ function CalendarPageContent() {
       />
 
       {/* 상단 통합 툴바 */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.08] bg-white px-5 py-2.5 shrink-0">
+      <div className="min-h-12 flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] bg-white/95 backdrop-blur-md px-4 sm:px-6 py-1.5 shrink-0">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -346,20 +369,20 @@ function CalendarPageContent() {
           <button
             type="button"
             onClick={() => icsInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-colors"
+            className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition-colors"
             title="iCalendar(.ics) 파일 가져오기"
+            aria-label="iCalendar(.ics) 파일 가져오기"
           >
-            <Upload className="h-3.5 w-3.5 text-[#6e6e73]" />
-            <span className="hidden lg:inline">.ics 가져오기</span>
+            <Upload className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={handleExportIcs}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-colors"
+            className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition-colors"
             title="현재 기간 일정을 .ics 파일로 내보내기"
+            aria-label="현재 기간 일정을 .ics 파일로 내보내기"
           >
-            <Download className="h-3.5 w-3.5 text-[#6e6e73]" />
-            <span className="hidden lg:inline">.ics 내보내기</span>
+            <Download className="h-4 w-4" />
           </button>
           <button
             type="button"
@@ -367,18 +390,18 @@ function CalendarPageContent() {
               setEditingCalendar(null);
               setCalModalOpen(true);
             }}
-            className="inline-flex items-center gap-1 rounded-lg border border-black/[0.12] bg-white px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-colors"
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition-colors"
           >
-            <Plus className="h-3.5 w-3.5 text-[#6e6e73]" />
+            <Plus className="h-3.5 w-3.5" />
             <span>캘린더</span>
           </button>
           {!isReadOnlyCalendar && (
             <button
               type="button"
               onClick={() => handleOpenCreateEvent()}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#0071e3] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0077ed] shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.05] transition-colors"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5 text-[#0071e3]" />
               <span>새 일정</span>
             </button>
           )}
@@ -463,6 +486,20 @@ function CalendarPageContent() {
                 </div>
               );
             })}
+            <button
+              type="button"
+              onClick={handleToggleLunar}
+              aria-pressed={showLunar}
+              title={showLunar ? '음력 표시 끄기' : '음력 표시 켜기'}
+              className={`ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                showLunar
+                  ? 'border-[#0071e3]/30 bg-[#0071e3]/10 text-[#0071e3]'
+                  : 'border-black/[0.08] bg-white/70 text-[#6e6e73] hover:bg-white hover:text-[#1d1d1f]'
+              }`}
+            >
+              <Moon className="h-3 w-3" />
+              <span>음력</span>
+            </button>
           </div>
         );
       })()}
@@ -477,6 +514,7 @@ function CalendarPageContent() {
           <MonthView
             anchorDate={anchorDate}
             events={events}
+            showLunar={showLunar}
             onSelectDate={(d) => handleOpenCreateEvent(d, false)}
             onSelectEvent={handleOpenEditEvent}
           />
@@ -485,11 +523,16 @@ function CalendarPageContent() {
             mode={view}
             anchorDate={anchorDate}
             events={events}
+            showLunar={showLunar}
             onSelectSlot={(d, allDay) => handleOpenCreateEvent(d, Boolean(allDay))}
             onSelectEvent={handleOpenEditEvent}
           />
         ) : (
-          <AgendaView events={events} onSelectEvent={handleOpenEditEvent} />
+          <AgendaView
+            events={events}
+            showLunar={showLunar}
+            onSelectEvent={handleOpenEditEvent}
+          />
         )}
       </div>
 

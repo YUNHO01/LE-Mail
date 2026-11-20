@@ -9,12 +9,14 @@ import {
   doesEventOverlapDay,
   formatTimeShort,
   layoutWeekSpanEvents,
+  formatLunarShort,
 } from './dateUtils';
 
 interface WeekDayViewProps {
   mode: 'week' | 'day';
   anchorDate: Date;
   events: CalendarEventDto[];
+  showLunar?: boolean;
   onSelectSlot: (date: Date, isAllDay?: boolean) => void;
   onSelectEvent: (event: CalendarEventDto) => void;
 }
@@ -25,6 +27,7 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
   mode,
   anchorDate,
   events,
+  showLunar = false,
   onSelectSlot,
   onSelectEvent,
 }) => {
@@ -92,6 +95,7 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
         {days.map((day) => {
           const isToday = isSameDay(day, today);
           const dow = day.getDay();
+          const lunarLabel = showLunar ? formatLunarShort(day) : null;
           return (
             <div
               key={day.toISOString()}
@@ -117,6 +121,11 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
               >
                 {day.getDate()}
               </div>
+              {lunarLabel && (
+                <div className="mt-0.5 text-[10px] text-[#86868b]/75 tabular-nums">
+                  {lunarLabel}
+                </div>
+              )}
             </div>
           );
         })}

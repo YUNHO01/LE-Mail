@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   X,
   HardDrive,
@@ -29,6 +29,7 @@ interface MobileDrawerProps {
 
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({ open, onClose }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout, refreshStorageUsage } = useAuth();
   const { canInstall, isStandalone, promptInstall } = usePwa();
   const { startNavigation } = useNavigation();
@@ -70,36 +71,39 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ open, onClose }) => 
   const avatarInitial = (user?.name || user?.email || 'U').trim().charAt(0).toUpperCase();
 
   const handleToggleMail = () => {
-    setMailExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        setContactsExpanded(false);
-        setCalendarExpanded(false);
-      }
-      return next;
-    });
+    const next = !mailExpanded;
+    setMailExpanded(next);
+    if (next) {
+      setContactsExpanded(false);
+      setCalendarExpanded(false);
+      onClose();
+      startNavigation('/mail/inbox');
+      router.push('/mail/inbox');
+    }
   };
 
   const handleToggleContacts = () => {
-    setContactsExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        setMailExpanded(false);
-        setCalendarExpanded(false);
-      }
-      return next;
-    });
+    const next = !contactsExpanded;
+    setContactsExpanded(next);
+    if (next) {
+      setMailExpanded(false);
+      setCalendarExpanded(false);
+      onClose();
+      startNavigation('/mail/contacts');
+      router.push('/mail/contacts');
+    }
   };
 
   const handleToggleCalendar = () => {
-    setCalendarExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        setMailExpanded(false);
-        setContactsExpanded(false);
-      }
-      return next;
-    });
+    const next = !calendarExpanded;
+    setCalendarExpanded(next);
+    if (next) {
+      setMailExpanded(false);
+      setContactsExpanded(false);
+      onClose();
+      startNavigation('/mail/calendar');
+      router.push('/mail/calendar');
+    }
   };
 
   const handleRefreshQuota = async () => {

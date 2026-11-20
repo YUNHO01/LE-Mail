@@ -3,15 +3,17 @@
 import React from 'react';
 import { CalendarEventDto } from '@lemail/shared-types';
 import { MapPin, Clock, CalendarDays } from 'lucide-react';
-import { WEEKDAY_LABELS, formatTimeShort } from './dateUtils';
+import { WEEKDAY_LABELS, formatTimeShort, formatLunarShort } from './dateUtils';
 
 interface AgendaViewProps {
   events: CalendarEventDto[];
+  showLunar?: boolean;
   onSelectEvent: (event: CalendarEventDto) => void;
 }
 
 export const AgendaView: React.FC<AgendaViewProps> = ({
   events,
+  showLunar = false,
   onSelectEvent,
 }) => {
   const grouped = React.useMemo(() => {
@@ -45,12 +47,18 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       {grouped.map(([dateKey, dayEvents]) => {
         const d = new Date(`${dateKey}T00:00:00`);
         const label = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY_LABELS[d.getDay()]})`;
+        const lunarLabel = showLunar ? formatLunarShort(d) : null;
 
         return (
           <div key={dateKey} className="px-5 py-4 sm:py-5 flex flex-col sm:flex-row gap-4">
-            <div className="w-36 shrink-0">
+            <div className="w-40 shrink-0">
               <div className="text-[13px] font-semibold text-[#1d1d1f]">{label}</div>
-              <div className="text-[11px] text-[#86868b] font-mono mt-0.5">{dateKey}</div>
+              <div className="text-[11px] text-[#86868b] font-mono mt-0.5 flex items-center gap-1.5">
+                <span>{dateKey}</span>
+                {lunarLabel && (
+                  <span className="font-sans text-[#86868b]/75">({lunarLabel})</span>
+                )}
+              </div>
             </div>
 
             <div className="flex-1 space-y-2">

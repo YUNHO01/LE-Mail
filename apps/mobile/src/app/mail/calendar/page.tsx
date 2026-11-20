@@ -10,6 +10,7 @@ import {
   Settings2,
   Eye,
   EyeOff,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
@@ -23,7 +24,7 @@ import {
 import { calendarApi } from '../../../lib/api';
 import { EventModal } from '../../../components/calendar/EventModal';
 import { CalendarManageModal } from '../../../components/calendar/CalendarManageModal';
-import { addMonths, getVisibleRange } from '../../../components/calendar/dateUtils';
+import { addMonths, getVisibleRange, formatLunarShort } from '../../../components/calendar/dateUtils';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -48,6 +49,28 @@ function CalendarPageContent() {
 
   const [calModalOpen, setCalModalOpen] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState<CalendarDto | null>(null);
+  const [showLunar, setShowLunar] = useState<boolean>(true);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('lemail_calendar_show_lunar');
+      if (saved === 'false') setShowLunar(false);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleToggleLunar = () => {
+    setShowLunar((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('lemail_calendar_show_lunar', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   const loadCalendars = useCallback(async () => {
     try {
@@ -274,6 +297,20 @@ function CalendarPageContent() {
               </div>
             );
           })}
+          <button
+            type="button"
+            onClick={handleToggleLunar}
+            aria-pressed={showLunar}
+            title={showLunar ? '음력 표시 끄기' : '음력 표시 켜기'}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
+              showLunar
+                ? 'border-[#007AFF]/30 bg-[#007AFF]/10 text-[#007AFF]'
+                : 'border-slate-200/80 bg-white text-slate-500'
+            }`}
+          >
+            <Moon className="h-3 w-3" />
+            <span>음력</span>
+          </button>
         </div>
       )}
 
@@ -299,6 +336,7 @@ function CalendarPageContent() {
             const isSelected = isSameDay(day, selectedDate);
             const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`;
             const dayEvents = eventsByDayKey.get(key) || [];
+            const lunarLabel = showLunar ? formatLunarShort(day) : null;
 
             return (
               <button
@@ -324,6 +362,15 @@ function CalendarPageContent() {
                 >
                   {day.getDate()}
                 </span>
+                {lunarLabel && (
+                  <span
+                    className={`mt-0.5 text-[9px] leading-none tabular-nums ${
+                      inCurrentMonth ? 'text-slate-400' : 'text-slate-300'
+                    }`}
+                  >
+                    {lunarLabel}
+                  </span>
+                )}
                 <div className="mt-0.5 flex h-1.5 items-center gap-0.5">
                   {dayEvents.slice(0, 3).map((ev) => (
                     <span
@@ -342,9 +389,16 @@ function CalendarPageContent() {
       {/* 선택된 날짜 아젠다 */}
       <div className="px-3 pt-1">
         <div className="mb-2 flex items-center justify-between px-1">
-          <h2 className="text-sm font-bold text-slate-900">
-            {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 ({WEEKDAYS[selectedDate.getDay()]}) 일정
-          </h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-sm font-bold text-slate-900">
+              {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 ({WEEKDAYS[selectedDate.getDay()]}) 일정
+            </h2>
+            {showLunar && formatLunarShort(selectedDate) && (
+              <span className="text-[11px] font-medium text-slate-400 tabular-nums">
+                ({formatLunarShort(selectedDate)})
+              </span>
+            )}
+          </div>
           <span className="text-xs font-medium text-slate-400">{selectedDayEvents.length}건</span>
         </div>
 

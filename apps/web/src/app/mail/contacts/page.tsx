@@ -430,7 +430,7 @@ export default function ContactsPage() {
                       setSelectedContact(null);
                       setContactModalOpen(true);
                     }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0071e3] hover:bg-[#0077ed] text-white text-xs font-medium shadow-xs transition"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[#0071e3] hover:bg-[#007aff]/10 text-xs font-medium transition"
                     title="새 연락처"
                   >
                     <UserPlus className="h-3.5 w-3.5" />
@@ -721,23 +721,29 @@ export default function ContactsPage() {
         {activeContact ? (
           <>
             {/* Top Toolbar */}
-            <div className="h-12 shrink-0 px-6 border-b border-black/[0.06] flex items-center justify-between bg-white/95 backdrop-blur-md">
-              <div className="flex items-center gap-1.5">
+            <div className="h-12 shrink-0 px-4 sm:px-6 border-b border-black/[0.06] flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md">
+              <div className="flex items-center gap-1 flex-wrap">
                 {activeContact.email && (
-                  <button
-                    type="button"
-                    onClick={(e) => handleComposeMail(activeContact.email!, e)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] hover:bg-[#0077ed] px-3 py-1.5 text-xs font-medium text-white shadow-xs transition"
-                  >
-                    <Mail className="h-3.5 w-3.5" />
-                    <span>메일 쓰기</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => handleComposeMail(activeContact.email!, e)}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.05] transition"
+                      title="메일 쓰기"
+                    >
+                      <Mail className="h-3.5 w-3.5 text-[#0071e3]" />
+                      <span>메일 쓰기</span>
+                    </button>
+                    <div className="h-4 w-px bg-black/[0.08] mx-1" />
+                  </>
                 )}
+
                 <button
                   type="button"
                   onClick={(e) => handleToggleStar(activeContact.id, e)}
-                  className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] transition"
+                  className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
                   title={activeContact.isStarred ? '중요 해제' : '중요 표시'}
+                  aria-label={activeContact.isStarred ? '중요 해제' : '중요 표시'}
                 >
                   <Star
                     className={`h-4 w-4 ${
@@ -745,25 +751,26 @@ export default function ContactsPage() {
                     }`}
                   />
                 </button>
-              </div>
 
-              <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedContact(activeContact);
                     setContactModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.05] transition"
+                  className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
+                  title="편집"
+                  aria-label="편집"
                 >
-                  <Edit className="h-3.5 w-3.5 text-[#0071e3]" />
-                  <span>편집</span>
+                  <Edit className="h-4 w-4" />
                 </button>
+
                 <button
                   type="button"
                   onClick={(e) => handleDelete(activeContact.id, activeContact.name, e)}
                   className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition"
                   title="삭제"
+                  aria-label="삭제"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -942,13 +949,14 @@ export default function ContactsPage() {
           </>
         ) : activeCompanyUser ? (
           <>
-            <div className="h-12 shrink-0 px-6 border-b border-black/[0.06] flex items-center justify-between bg-white/95 backdrop-blur-md">
+            <div className="h-12 shrink-0 px-4 sm:px-6 border-b border-black/[0.06] flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md">
               <button
                 type="button"
                 onClick={(e) => handleComposeMail(activeCompanyUser.email, e)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] hover:bg-[#0077ed] px-3 py-1.5 text-xs font-medium text-white shadow-xs transition"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.05] transition"
+                title="메일 쓰기"
               >
-                <Mail className="h-3.5 w-3.5" />
+                <Mail className="h-3.5 w-3.5 text-[#0071e3]" />
                 <span>메일 쓰기</span>
               </button>
               <span className="text-xs text-[#86868b]">사내 임직원 디렉토리</span>
