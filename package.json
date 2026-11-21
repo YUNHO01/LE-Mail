@@ -9,7 +9,8 @@
     "services/*"
   ],
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev --parallel --filter=!@lemail/imap",
+    "dev:v1": "turbo run dev --parallel --filter=!@lemail/imap-v2",
     "build": "turbo run build",
     "build:obfuscate": "turbo run build:obfuscate",
     "lint": "turbo run lint",
@@ -39,6 +40,10 @@
     "imap:dev": "yarn --cwd services/imap dev",
     "imap:start": "yarn --cwd services/imap start",
     "imap:build": "yarn --cwd services/imap build",
+    "imap:v2:dev": "node services/imap.v2/scripts/run-cargo.js dev",
+    "imap:v2:build": "node services/imap.v2/scripts/run-cargo.js build",
+    "imap:v2:start": "node services/imap.v2/scripts/run-cargo.js start",
+    "imap:v2:test": "node services/imap.v2/scripts/run-cargo.js test",
     "test:pipeline": "yarn --cwd apps/api test:pipeline",
     "test:smtp": "yarn --cwd apps/api test:smtp",
     "test:security": "yarn --cwd apps/api test:security",

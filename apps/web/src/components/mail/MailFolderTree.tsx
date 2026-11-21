@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
@@ -39,6 +39,122 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
   const [targetParentFolder, setTargetParentFolder] = useState<MailFolderDto | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // 드래그 앤 드롭 이동 상태
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [dropToast, setDropToast] = useState<string | null>(null);
+  const autoExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoExpandTimerRef.current) clearTimeout(autoExpandTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  const showDropToast = (message: string) => {
+    setDropToast(message);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setDropToast(null);
+    }, 2600);
+  };
+
+  const clearAutoExpandTimer = () => {
+    if (autoExpandTimerRef.current) {
+      clearTimeout(autoExpandTimerRef.current);
+      autoExpandTimerRef.current = null;
+    }
+  };
+
+  const isMailDragEvent = (e: React.DragEvent) =>
+    Array.from(e.dataTransfer?.types || []).includes('application/x-lemail-mail-ids');
+
+  const handleFolderDragOver = (
+    e: React.DragEvent,
+    targetFolder?: MailFolderDto,
+  ) => {
+    if (!targetFolder || !isMailDragEvent(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+
+    if (dragOverFolderId !== targetFolder.id) {
+      setDragOverFolderId(targetFolder.id);
+      clearAutoExpandTimer();
+      const hasChildren = Boolean(targetFolder.children && targetFolder.children.length > 0);
+      if (hasChildren && !expandedFolders[targetFolder.id]) {
+        autoExpandTimerRef.current = setTimeout(() => {
+          setExpandedFolders((prev) => ({ ...prev, [targetFolder.id]: true }));
+        }, 600);
+      }
+    }
+  };
+
+  const handleFolderDragLeave = (
+    e: React.DragEvent,
+    targetFolder?: MailFolderDto,
+  ) => {
+    if (!targetFolder) return;
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    clearAutoExpandTimer();
+    setDragOverFolderId((prev) => (prev === targetFolder.id ? null : prev));
+  };
+
+  const handleFolderDrop = async (
+    e: React.DragEvent,
+    targetFolder?: MailFolderDto,
+  ) => {
+    if (!targetFolder || !isMailDragEvent(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    clearAutoExpandTimer();
+    setDragOverFolderId(null);
+
+    const raw = e.dataTransfer.getData('application/x-lemail-mail-ids');
+    if (!raw) return;
+
+    let ids: string[] = [];
+    let sourceFolderId: string | null = null;
+    try {
+      const parsed = JSON.parse(raw);
+      ids = Array.isArray(parsed?.ids) ? parsed.ids : [];
+      sourceFolderId = parsed?.sourceFolderId ?? null;
+    } catch {
+      return;
+    }
+
+    if (ids.length === 0 || sourceFolderId === targetFolder.id) return;
+
+    try {
+      if (ids.length === 1) {
+        await fetchApi(`/mails/${ids[0]}/move`, {
+          method: 'PATCH',
+          body: JSON.stringify({ targetFolderId: targetFolder.id }),
+        });
+      } else {
+        await fetchApi('/mails/bulk-move', {
+          method: 'POST',
+          body: JSON.stringify({ ids, targetFolderId: targetFolder.id }),
+        });
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('mail:moved', {
+          detail: { ids, targetFolderId: targetFolder.id },
+        }),
+      );
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      showDropToast(
+        ids.length === 1
+          ? `메일을 [${targetFolder.name}] 편지함으로 이동했습니다.`
+          : `${ids.length}개의 메일을 [${targetFolder.name}] 편지함으로 이동했습니다.`,
+      );
+    } catch (err: any) {
+      alert(err?.message || '편지함 이동에 실패했습니다.');
+    }
+  };
 
   const loadFolders = async () => {
     if (!isAuthenticated) return;
@@ -169,12 +285,18 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
           const hasChildren = node.children && node.children.length > 0;
           const isExpanded = !!expandedFolders[node.id];
           const active = pathname === `/mail/folder/${node.id}`;
+          const isDragOver = dragOverFolderId === node.id;
 
           return (
-            <div key={node.id} className="group">
+            <div key={node.id}>
               <div
-                className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
-                  active
+                onDragOver={(e) => handleFolderDragOver(e, node)}
+                onDragLeave={(e) => handleFolderDragLeave(e, node)}
+                onDrop={(e) => handleFolderDrop(e, node)}
+                className={`group flex items-center justify-between rounded-lg px-2 py-1.5 min-h-[28px] text-xs font-medium transition-colors ${
+                  isDragOver
+                    ? 'bg-[#007aff]/15 ring-2 ring-[#0071e3] text-[#0071e3] font-semibold'
+                    : active
                     ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                     : 'text-[#1d1d1f] hover:bg-black/[0.04]'
                 }`}
@@ -223,19 +345,21 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
                   )}
 
                   {/* 호버 시 액션 버튼 */}
-                  <div className="hidden group-hover:flex items-center gap-0.5">
+                  <div className="hidden group-hover:flex items-center gap-0.5 h-4">
                     <button
+                      type="button"
                       title="하위 편지함 추가"
                       onClick={(e) => openCreateModal(node, e)}
-                      className="p-1 rounded text-[#86868b] hover:text-[#1d1d1f] hover:bg-black/[0.06]"
+                      className="p-0.5 rounded text-[#86868b] hover:text-[#1d1d1f] hover:bg-black/[0.06]"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
                     {!node.isSystem && (
                       <button
+                        type="button"
                         title="편지함 삭제"
                         onClick={(e) => handleDeleteFolder(node, e)}
-                        className="p-1 rounded text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10"
+                        className="p-0.5 rounded text-[#86868b] hover:text-[#ff3b30] hover:bg-[#ff3b30]/10"
                       >
                         <Trash className="h-3 w-3" />
                       </button>
@@ -266,8 +390,13 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/inbox');
             }}
             onMouseDown={() => startNavigation('/mail/inbox')}
+            onDragOver={(e) => handleFolderDragOver(e, inbox)}
+            onDragLeave={(e) => handleFolderDragLeave(e, inbox)}
+            onDrop={(e) => handleFolderDrop(e, inbox)}
             className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
-              isLinkActive('/mail/inbox')
+              inbox && dragOverFolderId === inbox.id
+                ? 'bg-[#007aff]/15 ring-2 ring-[#0071e3] text-[#0071e3] font-semibold'
+                : isLinkActive('/mail/inbox')
                 ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                 : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
@@ -291,8 +420,13 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/sent');
             }}
             onMouseDown={() => startNavigation('/mail/sent')}
+            onDragOver={(e) => handleFolderDragOver(e, sent)}
+            onDragLeave={(e) => handleFolderDragLeave(e, sent)}
+            onDrop={(e) => handleFolderDrop(e, sent)}
             className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
-              isLinkActive('/mail/sent')
+              sent && dragOverFolderId === sent.id
+                ? 'bg-[#007aff]/15 ring-2 ring-[#0071e3] text-[#0071e3] font-semibold'
+                : isLinkActive('/mail/sent')
                 ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                 : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
@@ -316,8 +450,13 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/drafts');
             }}
             onMouseDown={() => startNavigation('/mail/drafts')}
+            onDragOver={(e) => handleFolderDragOver(e, drafts)}
+            onDragLeave={(e) => handleFolderDragLeave(e, drafts)}
+            onDrop={(e) => handleFolderDrop(e, drafts)}
             className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
-              isLinkActive('/mail/drafts')
+              drafts && dragOverFolderId === drafts.id
+                ? 'bg-[#007aff]/15 ring-2 ring-[#0071e3] text-[#0071e3] font-semibold'
+                : isLinkActive('/mail/drafts')
                 ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                 : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
@@ -341,8 +480,13 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/spam');
             }}
             onMouseDown={() => startNavigation('/mail/spam')}
+            onDragOver={(e) => handleFolderDragOver(e, spam)}
+            onDragLeave={(e) => handleFolderDragLeave(e, spam)}
+            onDrop={(e) => handleFolderDrop(e, spam)}
             className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
-              isLinkActive('/mail/spam')
+              spam && dragOverFolderId === spam.id
+                ? 'bg-[#007aff]/15 ring-2 ring-[#0071e3] text-[#0071e3] font-semibold'
+                : isLinkActive('/mail/spam')
                 ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                 : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
@@ -366,8 +510,13 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               startNavigation('/mail/trash');
             }}
             onMouseDown={() => startNavigation('/mail/trash')}
+            onDragOver={(e) => handleFolderDragOver(e, trash)}
+            onDragLeave={(e) => handleFolderDragLeave(e, trash)}
+            onDrop={(e) => handleFolderDrop(e, trash)}
             className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
-              isLinkActive('/mail/trash')
+              trash && dragOverFolderId === trash.id
+                ? 'bg-[#007aff]/15 ring-2 ring-[#0071e3] text-[#0071e3] font-semibold'
+                : isLinkActive('/mail/trash')
                 ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                 : 'text-[#1d1d1f] hover:bg-black/[0.04]'
             }`}
@@ -386,8 +535,13 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
           {/* 6. 개인편지함 (트리 루트 및 하위 편지함 관리) */}
           <div className="pt-2 mt-2 border-t border-black/[0.06]">
             <div
+              onDragOver={(e) => handleFolderDragOver(e, customRoot)}
+              onDragLeave={(e) => handleFolderDragLeave(e, customRoot)}
+              onDrop={(e) => handleFolderDrop(e, customRoot)}
               className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-[13px] font-medium transition-colors ${
-                customRoot && pathname === `/mail/folder/${customRoot.id}`
+                customRoot && dragOverFolderId === customRoot.id
+                  ? 'bg-[#007aff]/15 ring-2 ring-[#0071e3] text-[#0071e3] font-semibold'
+                  : customRoot && pathname === `/mail/folder/${customRoot.id}`
                   ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                   : 'text-[#1d1d1f] hover:bg-black/[0.04]'
               }`}
@@ -504,6 +658,17 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* 드래그 앤 드롭 이동 완료 토스트 */}
+      {dropToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 right-5 z-50 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-xs font-medium text-white shadow-xl"
+        >
+          {dropToast}
         </div>
       )}
     </div>

@@ -1,0 +1,12 @@
+{
+  "name": "@lemail/imap-v2",
+  "version": "2.0.0",
+  "private": true,
+  "description": "LEMail IMAP4rev1 Microservice (Rust v2)",
+  "scripts": {
+    "dev": "node scripts/run-cargo.js dev",
+    "build": "node scripts/run-cargo.js build",
+    "start": "node scripts/run-cargo.js start",
+    "test": "node scripts/run-cargo.js test"
+  }
+}

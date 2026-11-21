@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 import { CalendarEventDto } from '@lemail/shared-types';
 import {
   WEEKDAY_LABELS,
@@ -10,6 +10,7 @@ import {
   doesEventOverlapDay,
   formatTimeShort,
   layoutWeekSpanEvents,
+  formatReminderLabel,
 } from './dateUtils';
 
 interface MonthViewProps {
@@ -152,6 +153,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
                         const ev = item.event;
                         const color = ev.calendarColor || '#0284c7';
                         const isSolidBar = ev.isAllDay || item.isMultiDay;
+                        const reminderLabel = formatReminderLabel(ev.reminderMinutesBefore);
 
                         const radiusClass =
                           item.continuesFromPrev && item.continuesToNext
@@ -180,7 +182,11 @@ export const MonthView: React.FC<MonthViewProps> = ({
                                   : undefined,
                             }}
                             className={`pointer-events-auto h-[22px] w-full text-left flex items-center gap-1.5 px-2 text-[11px] font-medium truncate transition hover:opacity-90 shadow-2xs ${radiusClass}`}
-                            title={ev.title}
+                            title={
+                              reminderLabel
+                                ? `${ev.title} (알림: ${reminderLabel})`
+                                : ev.title
+                            }
                           >
                             {!ev.isAllDay && !item.continuesFromPrev && (
                               <span
@@ -194,6 +200,14 @@ export const MonthView: React.FC<MonthViewProps> = ({
                             <span className="truncate font-semibold">
                               {ev.title}
                             </span>
+                            {reminderLabel && !item.continuesFromPrev && (
+                              <Bell
+                                className={`h-3 w-3 shrink-0 ml-auto ${
+                                  isSolidBar ? 'text-white/80' : 'text-slate-500/80'
+                                }`}
+                                aria-label={`알림: ${reminderLabel}`}
+                              />
+                            )}
                           </button>
                         );
                       })}
@@ -232,6 +246,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
             <div className="p-3 space-y-1.5 max-h-80 overflow-y-auto">
               {moreDayEvents.map((ev) => {
                 const color = ev.calendarColor || '#0284c7';
+                const reminderLabel = formatReminderLabel(ev.reminderMinutesBefore);
                 return (
                   <button
                     key={ev.id}
@@ -241,6 +256,11 @@ export const MonthView: React.FC<MonthViewProps> = ({
                       onSelectEvent(ev);
                     }}
                     className="w-full text-left flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs hover:bg-slate-50 border border-slate-100 transition"
+                    title={
+                      reminderLabel
+                        ? `${ev.title} (알림: ${reminderLabel})`
+                        : ev.title
+                    }
                   >
                     <span
                       className="h-2.5 w-2.5 rounded-full shrink-0"
@@ -252,6 +272,14 @@ export const MonthView: React.FC<MonthViewProps> = ({
                     <span className="font-semibold text-slate-800 truncate">
                       {ev.title}
                     </span>
+                    {reminderLabel && (
+                      <span
+                        className="ml-auto shrink-0 text-slate-400"
+                        title={`알림: ${reminderLabel}`}
+                      >
+                        <Bell className="h-3.5 w-3.5" aria-label={`알림: ${reminderLabel}`} />
+                      </span>
+                    )}
                   </button>
                 );
               })}

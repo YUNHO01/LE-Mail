@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchApi, calendarApi, contactsApi } from '@/lib/api';
 import { fetchMailFoldersCached } from '@/lib/mail-folders-cache';
@@ -37,6 +37,12 @@ import {
   ExternalLink,
   Lock,
   UserPlus,
+  FolderInput,
+  Folder,
+  Inbox,
+  Send,
+  FileEdit,
+  ChevronDown,
 } from 'lucide-react';
 
 export interface MailReadingPaneProps {
@@ -44,6 +50,7 @@ export interface MailReadingPaneProps {
   standalone?: boolean;
   onRefreshList?: () => void;
   onDeleted?: (deletedId: string) => void;
+  onMoved?: (movedId: string, targetFolderId: string) => void;
   onReadChanged?: (mailId: string, isRead: boolean) => void;
   onStarChanged?: (mailId: string, isStarred: boolean) => void;
 }
@@ -53,12 +60,17 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
   standalone = false,
   onRefreshList,
   onDeleted,
+  onMoved,
   onReadChanged,
   onStarChanged,
 }) => {
   const router = useRouter();
   const [mail, setMail] = useState<MailMessageDto | null>(null);
+  const [folders, setFolders] = useState<MailFolderDto[]>([]);
   const [spamFolderId, setSpamFolderId] = useState<string | null>(null);
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const moveMenuRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [calendars, setCalendars] = useState<CalendarDto[]>([]);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
@@ -173,9 +185,10 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
           setEmailStatuses({});
         }
 
-        const folders = await fetchMailFoldersCached();
+        const loadedFolders = await fetchMailFoldersCached();
         if (cancelled) return;
-        const spam = (folders || []).find((f) => f.type === FolderType.SPAM);
+        setFolders(loadedFolders || []);
+        const spam = (loadedFolders || []).find((f) => f.type === FolderType.SPAM);
         if (spam) {
           setSpamFolderId(spam.id);
         }
@@ -197,11 +210,101 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
       }
     };
 
+    setIsMoveOpen(false);
     loadMail();
     return () => {
       cancelled = true;
     };
   }, [mailId, standalone, router]);
+
+  useEffect(() => {
+    const handleRefreshFolders = async () => {
+      try {
+        const latest = await fetchMailFoldersCached();
+        setFolders(latest || []);
+        const spam = (latest || []).find((f) => f.type === FolderType.SPAM);
+        if (spam) {
+          setSpamFolderId(spam.id);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('mail:refresh-folders', handleRefreshFolders);
+    return () => {
+      window.removeEventListener('mail:refresh-folders', handleRefreshFolders);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMoveOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moveMenuRef.current && !moveMenuRef.current.contains(e.target as Node)) {
+        setIsMoveOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMoveOpen]);
+
+  const flattenedFolders = useMemo(() => {
+    const list: Array<MailFolderDto & { depth: number }> = [];
+    const walk = (nodes: MailFolderDto[], depth = 0) => {
+      for (const node of nodes) {
+        list.push({ ...node, depth });
+        if (node.children && node.children.length > 0) {
+          walk(node.children, depth + 1);
+        }
+      }
+    };
+    walk(folders);
+    return list;
+  }, [folders]);
+
+  const getFolderIcon = (folderType: FolderType) => {
+    switch (folderType) {
+      case FolderType.INBOX:
+        return <Inbox className="h-3.5 w-3.5 text-sky-600 shrink-0" />;
+      case FolderType.SENT:
+        return <Send className="h-3.5 w-3.5 text-sky-600 shrink-0" />;
+      case FolderType.DRAFTS:
+        return <FileEdit className="h-3.5 w-3.5 text-amber-600 shrink-0" />;
+      case FolderType.SPAM:
+        return <ShieldAlert className="h-3.5 w-3.5 text-rose-500 shrink-0" />;
+      case FolderType.TRASH:
+        return <Trash2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />;
+      case FolderType.CUSTOM:
+      default:
+        return <Folder className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
+    }
+  };
+
+  const handleMove = async (targetFolder: MailFolderDto) => {
+    if (!mail || moving || mail.folderId === targetFolder.id) return;
+    setIsMoveOpen(false);
+    setMoving(true);
+    try {
+      await fetchApi(`/mails/${mail.id}/move`, {
+        method: 'PATCH',
+        body: JSON.stringify({ targetFolderId: targetFolder.id }),
+      });
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      if (standalone) {
+        setMail((prev) => (prev ? { ...prev, folderId: targetFolder.id } : prev));
+        alert(`[${targetFolder.name}] 편지함으로 이동했습니다.`);
+      } else {
+        onMoved?.(mail.id, targetFolder.id);
+        onRefreshList?.();
+        alert(`[${targetFolder.name}] 편지함으로 이동했습니다.`);
+      }
+    } catch (err: any) {
+      alert(err.message || '편지함 이동 실패');
+    } finally {
+      setMoving(false);
+    }
+  };
 
   const handleToggleRead = async () => {
     if (!mail) return;
@@ -335,7 +438,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
   return (
     <div className={`flex-1 flex flex-col min-h-0 bg-white ${standalone ? 'rounded-2xl border border-black/[0.08] overflow-hidden' : ''}`}>
       {/* iCloud Style Sticky Action Toolbar */}
-      <div className="h-12 shrink-0 px-4 sm:px-6 border-b border-black/[0.06] flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md">
+      <div className="relative z-20 h-12 shrink-0 px-4 sm:px-6 border-b border-black/[0.06] flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md">
         <div className="flex items-center gap-1 flex-wrap">
           {standalone && (
             <>
@@ -387,6 +490,66 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
           >
             {mail.isRead ? <MailIcon className="h-4 w-4" /> : <MailCheck className="h-4 w-4 text-[#0071e3]" />}
           </button>
+
+          {/* 편지함 이동 드롭다운 */}
+          <div className="relative" ref={moveMenuRef}>
+            <button
+              type="button"
+              disabled={moving}
+              onClick={() => setIsMoveOpen((prev) => !prev)}
+              className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ${
+                isMoveOpen
+                  ? 'bg-black/[0.06] text-[#0071e3]'
+                  : 'text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f]'
+              } disabled:opacity-50`}
+              title="편지함 이동"
+              aria-label="편지함 이동"
+              aria-expanded={isMoveOpen}
+            >
+              <FolderInput className="h-3.5 w-3.5" />
+              <span>이동</span>
+              <ChevronDown className="h-3 w-3 opacity-70" />
+            </button>
+
+            {isMoveOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-black/[0.08] bg-white py-1.5 shadow-xl z-50">
+                <div className="px-3 py-1 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                  이동할 편지함 선택
+                </div>
+                <div className="max-h-64 overflow-y-auto py-1">
+                  {flattenedFolders.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-[#86868b]">
+                      편지함 목록을 불러오는 중...
+                    </div>
+                  ) : (
+                    flattenedFolders.map((f) => {
+                      const isCurrent = f.id === mail.folderId;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          disabled={isCurrent || moving}
+                          onClick={() => handleMove(f)}
+                          style={{ paddingLeft: `${f.depth * 14 + 12}px` }}
+                          className={`w-full pr-3 py-1.5 text-left text-xs flex items-center justify-between transition ${
+                            isCurrent
+                              ? 'text-[#86868b] cursor-not-allowed'
+                              : 'text-[#1d1d1f] hover:bg-[#007aff]/10 hover:text-[#0071e3]'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2 truncate">
+                            {getFolderIcon(f.type)}
+                            <span className="truncate">{f.name}</span>
+                          </span>
+                          {isCurrent && <span className="text-[10px] text-[#86868b] shrink-0 ml-1">(현재)</span>}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {spamFolderId && mail.folderId === spamFolderId ? (
             <button

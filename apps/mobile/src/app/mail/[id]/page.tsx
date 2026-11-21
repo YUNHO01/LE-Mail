@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchApi, calendarApi, contactsApi } from '@/lib/api';
 import { SandboxedMailBody } from '@/components/mail/SandboxedMailBody';
@@ -36,6 +36,11 @@ import {
   MoreHorizontal,
   X,
   UserPlus,
+  FolderInput,
+  Folder,
+  Inbox,
+  Send,
+  FileEdit,
 } from 'lucide-react';
 
 function formatAttachmentSize(bytes: number | string): string {
@@ -52,11 +57,14 @@ export default function MailDetailPage() {
   const id = params?.id as string;
 
   const [mail, setMail] = useState<MailMessageDto | null>(null);
+  const [folders, setFolders] = useState<MailFolderDto[]>([]);
   const [spamFolderId, setSpamFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [calendars, setCalendars] = useState<CalendarDto[]>([]);
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
+  const [moveSheetOpen, setMoveSheetOpen] = useState(false);
+  const [moving, setMoving] = useState(false);
 
   const [emailStatuses, setEmailStatuses] = useState<Record<string, ContactEmailStatusDto>>({});
   const [contactGroups, setContactGroups] = useState<ContactGroupDto[]>([]);
@@ -161,9 +169,10 @@ export default function MailDetailPage() {
           setEmailStatuses({});
         }
 
-        // 폴더 목록 조회하여 SPAM 폴더 ID 식별
-        const folders = await fetchApi<MailFolderDto[]>('/mail-folders');
-        const spam = (folders || []).find((f) => f.type === FolderType.SPAM);
+        // 폴더 목록 조회하여 SPAM 폴더 ID 식별 및 이동 목록 저장
+        const loadedFolders = await fetchApi<MailFolderDto[]>('/mail-folders');
+        setFolders(loadedFolders || []);
+        const spam = (loadedFolders || []).find((f) => f.type === FolderType.SPAM);
         if (spam) {
           setSpamFolderId(spam.id);
         }
@@ -248,6 +257,57 @@ export default function MailDetailPage() {
       router.push('/mail/inbox');
     } catch (err: any) {
       alert(err.message || '스팸 해제 실패');
+    }
+  };
+
+  const flattenedFolders = useMemo(() => {
+    const list: Array<MailFolderDto & { depth: number }> = [];
+    const walk = (nodes: MailFolderDto[], depth = 0) => {
+      for (const node of nodes) {
+        list.push({ ...node, depth });
+        if (node.children && node.children.length > 0) {
+          walk(node.children, depth + 1);
+        }
+      }
+    };
+    walk(folders);
+    return list;
+  }, [folders]);
+
+  const getFolderIcon = (folderType: FolderType) => {
+    switch (folderType) {
+      case FolderType.INBOX:
+        return <Inbox className="h-4 w-4 text-sky-600 shrink-0" />;
+      case FolderType.SENT:
+        return <Send className="h-4 w-4 text-sky-600 shrink-0" />;
+      case FolderType.DRAFTS:
+        return <FileEdit className="h-4 w-4 text-amber-600 shrink-0" />;
+      case FolderType.SPAM:
+        return <ShieldAlert className="h-4 w-4 text-rose-500 shrink-0" />;
+      case FolderType.TRASH:
+        return <Trash2 className="h-4 w-4 text-slate-400 shrink-0" />;
+      case FolderType.CUSTOM:
+      default:
+        return <Folder className="h-4 w-4 text-amber-500 shrink-0" />;
+    }
+  };
+
+  const handleMove = async (targetFolder: MailFolderDto) => {
+    if (!mail || moving || mail.folderId === targetFolder.id) return;
+    setMoveSheetOpen(false);
+    setMoving(true);
+    try {
+      await fetchApi(`/mails/${mail.id}/move`, {
+        method: 'PATCH',
+        body: JSON.stringify({ targetFolderId: targetFolder.id }),
+      });
+      setMail((prev) => (prev ? { ...prev, folderId: targetFolder.id } : prev));
+      window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
+      alert(`[${targetFolder.name}] 편지함으로 이동했습니다.`);
+    } catch (err: any) {
+      alert(err.message || '편지함 이동 실패');
+    } finally {
+      setMoving(false);
     }
   };
 
@@ -586,6 +646,18 @@ export default function MailDetailPage() {
                 type="button"
                 onClick={() => {
                   setActionSheetOpen(false);
+                  setMoveSheetOpen(true);
+                }}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-800 active:bg-slate-100 text-left"
+              >
+                <FolderInput className="h-4 w-4 text-[#007AFF]" />
+                <span>편지함 이동</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActionSheetOpen(false);
                   handleToggleRead();
                 }}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-800 active:bg-slate-100 text-left"
@@ -651,6 +723,55 @@ export default function MailDetailPage() {
                 <Trash2 className="h-4 w-4 text-rose-500" />
                 <span>메일 삭제</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 편지함 이동 바텀 시트 */}
+      {moveSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-[1px]"
+          onClick={() => setMoveSheetOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-t-3xl bg-white p-4 pb-6 shadow-2xl space-y-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-100">
+              <span className="text-sm font-bold text-slate-900">이동할 편지함 선택</span>
+              <button
+                type="button"
+                onClick={() => setMoveSheetOpen(false)}
+                className="rounded-full p-1 text-slate-400 active:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-72 overflow-y-auto space-y-1 pt-1">
+              {flattenedFolders.map((f) => {
+                const isCurrent = f.id === mail.folderId;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    disabled={isCurrent || moving}
+                    onClick={() => handleMove(f)}
+                    style={{ paddingLeft: `${f.depth * 16 + 12}px` }}
+                    className={`w-full pr-3 py-2.5 rounded-xl text-left text-sm flex items-center justify-between transition ${
+                      isCurrent
+                        ? 'text-slate-400 cursor-not-allowed'
+                        : 'text-slate-800 active:bg-slate-100'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5 truncate">
+                      {getFolderIcon(f.type)}
+                      <span className="truncate font-medium">{f.name}</span>
+                    </span>
+                    {isCurrent && <span className="text-xs text-slate-400 shrink-0 ml-2">(현재)</span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

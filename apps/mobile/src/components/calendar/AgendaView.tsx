@@ -2,8 +2,12 @@
 
 import React from 'react';
 import { CalendarEventDto } from '@lemail/shared-types';
-import { MapPin, Clock, CalendarDays } from 'lucide-react';
-import { WEEKDAY_LABELS, formatTimeShort } from './dateUtils';
+import { MapPin, Clock, CalendarDays, Bell } from 'lucide-react';
+import {
+  WEEKDAY_LABELS,
+  formatTimeShort,
+  formatReminderLabel,
+} from './dateUtils';
 
 interface AgendaViewProps {
   events: CalendarEventDto[];
@@ -56,6 +60,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
             <div className="flex-1 space-y-2">
               {dayEvents.map((ev) => {
                 const color = ev.calendarColor || '#0284c7';
+                const reminderLabel = formatReminderLabel(ev.reminderMinutesBefore);
                 return (
                   <button
                     key={ev.id}
@@ -83,6 +88,15 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             <span className="inline-flex items-center gap-1 truncate">
                               <MapPin className="h-3 w-3 text-slate-400" />
                               {ev.location}
+                            </span>
+                          )}
+                          {reminderLabel && (
+                            <span
+                              className="inline-flex items-center gap-1"
+                              title={`알림: ${reminderLabel}`}
+                            >
+                              <Bell className="h-3 w-3 text-slate-400" />
+                              {reminderLabel}
                             </span>
                           )}
                         </div>

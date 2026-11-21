@@ -246,3 +246,13 @@ export function formatLunarShort(date: Date): string | null {
     return null;
   }
 }
+
+export function formatReminderLabel(minutes?: number | null): string | null {
+  if (minutes === null || minutes === undefined || Number.isNaN(minutes)) {
+    return null;
+  }
+  if (minutes <= 0) return '일정 시작 시간';
+  if (minutes % 1440 === 0) return `${minutes / 1440}일 전`;
+  if (minutes % 60 === 0) return `${minutes / 60}시간 전`;
+  return `${minutes}분 전`;
+}

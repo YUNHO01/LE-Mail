@@ -136,6 +136,28 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const [readOverrides, setReadOverrides] = useState<Record<string, boolean>>({});
   const [groupByDate, setGroupByDate] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [draggingIds, setDraggingIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const handleMailMoved = (event: Event) => {
+      const detail = (event as CustomEvent<{ ids?: string[]; targetFolderId?: string }>).detail;
+      const movedIds = detail?.ids || [];
+      if (movedIds.length === 0) return;
+      const movedSet = new Set(movedIds);
+      setSelectedIds((prev) => prev.filter((id) => !movedSet.has(id)));
+      setSelectedMailId((prev) => {
+        if (prev && movedSet.has(prev)) {
+          syncMailIdToUrl(null);
+          return null;
+        }
+        return prev;
+      });
+    };
+    window.addEventListener('mail:moved', handleMailMoved);
+    return () => {
+      window.removeEventListener('mail:moved', handleMailMoved);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1086,6 +1108,58 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                 }
               };
 
+              const isDragging = draggingIds.includes(mail.id);
+
+              const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+                const dragIds =
+                  selectedIds.length > 0 && selectedIds.includes(mail.id)
+                    ? selectedIds
+                    : [mail.id];
+
+                setDraggingIds(dragIds);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData(
+                  'application/x-lemail-mail-ids',
+                  JSON.stringify({
+                    ids: dragIds,
+                    sourceFolderId: mail.folderId || folderId || null,
+                  }),
+                );
+                e.dataTransfer.setData('text/plain', dragIds.join(','));
+
+                // 드래그 고스트 배지 생성
+                if (typeof document !== 'undefined') {
+                  const ghost = document.createElement('div');
+                  ghost.style.position = 'fixed';
+                  ghost.style.top = '-9999px';
+                  ghost.style.left = '-9999px';
+                  ghost.style.padding = '6px 12px';
+                  ghost.style.borderRadius = '9999px';
+                  ghost.style.background = '#0071e3';
+                  ghost.style.color = '#ffffff';
+                  ghost.style.fontSize = '12px';
+                  ghost.style.fontWeight = '600';
+                  ghost.style.boxShadow = '0 4px 14px rgba(0, 113, 227, 0.35)';
+                  ghost.style.maxWidth = '240px';
+                  ghost.style.whiteSpace = 'nowrap';
+                  ghost.style.overflow = 'hidden';
+                  ghost.style.textOverflow = 'ellipsis';
+                  ghost.textContent =
+                    dragIds.length > 1
+                      ? `메일 ${dragIds.length}통 이동`
+                      : mail.subject || '(제목 없음)';
+                  document.body.appendChild(ghost);
+                  e.dataTransfer.setDragImage(ghost, 14, 14);
+                  window.requestAnimationFrame(() => {
+                    ghost.remove();
+                  });
+                }
+              };
+
+              const handleDragEnd = () => {
+                setDraggingIds([]);
+              };
+
               return (
                 <div
                   key={mail.id}
@@ -1094,11 +1168,16 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   }}
                   role="button"
                   tabIndex={0}
+                  draggable
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
                   aria-selected={isActiveRow}
                   onClick={() => handleRowClick(mail)}
                   onKeyDown={handleRowKeyDown}
                   className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3] ${
-                    isActiveRow
+                    isDragging
+                      ? 'opacity-45 bg-[#007aff]/10 ring-1 ring-dashed ring-[#0071e3]/50'
+                      : isActiveRow
                       ? 'bg-[#007aff]/10 ring-1 ring-[#0071e3]/35'
                       : isChecked
                       ? 'bg-[#007aff]/5'
@@ -1310,6 +1389,12 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           onRefreshList={onRefresh}
           onDeleted={(deletedId) => {
             if (selectedMailId === deletedId) {
+              setSelectedMailId(null);
+              syncMailIdToUrl(null);
+            }
+          }}
+          onMoved={(movedId) => {
+            if (selectedMailId === movedId) {
               setSelectedMailId(null);
               syncMailIdToUrl(null);
             }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Bell } from 'lucide-react';
 import { CalendarEventDto } from '@lemail/shared-types';
 import {
   WEEKDAY_LABELS,
@@ -10,6 +11,7 @@ import {
   formatTimeShort,
   layoutWeekSpanEvents,
   formatLunarShort,
+  formatReminderLabel,
 } from './dateUtils';
 
 interface WeekDayViewProps {
@@ -167,6 +169,7 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
                 >
                   {lane.map((item) => {
                     const ev = item.event;
+                    const reminderLabel = formatReminderLabel(ev.reminderMinutesBefore);
                     const radiusClass =
                       item.continuesFromPrev && item.continuesToNext
                         ? 'rounded-none'
@@ -188,9 +191,20 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
                           gridColumn: `${item.startCol + 1} / span ${item.span}`,
                           backgroundColor: ev.calendarColor || '#0284c7',
                         }}
-                        className={`pointer-events-auto w-full text-left px-2 py-0.5 text-[11px] font-semibold text-white truncate hover:opacity-90 ${radiusClass}`}
+                        className={`pointer-events-auto w-full text-left flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-white truncate hover:opacity-90 ${radiusClass}`}
+                        title={
+                          reminderLabel
+                            ? `${ev.title} (알림: ${reminderLabel})`
+                            : ev.title
+                        }
                       >
-                        {ev.title}
+                        <span className="truncate">{ev.title}</span>
+                        {reminderLabel && !item.continuesFromPrev && (
+                          <Bell
+                            className="h-3 w-3 shrink-0 ml-auto text-white/80"
+                            aria-label={`알림: ${reminderLabel}`}
+                          />
+                        )}
                       </button>
                     );
                   })}
@@ -289,6 +303,7 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
                   const topPx = (startMinutes / 60) * 56;
                   const heightPx = Math.max(24, (durationMinutes / 60) * 56);
                   const color = ev.calendarColor || '#0284c7';
+                  const reminderLabel = formatReminderLabel(ev.reminderMinutesBefore);
 
                   return (
                     <button
@@ -305,9 +320,22 @@ export const WeekDayView: React.FC<WeekDayViewProps> = ({
                         borderLeft: `3px solid ${color}`,
                       }}
                       className="absolute left-1 right-1 rounded-lg px-2 py-1 text-left overflow-hidden shadow-xs hover:shadow-md transition z-10"
+                      title={
+                        reminderLabel
+                          ? `${ev.title} (알림: ${reminderLabel})`
+                          : ev.title
+                      }
                     >
-                      <div className="text-[11px] font-semibold text-[#1d1d1f] truncate">
-                        {ev.title}
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="text-[11px] font-semibold text-[#1d1d1f] truncate">
+                          {ev.title}
+                        </span>
+                        {reminderLabel && (
+                          <Bell
+                            className="h-3 w-3 shrink-0 ml-auto text-[#6e6e73]/80"
+                            aria-label={`알림: ${reminderLabel}`}
+                          />
+                        )}
                       </div>
                       <div className="text-[10px] font-mono text-[#6e6e73] truncate">
                         {formatTimeShort(ev.startAt)} - {formatTimeShort(ev.endAt)}

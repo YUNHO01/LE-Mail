@@ -1,0 +1,14 @@
+# Linux x86_64 릴리즈 바이너리 빌드용 Dockerfile (Windows 개발 환경에서도 사용 가능)
+# 사용법:
+#   docker build -f services/imap.v2/Dockerfile.linux-build --output type=local,dest=services/imap.v2/dist-linux services/imap.v2
+
+FROM rust:1.85-bookworm AS builder
+WORKDIR /build
+
+COPY Cargo.toml Cargo.lock* ./
+COPY src ./src
+
+RUN cargo build --release --locked 2>/dev/null || cargo build --release
+
+FROM scratch AS export
+COPY --from=builder /build/target/release/lemail-imap /lemail-imap

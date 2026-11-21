@@ -12,6 +12,12 @@
  *   - 부팅 시 자동실행: pm2 startup && pm2 save
  */
 
+const useImapV2 = process.env.USE_IMAP_V2 === 'true';
+const imapV2Binary =
+  process.platform === 'win32'
+    ? 'target/release/lemail-imap.exe'
+    : 'target/release/lemail-imap';
+
 module.exports = {
   apps: [
     {
@@ -68,23 +74,41 @@ module.exports = {
         PORT: 9300,
       },
     },
-    {
-      name: 'lemail-imap',
-      cwd: './services/imap',
-      script: 'dist/index.js',
-      instances: 1,
-      exec_mode: 'fork',
-      node_args: '--max-old-space-size=2048',
-      autorestart: true,
-      max_restarts: 10,
-      restart_delay: 5000,
-      watch: false,
-      max_memory_restart: '2G',
-      time: true,
-      env: {
-        NODE_ENV: 'production',
-      },
-    },
+    useImapV2
+      ? {
+          name: 'lemail-imap',
+          cwd: './services/imap.v2',
+          script: imapV2Binary,
+          interpreter: 'none',
+          instances: 1,
+          exec_mode: 'fork',
+          autorestart: true,
+          max_restarts: 10,
+          restart_delay: 5000,
+          watch: false,
+          max_memory_restart: '512M',
+          time: true,
+          env: {
+            RUST_LOG: 'info',
+          },
+        }
+      : {
+          name: 'lemail-imap',
+          cwd: './services/imap',
+          script: 'dist/index.js',
+          instances: 1,
+          exec_mode: 'fork',
+          node_args: '--max-old-space-size=2048',
+          autorestart: true,
+          max_restarts: 10,
+          restart_delay: 5000,
+          watch: false,
+          max_memory_restart: '2G',
+          time: true,
+          env: {
+            NODE_ENV: 'production',
+          },
+        },
     {
       name: 'lemail-haraka',
       cwd: './services/haraka',

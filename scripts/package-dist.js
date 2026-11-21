@@ -11,6 +11,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'
 
 const version = packageJson.version || '1.0.0';
 const isObfuscate = process.argv.includes('--obfuscate');
+const useImapV2 = process.argv.includes('--imap-v2');
 
 // 날짜 포맷 (YYYYMMDD)
 const now = new Date();
@@ -102,14 +103,24 @@ async function runPackaging() {
     console.log('  -> apps/api 난독화 컴파일 (yarn --cwd apps/api build:obfuscate)...');
     execSync('yarn --cwd apps/api build:obfuscate', { stdio: 'inherit', cwd: rootDir });
 
-    console.log('  -> services/imap 난독화 컴파일 (yarn --cwd services/imap build:obfuscate)...');
-    execSync('yarn --cwd services/imap build:obfuscate', { stdio: 'inherit', cwd: rootDir });
+    if (useImapV2) {
+      console.log('  -> services/imap.v2 Rust 릴리즈 빌드 (네이티브 바이너리, 난독화 불필요)...');
+      execSync('node services/imap.v2/scripts/run-cargo.js build', { stdio: 'inherit', cwd: rootDir });
+    } else {
+      console.log('  -> services/imap 난독화 컴파일 (yarn --cwd services/imap build:obfuscate)...');
+      execSync('yarn --cwd services/imap build:obfuscate', { stdio: 'inherit', cwd: rootDir });
+    }
   } else {
     console.log('  -> apps/api 표준 컴파일 (yarn --cwd apps/api build)...');
     execSync('yarn --cwd apps/api build', { stdio: 'inherit', cwd: rootDir });
 
-    console.log('  -> services/imap 표준 컴파일 (yarn --cwd services/imap build)...');
-    execSync('yarn --cwd services/imap build', { stdio: 'inherit', cwd: rootDir });
+    if (useImapV2) {
+      console.log('  -> services/imap.v2 Rust 릴리즈 빌드...');
+      execSync('node services/imap.v2/scripts/run-cargo.js build', { stdio: 'inherit', cwd: rootDir });
+    } else {
+      console.log('  -> services/imap 표준 컴파일 (yarn --cwd services/imap build)...');
+      execSync('yarn --cwd services/imap build', { stdio: 'inherit', cwd: rootDir });
+    }
   }
 
   console.log('  -> apps/web 프로덕션 빌드 (yarn --cwd apps/web build)...');
@@ -250,28 +261,55 @@ async function runPackaging() {
     fs.copyFileSync(path.join(rootDir, 'apps', 'mobile', 'next.config.mjs'), path.join(mobileDest, 'next.config.mjs'));
   }
 
-  // (5) services/imap 복사
-  console.log(`  -> services/imap ${isObfuscate ? '난독화' : '표준'} 산출물 및 운영 전용 package.json 복사`);
+  // (5) services/imap 복사 (기본 Node v1 또는 --imap-v2 Rust 네이티브 바이너리)
   const imapDest = path.join(stagingDir, 'services', 'imap');
   fs.mkdirSync(imapDest, { recursive: true });
 
-  copyDirSync(path.join(rootDir, 'services', 'imap', 'dist'), path.join(imapDest, 'dist'));
-  if (fs.existsSync(path.join(rootDir, 'services', 'imap', 'keys'))) {
-    copyDirSync(path.join(rootDir, 'services', 'imap', 'keys'), path.join(imapDest, 'keys'));
-  }
+  if (useImapV2) {
+    console.log('  -> services/imap.v2 Rust 릴리즈 바이너리 복사');
+    const binName = process.platform === 'win32' ? 'lemail-imap.exe' : 'lemail-imap';
+    const srcBin = path.join(rootDir, 'services', 'imap.v2', 'target', 'release', binName);
+    if (!fs.existsSync(srcBin)) {
+      console.error(`❌ services/imap.v2 릴리즈 바이너리를 찾을 수 없습니다: ${srcBin}`);
+      process.exit(1);
+    }
+    const binDestDir = path.join(imapDest, 'bin');
+    fs.mkdirSync(binDestDir, { recursive: true });
+    fs.copyFileSync(srcBin, path.join(binDestDir, binName));
 
-  const originalImapPkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'services', 'imap', 'package.json'), 'utf8'));
-  const prodImapPkg = {
-    name: originalImapPkg.name,
-    version: originalImapPkg.version,
-    private: true,
-    main: "dist/index.js",
-    scripts: {
-      "start": "node dist/index.js"
-    },
-    dependencies: originalImapPkg.dependencies
-  };
-  fs.writeFileSync(path.join(imapDest, 'package.json'), JSON.stringify(prodImapPkg, null, 2), 'utf8');
+    if (fs.existsSync(path.join(rootDir, 'services', 'imap', 'keys'))) {
+      copyDirSync(path.join(rootDir, 'services', 'imap', 'keys'), path.join(imapDest, 'keys'));
+    }
+
+    const prodImapV2Pkg = {
+      name: '@lemail/imap',
+      version: version,
+      private: true,
+      scripts: {
+        start: process.platform === 'win32' ? 'bin\\lemail-imap.exe' : './bin/lemail-imap',
+      },
+    };
+    fs.writeFileSync(path.join(imapDest, 'package.json'), JSON.stringify(prodImapV2Pkg, null, 2), 'utf8');
+  } else {
+    console.log(`  -> services/imap ${isObfuscate ? '난독화' : '표준'} 산출물 및 운영 전용 package.json 복사`);
+    copyDirSync(path.join(rootDir, 'services', 'imap', 'dist'), path.join(imapDest, 'dist'));
+    if (fs.existsSync(path.join(rootDir, 'services', 'imap', 'keys'))) {
+      copyDirSync(path.join(rootDir, 'services', 'imap', 'keys'), path.join(imapDest, 'keys'));
+    }
+
+    const originalImapPkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'services', 'imap', 'package.json'), 'utf8'));
+    const prodImapPkg = {
+      name: originalImapPkg.name,
+      version: originalImapPkg.version,
+      private: true,
+      main: "dist/index.js",
+      scripts: {
+        "start": "node dist/index.js"
+      },
+      dependencies: originalImapPkg.dependencies
+    };
+    fs.writeFileSync(path.join(imapDest, 'package.json'), JSON.stringify(prodImapPkg, null, 2), 'utf8');
+  }
 
   // (6) services/haraka 복사 및 난독화 처리
   console.log(`  -> services/haraka ${isObfuscate ? '난독화 복사' : '표준 복사'}`);

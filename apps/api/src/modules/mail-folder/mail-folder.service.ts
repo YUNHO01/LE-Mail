@@ -156,6 +156,30 @@ export class MailFolderService {
       }
     }
 
+    // 4. 시스템 최상위 편지함은 sortOrder 순서를 유지하고, 개인편지함 하위 트리는 이름 오름차순 정렬
+    const compareFolderNameAsc = (a: MailFolderDto, b: MailFolderDto) =>
+      a.name.localeCompare(b.name, 'ko', { numeric: true, sensitivity: 'base' });
+
+    const sortChildrenRecursively = (nodes: MailFolderDto[]) => {
+      nodes.sort(compareFolderNameAsc);
+      for (const node of nodes) {
+        if (node.children && node.children.length > 0) {
+          sortChildrenRecursively(node.children);
+        }
+      }
+    };
+
+    roots.sort((a, b) => {
+      if (a.isSystem !== b.isSystem) return a.isSystem ? -1 : 1;
+      if (a.isSystem && b.isSystem) return a.sortOrder - b.sortOrder;
+      return compareFolderNameAsc(a, b);
+    });
+    for (const root of roots) {
+      if (root.children && root.children.length > 0) {
+        sortChildrenRecursively(root.children);
+      }
+    }
+
     return roots;
   }
 
@@ -219,7 +243,7 @@ export class MailFolderService {
       parentId: parentFolder ? parentFolder.id : null,
       name: dto.name.trim(),
       type: FolderType.CUSTOM,
-      sortOrder: dto.sortOrder !== undefined ? dto.sortOrder : 0,
+      sortOrder: dto.sortOrder !== undefined ? dto.sortOrder : 10,
       isSystem: false,
       uidvalidity: Math.floor(Date.now() / 1000),
       uidnext: 1,

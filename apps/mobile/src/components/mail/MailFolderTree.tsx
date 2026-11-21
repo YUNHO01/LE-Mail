@@ -171,9 +171,9 @@ export const MailFolderTree: React.FC<MailFolderTreeProps> = ({ onSelectFolder }
           const active = pathname === `/mail/folder/${node.id}`;
 
           return (
-            <div key={node.id} className="group">
+            <div key={node.id}>
               <div
-                className={`flex items-center justify-between rounded-xl px-2 py-2 text-xs font-medium transition-colors ${
+                className={`group flex items-center justify-between rounded-xl px-2 py-2 text-xs font-medium transition-colors ${
                   active
                     ? 'bg-[#007AFF] text-white'
                     : 'text-slate-700 hover:bg-slate-100 active:bg-slate-100'
