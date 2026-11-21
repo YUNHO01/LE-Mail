@@ -126,6 +126,9 @@ async function runPackaging() {
   console.log('  -> apps/web 프로덕션 빌드 (yarn --cwd apps/web build)...');
   execSync('yarn --cwd apps/web build', { stdio: 'inherit', cwd: rootDir });
 
+  console.log('  -> apps/console 프로덕션 빌드 (yarn --cwd apps/console build)...');
+  execSync('yarn --cwd apps/console build', { stdio: 'inherit', cwd: rootDir });
+
   console.log('  -> apps/mobile 프로덕션 빌드 (yarn --cwd apps/mobile build)...');
   execSync('yarn --cwd apps/mobile build', { stdio: 'inherit', cwd: rootDir });
 
@@ -156,9 +159,10 @@ async function runPackaging() {
     ],
     scripts: {
       "start": "yarn start:all",
-      "start:all": "concurrently \"yarn start:api\" \"yarn start:web\" \"yarn start:mobile\" \"yarn start:imap\" \"yarn start:haraka\"",
+      "start:all": "concurrently \"yarn start:api\" \"yarn start:web\" \"yarn start:console\" \"yarn start:mobile\" \"yarn start:imap\" \"yarn start:haraka\"",
       "start:api": "yarn --cwd apps/api start:prod",
       "start:web": "yarn --cwd apps/web start",
+      "start:console": "yarn --cwd apps/console start",
       "start:mobile": "yarn --cwd apps/mobile start",
       "start:imap": "yarn --cwd services/imap start",
       "start:haraka": "yarn --cwd services/haraka start",
@@ -259,6 +263,30 @@ async function runPackaging() {
   fs.writeFileSync(path.join(mobileDest, 'package.json'), JSON.stringify(prodMobilePkg, null, 2), 'utf8');
   if (fs.existsSync(path.join(rootDir, 'apps', 'mobile', 'next.config.mjs'))) {
     fs.copyFileSync(path.join(rootDir, 'apps', 'mobile', 'next.config.mjs'), path.join(mobileDest, 'next.config.mjs'));
+  }
+
+  // (4-3) apps/console (.next, public, scripts, next.config.mjs, 운영 전용 package.json)
+  console.log('  -> apps/console 관리자 콘솔 산출물 및 운영 전용 package.json 복사');
+  const consoleDest = path.join(stagingDir, 'apps', 'console');
+  fs.mkdirSync(consoleDest, { recursive: true });
+
+  copyDirSync(path.join(rootDir, 'apps', 'console', '.next'), path.join(consoleDest, '.next'), ['cache']);
+  copyDirSync(path.join(rootDir, 'apps', 'console', 'public'), path.join(consoleDest, 'public'));
+  copyDirSync(path.join(rootDir, 'apps', 'console', 'scripts'), path.join(consoleDest, 'scripts'));
+
+  const originalConsolePkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'apps', 'console', 'package.json'), 'utf8'));
+  const prodConsolePkg = {
+    name: originalConsolePkg.name,
+    version: originalConsolePkg.version,
+    private: true,
+    scripts: {
+      "start": "node scripts/start.js"
+    },
+    dependencies: originalConsolePkg.dependencies
+  };
+  fs.writeFileSync(path.join(consoleDest, 'package.json'), JSON.stringify(prodConsolePkg, null, 2), 'utf8');
+  if (fs.existsSync(path.join(rootDir, 'apps', 'console', 'next.config.mjs'))) {
+    fs.copyFileSync(path.join(rootDir, 'apps', 'console', 'next.config.mjs'), path.join(consoleDest, 'next.config.mjs'));
   }
 
   // (5) services/imap 복사 (기본 Node v1 또는 --imap-v2 Rust 네이티브 바이너리)

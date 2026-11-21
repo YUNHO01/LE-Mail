@@ -11,6 +11,7 @@ console.log(`\n🔄 [post-bump] 내부 워크스페이스 의존성(@lemail/shar
 const targetPackages = [
   path.join(rootDir, 'apps', 'api', 'package.json'),
   path.join(rootDir, 'apps', 'web', 'package.json'),
+  path.join(rootDir, 'apps', 'console', 'package.json'),
   path.join(rootDir, 'apps', 'mobile', 'package.json'),
   path.join(rootDir, 'services', 'imap', 'package.json'),
   path.join(rootDir, 'services', 'haraka', 'package.json'),

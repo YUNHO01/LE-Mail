@@ -7,7 +7,7 @@ trigger: always_on
 본 프로젝트(`LEMail`)의 기존 구현 구조, 보안 정책, 배포 파이프라인과의 정합성을 유지하기 위해 코드 수정 및 기능 추가 시 아래 규칙을 반드시 준수합니다.
 
 ## 1. 모노레포 및 공유 타입(`@lemail/shared-types`) 일관성 유지
-- 본 저장소는 `apps/api`(9200/2525), `apps/web`(9000), `apps/mobile`(9300), `services/imap`(1143/1993), `services/haraka`(2526), `packages/shared-types`로 구성된 Turborepo 모노레포입니다.
+- 본 저장소는 `apps/api`(9200/2525), `apps/web`(9000), `apps/console`(9100), `apps/mobile`(9300), `services/imap`(1143/1993), `services/haraka`(2526), `packages/shared-types`로 구성된 Turborepo 모노레포입니다.
 - 여러 앱/서비스 간에 공유되는 Enum, DTO 인터페이스, 응답 타입은 `packages/shared-types/index.ts`에 정의합니다.
 - `packages/shared-types`를 수정한 경우, 다른 워크스페이스에서 참조할 수 있도록 반드시 타입 빌드(`yarn --cwd packages/shared-types build`)를 수행하여 `dist/` 산출물을 갱신합니다.
 - 새 워크스페이스나 서비스 엔트리포인트가 추가·변경될 경우 `package.json`, `ecosystem.config.js`, `scripts/package-dist.js`, `scripts/sync-workspace-deps.js`, `.versionrc.json`의 정합성을 함께 확인합니다.
@@ -15,8 +15,8 @@ trigger: always_on
 ## 2. 데스크톱 웹(`apps/web`) & 모바일 PWA(`apps/mobile`) 기능 동기화
 - 사용자 메일 및 협업 라우트(`/mail/inbox`, `sent`, `drafts`, `spam`, `trash`, `folder`, `compose`, `view/[id]`, `contacts`, `calendar`, `settings`)는 `apps/web`과 `apps/mobile` 양쪽에 모두 구현되어 있습니다.
 - 사용자용 메일·주소록·캘린더·개인설정 기능을 추가하거나 API 연동을 변경할 때는 **특별한 사유가 없는 한 `apps/web`과 `apps/mobile` 양쪽 모두에 동일하게 반영**합니다.
-- 관리자 콘솔(`/admin/*`: `dashboard`, `domains`, `holidays`, `license`, `logs`, `mailboxes`, `org`, `quarantine`, `settings`, `spam-rules`, `users`)은 `apps/web` 전용으로 유지합니다.
-- 두 프론트엔드 앱 모두 `Next.js 15` / `React 19` 및 PWA(`manifest.ts`, `offline`) 구성을 유지합니다.
+- 관리자 콘솔(`apps/console`, 포트 9100: `/dashboard`, `/domains`, `/holidays`, `/license`, `/logs`, `/mailboxes`, `/org`, `/quarantine`, `/settings`, `/spam-rules`, `/users`)은 `apps/web`과 분리된 독립 웹 서비스로 유지하며, `SYSTEM_ADMIN` 권한 계정만 `POST /api/auth/admin/login`을 통해 로그인할 수 있습니다.
+- `apps/web`과 `apps/mobile`은 `Next.js 15` / `React 19` 및 PWA(`manifest.ts`, `offline`) 구성을 유지하며, `apps/console`은 `Next.js 15` / `React 19` 기반의 관리자 전용 웹 서비스로 유지합니다.
 
 ## 3. 부트스트랩 환경 변수(`.env`)와 동적 DB 시스템 설정 분리
 - 루트 `.env` 및 `.env.example`에는 초기 기동 및 인프라 연결에 필수적인 부트스트랩 설정(MySQL, Redis, ClamAV, IMAP 포트/TLS, 초기 관리자, `JWT_SECRET`, `APP_ENCRYPTION_KEY`, 공유 디스크 경로, `LICENSE_FILE_PATH`)만 둡니다.

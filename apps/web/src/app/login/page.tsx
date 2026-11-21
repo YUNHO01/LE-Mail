@@ -51,22 +51,9 @@ function LoginForm() {
     try {
       const res = await login(email, password);
       if (res.success) {
-        let targetPath = '/mail/inbox';
-        let nextMessage = '받은 편지함으로 이동 중입니다...';
-
-        if (res.user?.role === 'SYSTEM_ADMIN') {
-          if (res.licenseStatus && !res.licenseStatus.isValid) {
-            targetPath = '/admin/license';
-            nextMessage = '라이선스 관리 화면으로 이동 중입니다...';
-          } else {
-            targetPath = '/admin/users';
-            nextMessage = '관리자 화면으로 이동 중입니다...';
-          }
-        }
-
-        setRedirectMessage(nextMessage);
+        setRedirectMessage('받은 편지함으로 이동 중입니다...');
         setLoginPhase('redirecting');
-        router.push(targetPath);
+        router.push('/mail/inbox');
       } else {
         setError(res.message || '로그인에 실패했습니다.');
         setLoginPhase('idle');

@@ -187,7 +187,7 @@ export default function AdminDashboardPage() {
           <div className="mt-1 text-xs font-medium">
             {(data?.todayMails?.todayOutboundFailed ?? 0) > 0 ? (
               <Link
-                href="/admin/logs?direction=OUTBOUND&status=FAILED"
+                href="/logs?direction=OUTBOUND&status=FAILED"
                 className="inline-flex items-center gap-1 text-rose-600 font-bold hover:underline"
               >
                 <span>발송 실패 {data?.todayMails?.todayOutboundFailed}건</span>
@@ -290,14 +290,14 @@ export default function AdminDashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href="/admin/quarantine"
+              href="/quarantine"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 transition border border-rose-200"
             >
               <span>격리함 이동</span>
               <ArrowRight className="h-3 w-3" />
             </Link>
             <Link
-              href="/admin/spam-rules"
+              href="/spam-rules"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-50 text-slate-700 hover:bg-slate-100 transition border border-slate-200"
             >
               <span>스팸 룰 관리</span>

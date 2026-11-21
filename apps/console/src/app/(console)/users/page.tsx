@@ -176,7 +176,7 @@ export default function UsersManagementPage() {
               type: 'error',
               text: errorData?.message || '유효한 시스템 라이선스가 필요합니다. 라이선스 관리 화면으로 이동합니다.',
             });
-            router.replace('/admin/license');
+            router.replace('/license');
           } else {
             setMessage({
               type: 'error',
@@ -1085,7 +1085,7 @@ export default function UsersManagementPage() {
                 </p>
                 <div className="pt-2">
                   <Link
-                    href="/admin/domains"
+                    href="/domains"
                     onClick={() => setIsCreateModalOpen(false)}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-700 transition"
                   >

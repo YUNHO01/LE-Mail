@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, isAdmin, isLoading, licenseStatus, isLicenseLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
@@ -16,18 +16,8 @@ export default function HomePage() {
       return;
     }
 
-    if (isLicenseLoading) return;
-
-    if (isAdmin) {
-      if (licenseStatus && !licenseStatus.isValid) {
-        router.replace('/admin/license');
-      } else {
-        router.replace('/admin/dashboard');
-      }
-    } else {
-      router.replace('/mail/inbox');
-    }
-  }, [isAuthenticated, isAdmin, isLoading, isLicenseLoading, licenseStatus, router]);
+    router.replace('/mail/inbox');
+  }, [isAuthenticated, isLoading, router]);
 
   return null;
 }

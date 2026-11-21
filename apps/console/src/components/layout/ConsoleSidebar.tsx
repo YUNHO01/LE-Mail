@@ -15,20 +15,21 @@ import {
   ShieldCheck,
   ShieldAlert,
   Filter,
-  ArrowLeft,
-  Server,
+  ExternalLink,
   Settings,
   KeyRound,
   CalendarDays,
   Building2,
 } from 'lucide-react';
 
-interface AdminSidebarProps {
+interface ConsoleSidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
 }
 
-export const AdminSidebar: React.FC<AdminSidebarProps> = ({
+const WEBMAIL_URL = (process.env.NEXT_PUBLIC_WEBMAIL_URL || '').trim();
+
+export const ConsoleSidebar: React.FC<ConsoleSidebarProps> = ({
   sidebarOpen,
   setSidebarOpen,
 }) => {
@@ -43,57 +44,57 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const navItems = [
     {
-      href: '/admin/dashboard',
+      href: '/dashboard',
       label: '모니터링 대시보드',
       icon: Activity,
     },
     {
-      href: '/admin/users',
+      href: '/users',
       label: '사용자 계정 관리',
       icon: UserCog,
     },
     {
-      href: '/admin/org',
+      href: '/org',
       label: '조직도 및 AMS 연동',
       icon: Building2,
     },
     {
-      href: '/admin/domains',
+      href: '/domains',
       label: '도메인 관리',
       icon: Globe,
     },
     {
-      href: '/admin/mailboxes',
+      href: '/mailboxes',
       label: '사서함 관리',
       icon: Mail,
     },
     {
-      href: '/admin/logs',
+      href: '/logs',
       label: '수신 및 보안 로그',
       icon: Layers,
     },
     {
-      href: '/admin/quarantine',
+      href: '/quarantine',
       label: '스팸 격리함 관리',
       icon: ShieldAlert,
     },
     {
-      href: '/admin/spam-rules',
+      href: '/spam-rules',
       label: '스팸 차단 및 필터 정책',
       icon: Filter,
     },
     {
-      href: '/admin/settings',
+      href: '/settings',
       label: '시스템 환경설정',
       icon: Settings,
     },
     {
-      href: '/admin/holidays',
+      href: '/holidays',
       label: '공휴일 관리',
       icon: CalendarDays,
     },
     {
-      href: '/admin/license',
+      href: '/license',
       label: '라이선스 관리',
       icon: KeyRound,
     },
@@ -127,21 +128,20 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
       <div className="flex flex-col justify-between h-[calc(100vh-4rem)] overflow-y-auto px-4 py-5">
         <div className="space-y-6">
-          {/* Quick Switch to User Webmail */}
-          <div>
-            <Link
-              href="/mail/inbox"
-              onClick={() => {
-                setSidebarOpen(false);
-                startNavigation('/mail/inbox');
-              }}
-              onMouseDown={() => startNavigation('/mail/inbox')}
-              className="flex items-center justify-center gap-2 w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all shadow-sm group"
-            >
-              <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform text-sky-400" />
-              <span>사용자 웹메일로 이동</span>
-            </Link>
-          </div>
+          {/* Optional External Link to User Webmail */}
+          {WEBMAIL_URL && (
+            <div>
+              <a
+                href={WEBMAIL_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-2 w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all shadow-sm group"
+              >
+                <span>사용자 웹메일 열기</span>
+                <ExternalLink className="h-3.5 w-3.5 text-sky-400" />
+              </a>
+            </div>
+          )}
 
           {/* Admin Navigation */}
           <div>

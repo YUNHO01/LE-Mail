@@ -1225,6 +1225,38 @@
         ]
       }
     },
+    "/api/auth/admin/login": {
+      "post": {
+        "description": "시스템 관리자(SYSTEM_ADMIN) 권한 계정으로만 로그인할 수 있으며, 일반 계정은 403으로 차단되고 인증 쿠키가 발급되지 않습니다.",
+        "operationId": "AuthController_adminLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "관리자 로그인 성공"
+          },
+          "401": {
+            "description": "인증 실패 (이메일/비밀번호 불일치 또는 비활성 계정)"
+          },
+          "403": {
+            "description": "관리자 권한 없음 (일반 사용자 로그인 차단)"
+          }
+        },
+        "summary": "관리자 콘솔 전용 로그인",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/auth/logout": {
       "post": {
         "description": "HttpOnly 인증 쿠키를 만료시킵니다.",

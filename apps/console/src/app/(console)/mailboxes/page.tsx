@@ -563,7 +563,7 @@ export default function MailboxesPage() {
                 </p>
                 <div className="pt-2">
                   <Link
-                    href="/admin/domains"
+                    href="/domains"
                     onClick={() => setIsModalOpen(false)}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-700 transition"
                   >

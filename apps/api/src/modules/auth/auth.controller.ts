@@ -70,6 +70,25 @@ export class AuthController {
     return result;
   }
 
+  @Post('admin/login')
+  @ApiOperation({
+    summary: '관리자 콘솔 전용 로그인',
+    description:
+      '시스템 관리자(SYSTEM_ADMIN) 권한 계정으로만 로그인할 수 있으며, 일반 계정은 403으로 차단되고 인증 쿠키가 발급되지 않습니다.',
+  })
+  @ApiResponse({ status: 200, description: '관리자 로그인 성공' })
+  @ApiResponse({ status: 401, description: '인증 실패 (이메일/비밀번호 불일치 또는 비활성 계정)' })
+  @ApiResponse({ status: 403, description: '관리자 권한 없음 (일반 사용자 로그인 차단)' })
+  async adminLogin(
+    @Body() loginDto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.adminLogin(loginDto);
+    setAuthCookie(req, res, result?.accessToken);
+    return result;
+  }
+
   @Post('logout')
   @ApiOperation({
     summary: '로그아웃',

@@ -44,6 +44,19 @@ export class AuthService {
     return this.issueLoginResponse(user);
   }
 
+  async adminLogin(loginDto: LoginDto): Promise<LoginResponseDto> {
+    const user = await this.validateUser(loginDto.email, loginDto.password);
+    if (!user) {
+      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    if (user.role !== UserRole.SYSTEM_ADMIN) {
+      throw new ForbiddenException('관리자 권한이 있는 계정만 로그인할 수 있습니다.');
+    }
+
+    return this.issueLoginResponse(user);
+  }
+
   async issueLoginResponse(user: User): Promise<LoginResponseDto> {
 
     if (user.role !== UserRole.SYSTEM_ADMIN) {

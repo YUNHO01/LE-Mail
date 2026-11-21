@@ -10,7 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   licenseStatus: SystemLicenseInfo | null;
   isLicenseLoading: boolean;
-  refreshLicenseStatus: (opts?: { token?: string; role?: UserRole | string }) => Promise<SystemLicenseInfo | null>;
+  refreshLicenseStatus: () => Promise<SystemLicenseInfo | null>;
   login: (
     email: string,
     pass: string,
@@ -39,23 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLicenseLoading, setIsLicenseLoading] = useState(true);
 
   const refreshLicenseStatus = useCallback(
-    async (opts?: { role?: UserRole | string }): Promise<SystemLicenseInfo | null> => {
+    async (): Promise<SystemLicenseInfo | null> => {
       setIsLicenseLoading(true);
       try {
-        const role = opts?.role ?? user?.role;
-        const isAdminUser = role === UserRole.SYSTEM_ADMIN;
-
-        if (isAdminUser) {
-          const res = await fetch(`${API_BASE_URL}/api/admin/license/status`, {
-            credentials: 'include',
-          });
-          if (res.ok) {
-            const data: SystemLicenseInfo = await res.json();
-            setLicenseStatus(data);
-            return data;
-          }
-        }
-
         const res = await fetch(`${API_BASE_URL}/api/license/public`, {
           credentials: 'include',
         });
@@ -75,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLicenseLoading(false);
       }
     },
-    [token, user?.role],
+    [],
   );
 
   useEffect(() => {
@@ -106,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
 
     // Check license status and enforce non-admin session restriction if license is invalid
-    refreshLicenseStatus({ role: parsedUser?.role }).then((licStatus) => {
+    refreshLicenseStatus().then((licStatus) => {
       if (
         parsedUser &&
         parsedUser.role !== 'SYSTEM_ADMIN' &&
@@ -235,9 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('lemail_token');
       localStorage.setItem('lemail_user', JSON.stringify(data.user));
 
-      const licStatus = await refreshLicenseStatus({
-        role: data.user?.role,
-      });
+      const licStatus = await refreshLicenseStatus();
 
       // Fetch storage stats right after login
       fetch(`${API_BASE_URL}/api/users/me/storage-usage`, {

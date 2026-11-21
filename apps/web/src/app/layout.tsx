@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const brandName = await getServerBrandName();
   return {
     title: brandName,
-    description: `${brandName} 엔터프라이즈 웹메일 및 관리자 콘솔`,
+    description: `${brandName} 엔터프라이즈 웹메일`,
     manifest: '/manifest.webmanifest',
     icons: {
       icon: [

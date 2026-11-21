@@ -84,7 +84,8 @@
 | 구분 | 이름 | 포트 | 설명 |
 | :--- | :--- | :--- | :--- |
 | **App** | `apps/api` | `9200` (HTTP)<br>`2525` (SMTP) | 코어 REST API 서버, ESMTP 수신 엔진, 스팸/보안/라이선스/협업 모듈 (NestJS 11) |
-| **App** | `apps/web` | `9000` (HTTP) | 데스크톱 웹메일(메일·주소록·캘린더), PWA 및 시스템 관리자 콘솔 (Next.js 15 / React 19) |
+| **App** | `apps/web` | `9000` (HTTP) | 데스크톱 웹메일(메일·주소록·캘린더) 및 PWA 클라이언트 (Next.js 15 / React 19) |
+| **App** | `apps/console` | `9100` (HTTP) | 시스템 관리자(`SYSTEM_ADMIN`) 전용 운영 콘솔 (Next.js 15 / React 19) |
 | **App** | `apps/mobile` | `9300` (HTTP) | 모바일 최적화 웹메일, 주소록·캘린더 및 오프라인 PWA 클라이언트 (Next.js 15 / React 19) |
 | **Service** | `services/imap` | `1143` (TCP/STARTTLS)<br>`1993` (IMAPS) | 경량·고성능 자체 구현 IMAP4rev1 마이크로서비스 (Node.js/TypeScript) |
 | **Service** | `services/haraka` | `2526` (SMTP) | Haraka 기반 아웃바운드 MTA, 외부 릴레이(Smarthost) 및 라이선스 검증 연동 서비스 |
@@ -109,7 +110,7 @@
 ### 2. 고신뢰성 아웃바운드 발송 (Outbound Delivery)
 - **Haraka 기반 아웃바운드 MTA**: 내장된 고속 Haraka SMTP 서버(`127.0.0.1:2526`)를 통한 신속한 메일 발송 및 바운스 처리.
 - **DKIM 자동 서명 & 발송 속도 제한**: 발신 도메인별 DKIM 서명(`dkim-sign`) 및 계정/도메인별 아웃바운드 Rate Limit(`outbound-rate-limit`) 적용.
-- **스마트호스트(Smarthost) 동적 릴레이**: 사내 릴레이나 외부 메일 서비스(AWS SES, Google Workspace 등) 연동을 관리자 웹 콘솔(`/admin/settings`)에서 GUI로 실시간 설정.
+- **스마트호스트(Smarthost) 동적 릴레이**: 사내 릴레이나 외부 메일 서비스(AWS SES, Google Workspace 등) 연동을 관리자 콘솔(`apps/console`, `/settings`)에서 GUI로 실시간 설정.
 - **자동 보낸편지함(Sent) 동기화**: 메일 발송 성공 시 사용자 계정의 보낸편지함 폴더에 자동 색인 및 저장.
 
 ### 3. 완벽한 표준 지원 IMAP4rev1 마이크로서비스

@@ -9,7 +9,7 @@ import { MailFolderTree } from '../mail/MailFolderTree';
 import {
   Mail,
   Shield,
-  ArrowRight,
+  ExternalLink,
   PenSquare,
   HardDrive,
   RefreshCw,
@@ -202,24 +202,22 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             </Link>
           </div>
 
-          {/* Admin Switcher (관리자일 때만 노출) */}
-          {isAdmin && (
+          {/* Admin Switcher (NEXT_PUBLIC_CONSOLE_URL 설정 + 관리자일 때만 외부 링크 노출) */}
+          {isAdmin && (process.env.NEXT_PUBLIC_CONSOLE_URL || '').trim() && (
             <div className="lg:hidden">
-              <Link
-                href="/admin/dashboard"
-                onClick={() => {
-                  setSidebarOpen(false);
-                  startNavigation('/admin/dashboard');
-                }}
-                onMouseDown={() => startNavigation('/admin/dashboard')}
+              <a
+                href={(process.env.NEXT_PUBLIC_CONSOLE_URL || '').trim()}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setSidebarOpen(false)}
                 className="flex items-center justify-between w-full rounded-xl bg-white border border-black/[0.08] px-3 py-2 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-all group"
               >
                 <div className="flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5 text-[#0071e3]" />
-                  <span>관리자 콘솔로 전환</span>
+                  <span>관리자 콘솔 열기</span>
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform text-[#86868b]" />
-              </Link>
+                <ExternalLink className="h-3.5 w-3.5 text-[#86868b]" />
+              </a>
             </div>
           )}
 
