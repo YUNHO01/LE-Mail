@@ -11,7 +11,8 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'
 
 const version = packageJson.version || '1.0.0';
 const isObfuscate = process.argv.includes('--obfuscate');
-const useImapV2 = process.argv.includes('--imap-v2');
+const useImapV1 = process.argv.includes('--imap-v1');
+const useImapV2 = !useImapV1;
 
 // 날짜 포맷 (YYYYMMDD)
 const now = new Date();
@@ -92,6 +93,40 @@ const obfuscatorOptions = {
   target: 'node',
 };
 
+function buildImapV2Binaries() {
+  const imapV2Dir = path.join(rootDir, 'services', 'imap.v2');
+
+  if (process.platform === 'win32') {
+    console.log('  -> services/imap.v2 Windows 릴리즈 바이너리 빌드 (cargo build --release)...');
+    execSync('node services/imap.v2/scripts/run-cargo.js build', { stdio: 'inherit', cwd: rootDir });
+
+    console.log('  -> services/imap.v2 Linux(x86_64) 릴리즈 바이너리 빌드 (Docker Dockerfile.linux-build)...');
+    execSync(
+      'docker build -f services/imap.v2/Dockerfile.linux-build --output type=local,dest=services/imap.v2/dist-linux services/imap.v2',
+      { stdio: 'inherit', cwd: rootDir }
+    );
+  } else if (process.platform === 'linux') {
+    console.log('  -> services/imap.v2 Linux 릴리즈 바이너리 빌드 (cargo build --release)...');
+    execSync('node services/imap.v2/scripts/run-cargo.js build', { stdio: 'inherit', cwd: rootDir });
+
+    console.log('  -> services/imap.v2 Windows(x86_64-pc-windows-gnu) 크로스 빌드 시도...');
+    try {
+      execSync('node services/imap.v2/scripts/run-cargo.js build --target x86_64-pc-windows-gnu', {
+        stdio: 'inherit',
+        cwd: rootDir,
+      });
+    } catch {
+      console.warn('⚠️ Windows 크로스 빌드 타겟(x86_64-pc-windows-gnu)이 없어 Linux 바이너리만 포함됩니다.');
+    }
+  } else {
+    console.log('  -> services/imap.v2 Linux(x86_64) 릴리즈 바이너리 빌드 (Docker Dockerfile.linux-build)...');
+    execSync(
+      'docker build -f services/imap.v2/Dockerfile.linux-build --output type=local,dest=services/imap.v2/dist-linux services/imap.v2',
+      { stdio: 'inherit', cwd: imapV2Dir }
+    );
+  }
+}
+
 async function runPackaging() {
   // 3. 빌드 실행 확인/진행
   console.log('\n[1/5] 🛠️ 빌드 산출물 확인 및 생성...');
@@ -104,8 +139,8 @@ async function runPackaging() {
     execSync('yarn --cwd apps/api build:obfuscate', { stdio: 'inherit', cwd: rootDir });
 
     if (useImapV2) {
-      console.log('  -> services/imap.v2 Rust 릴리즈 빌드 (네이티브 바이너리, 난독화 불필요)...');
-      execSync('node services/imap.v2/scripts/run-cargo.js build', { stdio: 'inherit', cwd: rootDir });
+      console.log('  -> services/imap.v2 Rust 릴리즈 빌드 (Windows + Linux 네이티브 바이너리, 난독화 불필요)...');
+      buildImapV2Binaries();
     } else {
       console.log('  -> services/imap 난독화 컴파일 (yarn --cwd services/imap build:obfuscate)...');
       execSync('yarn --cwd services/imap build:obfuscate', { stdio: 'inherit', cwd: rootDir });
@@ -115,8 +150,8 @@ async function runPackaging() {
     execSync('yarn --cwd apps/api build', { stdio: 'inherit', cwd: rootDir });
 
     if (useImapV2) {
-      console.log('  -> services/imap.v2 Rust 릴리즈 빌드...');
-      execSync('node services/imap.v2/scripts/run-cargo.js build', { stdio: 'inherit', cwd: rootDir });
+      console.log('  -> services/imap.v2 Rust 릴리즈 빌드 (Windows + Linux)...');
+      buildImapV2Binaries();
     } else {
       console.log('  -> services/imap 표준 컴파일 (yarn --cwd services/imap build)...');
       execSync('yarn --cwd services/imap build', { stdio: 'inherit', cwd: rootDir });
@@ -289,21 +324,51 @@ async function runPackaging() {
     fs.copyFileSync(path.join(rootDir, 'apps', 'console', 'next.config.mjs'), path.join(consoleDest, 'next.config.mjs'));
   }
 
-  // (5) services/imap 복사 (기본 Node v1 또는 --imap-v2 Rust 네이티브 바이너리)
+  // (5) services/imap 복사 (기본 imap.v2 Rust Windows+Linux 바이너리 또는 --imap-v1 Node.js)
   const imapDest = path.join(stagingDir, 'services', 'imap');
   fs.mkdirSync(imapDest, { recursive: true });
 
   if (useImapV2) {
-    console.log('  -> services/imap.v2 Rust 릴리즈 바이너리 복사');
-    const binName = process.platform === 'win32' ? 'lemail-imap.exe' : 'lemail-imap';
-    const srcBin = path.join(rootDir, 'services', 'imap.v2', 'target', 'release', binName);
-    if (!fs.existsSync(srcBin)) {
-      console.error(`❌ services/imap.v2 릴리즈 바이너리를 찾을 수 없습니다: ${srcBin}`);
-      process.exit(1);
-    }
+    console.log('  -> services/imap.v2 Rust 릴리즈 바이너리 복사 (Windows + Linux)');
     const binDestDir = path.join(imapDest, 'bin');
     fs.mkdirSync(binDestDir, { recursive: true });
-    fs.copyFileSync(srcBin, path.join(binDestDir, binName));
+
+    const winCandidates = [
+      path.join(rootDir, 'services', 'imap.v2', 'target', 'release', 'lemail-imap.exe'),
+      path.join(rootDir, 'services', 'imap.v2', 'target', 'x86_64-pc-windows-gnu', 'release', 'lemail-imap.exe'),
+    ];
+    const linuxCandidates = [
+      path.join(rootDir, 'services', 'imap.v2', 'dist-linux', 'lemail-imap'),
+      path.join(rootDir, 'services', 'imap.v2', 'target', 'release', 'lemail-imap'),
+    ];
+
+    const srcWinBin = winCandidates.find((p) => fs.existsSync(p));
+    const srcLinuxBin = linuxCandidates.find((p) => fs.existsSync(p));
+
+    if (!srcWinBin && !srcLinuxBin) {
+      console.error('❌ services/imap.v2 릴리즈 바이너리(Windows/Linux)를 찾을 수 없습니다.');
+      process.exit(1);
+    }
+
+    if (srcWinBin) {
+      fs.copyFileSync(srcWinBin, path.join(binDestDir, 'lemail-imap.exe'));
+      console.log(`    -> Windows 바이너리 포함: ${path.relative(rootDir, srcWinBin)}`);
+    } else {
+      console.warn('⚠️ Windows 바이너리(lemail-imap.exe)를 찾지 못해 생략되었습니다.');
+    }
+
+    if (srcLinuxBin) {
+      const destLinuxBin = path.join(binDestDir, 'lemail-imap');
+      fs.copyFileSync(srcLinuxBin, destLinuxBin);
+      try {
+        fs.chmodSync(destLinuxBin, 0o755);
+      } catch {
+        // ignore on Windows
+      }
+      console.log(`    -> Linux 바이너리 포함: ${path.relative(rootDir, srcLinuxBin)}`);
+    } else {
+      console.warn('⚠️ Linux 바이너리(lemail-imap)를 찾지 못해 생략되었습니다.');
+    }
 
     if (fs.existsSync(path.join(rootDir, 'services', 'imap', 'keys'))) {
       copyDirSync(path.join(rootDir, 'services', 'imap', 'keys'), path.join(imapDest, 'keys'));
@@ -314,7 +379,8 @@ async function runPackaging() {
       version: version,
       private: true,
       scripts: {
-        start: process.platform === 'win32' ? 'bin\\lemail-imap.exe' : './bin/lemail-imap',
+        start:
+          'node -e "const {spawnSync}=require(\'child_process\'),p=process.platform===\'win32\'?\'bin\\\\lemail-imap.exe\':\'./bin/lemail-imap\';process.exit(spawnSync(p,{stdio:\'inherit\'}).status??1)"',
       },
     };
     fs.writeFileSync(path.join(imapDest, 'package.json'), JSON.stringify(prodImapV2Pkg, null, 2), 'utf8');
@@ -405,7 +471,12 @@ async function runPackaging() {
     archive.on('error', (err) => reject(err));
 
     archive.pipe(output);
-    archive.directory(stagingDir, false);
+    archive.directory(stagingDir, false, (entry) => {
+      if (entry.name === 'services/imap/bin/lemail-imap') {
+        entry.mode = 0o755;
+      }
+      return entry;
+    });
     archive.finalize();
   });
 

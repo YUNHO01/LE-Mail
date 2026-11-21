@@ -377,10 +377,10 @@ LEMail은 엔터프라이즈 고객사 설치 및 운영 환경 배포 시 **지
 ### 1. 배포 패키징 명령어
 
 ```bash
-# 1. 난독화 배포 패키지 생성 (운영 배포 기본 권장 - Node.js IMAP v1 포함)
+# 1. 난독화 배포 패키지 생성 (운영 배포 기본 권장 - Rust IMAP v2 Windows + Linux 바이너리 자동 포함)
 yarn package:obfuscate
-# 또는 Rust IMAP v2 네이티브 바이너리 포함 패키징:
-node scripts/package-dist.js --obfuscate --imap-v2
+# 또는 기존 Node.js IMAP v1 포함 패키징 시:
+node scripts/package-dist.js --obfuscate --imap-v1
 
 # 2. 표준 배포 패키지 생성 (난독화 미적용 일반 빌드 패키지)
 yarn package

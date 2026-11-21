@@ -11,7 +11,7 @@
 
 * **웹 프론트엔드 & 리버스 프록시**: Nginx (HTTPS: 443, HTTP: 80 ➔ 443 자동 리다이렉트)
 * **메일 수신 & 발송**: Nginx Stream 또는 직접 바인딩 (Inbound ESMTP: 25, IMAP: 143/993, Haraka MTA: 2526)
-* **백엔드 및 웹 애플리케이션**: Node.js 20 LTS (Core API, Webmail UI, Admin Console, Mobile PWA, IMAP v1, Haraka MTA) 및 Rust 네이티브 바이너리 (IMAP v2 선택 지원)
+* **백엔드 및 웹 애플리케이션**: Node.js 20 LTS (Core API, Webmail UI, Admin Console, Mobile PWA, Haraka MTA) 및 Rust 네이티브 바이너리 (IMAP v2: `services/imap/bin/lemail-imap`)
 * **인프라 저장소**: MySQL 8.0 (데이터베이스), Redis 7.x (작업 큐 & 캐시, 비밀번호 인증 필수)
 * **보안 백신**: ClamAV Daemon (`clamd`, TCP: 3310 스트리밍 실시간 첨부파일 검사)
 * **보안 암호화**: 웹 SSL (Let's Encrypt/공인 인증서), 메일 TLS (IMAP STARTTLS/IMAPS, SMTP TLS)
@@ -570,17 +570,9 @@ pm2 -v
 ```
 
 #### (2) `ecosystem.config.js` 설정 확인
-LEMail 배포 패키지 루트 디렉터리에 `ecosystem.config.js` 파일이 기본 포함되어 있습니다 (`--imap-v2` 패키징 시 `services/imap/bin/lemail-imap` Rust 네이티브 바이너리를 자동 감지하여 실행합니다):
+LEMail 배포 패키지 루트 디렉터리에 `ecosystem.config.js` 파일이 기본 포함되어 있습니다 (`services/imap/bin/lemail-imap` Rust v2 네이티브 바이너리 실행 기준):
 
 ```javascript
-const fs = require('fs');
-const path = require('path');
-
-const useImapV2 = process.env.USE_IMAP_V2 === 'true';
-const imapV2BinName = process.platform === 'win32' ? 'lemail-imap.exe' : 'lemail-imap';
-const packagedImapV2 = fs.existsSync(path.join(__dirname, 'services', 'imap', 'bin', imapV2BinName));
-const imapV2Binary = `target/release/${imapV2BinName}`;
-
 module.exports = {
   apps: [
     {
@@ -655,41 +647,23 @@ module.exports = {
         PORT: 9300,
       },
     },
-    packagedImapV2 || useImapV2
-      ? {
-          name: 'lemail-imap',
-          cwd: packagedImapV2 ? './services/imap' : './services/imap.v2',
-          script: packagedImapV2 ? `bin/${imapV2BinName}` : imapV2Binary,
-          interpreter: 'none',
-          instances: 1,
-          exec_mode: 'fork',
-          autorestart: true,
-          max_restarts: 10,
-          restart_delay: 5000,
-          watch: false,
-          max_memory_restart: '512M',
-          time: true,
-          env: {
-            RUST_LOG: 'info',
-          },
-        }
-      : {
-          name: 'lemail-imap',
-          cwd: './services/imap',
-          script: 'dist/index.js',
-          instances: 1,
-          exec_mode: 'fork',
-          node_args: '--max-old-space-size=2048',
-          autorestart: true,
-          max_restarts: 10,
-          restart_delay: 5000,
-          watch: false,
-          max_memory_restart: '2G',
-          time: true,
-          env: {
-            NODE_ENV: 'production',
-          },
-        },
+    {
+      name: 'lemail-imap',
+      cwd: './services/imap',
+      script: 'bin/lemail-imap',
+      interpreter: 'none',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '512M',
+      time: true,
+      env: {
+        RUST_LOG: 'info',
+      },
+    },
     {
       name: 'lemail-haraka',
       cwd: './services/haraka',
@@ -875,18 +849,19 @@ WantedBy=multi-user.target
 #### (5) IMAP Microservice (`/etc/systemd/system/lemail-imap.service`)
 ```ini
 [Unit]
-Description=LEMail IMAP4rev1 Microservice
+Description=LEMail IMAP4rev1 Microservice (Rust v2)
 After=network.target mysql.service redis-server.service
 
 [Service]
 Type=simple
 User=lemail
 WorkingDirectory=/opt/lemail/services/imap
-Environment=NODE_ENV=production
-# Node.js v1 패키지 사용 시:
-ExecStart=/usr/bin/node dist/index.js
-# (--imap-v2 Rust 바이너리 패키지 사용 시 위 ExecStart 대신 아래 줄 사용)
-# ExecStart=/opt/lemail/services/imap/bin/lemail-imap
+Environment=RUST_LOG=info
+# 기본 Rust v2 네이티브 바이너리 실행:
+ExecStart=/opt/lemail/services/imap/bin/lemail-imap
+# (--imap-v1 Node.js 패키지 사용 시 위 ExecStart 대신 아래 줄 사용)
+# Environment=NODE_ENV=production
+# ExecStart=/usr/bin/node dist/index.js
 Restart=always
 RestartSec=5
 LimitNOFILE=65536

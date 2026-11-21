@@ -2,7 +2,7 @@
 # 사용법:
 #   docker build -f services/imap.v2/Dockerfile.linux-build --output type=local,dest=services/imap.v2/dist-linux services/imap.v2
 
-FROM rust:1.85-bookworm AS builder
+FROM rust:1-bookworm AS builder
 WORKDIR /build
 
 COPY Cargo.toml Cargo.lock* ./

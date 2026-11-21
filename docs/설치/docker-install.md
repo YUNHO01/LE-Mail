@@ -18,7 +18,7 @@
   * Webmail UI Next.js (포트 9000)
   * Admin Console Next.js (포트 9100, `SYSTEM_ADMIN` 전용)
   * Mobile PWA Next.js (포트 9300)
-  * IMAP4rev1 Microservice (Node.js v1 / Rust v2, 포트 1143, 1993, STARTTLS/IMAPS 지원)
+  * IMAP4rev1 Microservice (Rust v2 기본 / Node.js v1 지원, 포트 1143, 1993, STARTTLS/IMAPS 지원)
   * Haraka Outbound Relay MTA (포트 2526, TLS 아웃바운드)
 
 ---
@@ -214,12 +214,12 @@ services:
     networks:
       - lemail-net
 
-  # 6. IMAP4rev1 Microservice (SSL/TLS 지원)
+  # 6. IMAP4rev1 Microservice (Rust v2 기반 SSL/TLS 지원)
   imap:
     image: lemail/imap:latest
     build:
       context: .
-      dockerfile: services/imap/Dockerfile
+      dockerfile: services/imap.v2/Dockerfile
     container_name: lemail-imap
     restart: always
     depends_on:

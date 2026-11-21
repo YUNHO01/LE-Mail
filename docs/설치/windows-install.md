@@ -14,7 +14,7 @@
 * **데이터베이스**: MySQL 8.0 for Windows (utf8mb4 인코딩)
 * **캐시 & 작업 큐**: Memurai (Redis 7 호환 엔진, `requirepass` 인증 필수)
 * **보안 백신**: ClamAV for Windows (`clamd`, TCP: 3310 첨부파일 실시간 검사)
-* **프로세스 관리**: PM2 프로세스 매니저 또는 NSSM (6대 핵심 서비스: Core API, Webmail, Admin Console, Mobile PWA, IMAP v1/v2, Haraka 및 Nginx/ClamAV 백그라운드 상시화)
+* **프로세스 관리**: PM2 프로세스 매니저 또는 NSSM (6대 핵심 서비스: Core API, Webmail, Admin Console, Mobile PWA, IMAP v2 Rust 네이티브, Haraka 및 Nginx/ClamAV 백그라운드 상시화)
 
 ---
 
@@ -371,7 +371,7 @@ LEMail의 6대 핵심 서비스(Core API, Webmail, Admin Console, Mobile PWA, IM
 
 ### 8.1 [방법 1] PM2 프로세스 매니저를 통한 등록 및 실행 (권장)
 
-배포 루트 디렉터리에 포함된 `ecosystem.config.js`를 활용하여 6대 서비스를 원클릭으로 등록 및 실행합니다(`--imap-v2` 패키징 시 `services/imap/bin/lemail-imap.exe` Rust 바이너리를 자동 감지하여 실행합니다).
+배포 루트 디렉터리에 포함된 `ecosystem.config.js`를 활용하여 6대 서비스를 원클릭으로 등록 및 실행합니다(기본 배포 패키지에 포함된 `services/imap/bin/lemail-imap.exe` Rust 네이티브 바이너리를 자동 감지하여 실행합니다).
 
 #### (1) PM2 글로벌 설치 및 확인
 관리자 권한 PowerShell에서 실행:
@@ -380,7 +380,123 @@ npm install -g pm2
 pm2 -v
 ```
 
-#### (2) 서비스 일괄 시작
+#### (2) `ecosystem.config.js` 설정 확인
+LEMail 배포 패키지 루트 디렉터리(`C:\LEMail`)에 `ecosystem.config.js` 파일이 기본 포함되어 있습니다 (`services/imap/bin/lemail-imap.exe` Rust v2 네이티브 바이너리 실행 기준):
+
+```javascript
+module.exports = {
+  apps: [
+    {
+      name: 'lemail-api',
+      cwd: './apps/api',
+      script: 'dist/index.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=4096',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '4G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+        PORT: 9200,
+      },
+    },
+    {
+      name: 'lemail-web',
+      cwd: './apps/web',
+      script: 'scripts/start.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+        PORT: 9000,
+      },
+    },
+    {
+      name: 'lemail-console',
+      cwd: './apps/console',
+      script: 'scripts/start.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+        PORT: 9100,
+      },
+    },
+    {
+      name: 'lemail-mobile',
+      cwd: './apps/mobile',
+      script: 'scripts/start.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+        PORT: 9300,
+      },
+    },
+    {
+      name: 'lemail-imap',
+      cwd: './services/imap',
+      script: 'bin/lemail-imap.exe',
+      interpreter: 'none',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '512M',
+      time: true,
+      env: {
+        RUST_LOG: 'info',
+      },
+    },
+    {
+      name: 'lemail-haraka',
+      cwd: './services/haraka',
+      script: 'index.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+      },
+    },
+  ],
+};
+```
+
+#### (3) 서비스 일괄 시작
 LEMail 설치 루트 디렉터리(`C:\LEMail`)에서 실행합니다:
 
 ```powershell
@@ -393,7 +509,21 @@ pm2 start ecosystem.config.js
 pm2 status
 ```
 
-#### (3) PM2 주요 운영 관리 명령어
+출력 예시:
+```text
+┌────┬────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name           │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │
+├────┼────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ lemail-api     │ default     │ 1.5.6   │ fork    │ 12345    │ 10s    │ 0    │ online    │ 0.5%     │ 120.4 MB │
+│ 1  │ lemail-web     │ default     │ 1.5.6   │ fork    │ 12346    │ 10s    │ 0    │ online    │ 0.2%     │ 85.1 MB  │
+│ 2  │ lemail-console │ default     │ 1.5.6   │ fork    │ 12347    │ 10s    │ 0    │ online    │ 0.1%     │ 78.4 MB  │
+│ 3  │ lemail-mobile  │ default     │ 1.5.6   │ fork    │ 12348    │ 10s    │ 0    │ online    │ 0.2%     │ 82.5 MB  │
+│ 4  │ lemail-imap    │ default     │ 1.5.6   │ fork    │ 12349    │ 10s    │ 0    │ online    │ 0.1%     │ 18.2 MB  │
+│ 5  │ lemail-haraka  │ default     │ 1.5.6   │ fork    │ 12350    │ 10s    │ 0    │ online    │ 0.1%     │ 72.3 MB  │
+└────┴────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┘
+```
+
+#### (4) PM2 주요 운영 관리 명령어
 
 | 작업 | PowerShell 명령어 | 설명 |
 | :--- | :--- | :--- |
@@ -407,7 +537,7 @@ pm2 status
 | **전체 중지** | `pm2 stop ecosystem.config.js` | 전체 서비스 일시 정지 |
 | **프로세스 삭제** | `pm2 delete ecosystem.config.js` | PM2 등록 목록에서 삭제 |
 
-#### (4) Windows 부팅 시 자동 시작 등록 (2가지 방식 중 택1)
+#### (5) Windows 부팅 시 자동 시작 등록 (2가지 방식 중 택1)
 
 **방식 A. NSSM을 통해 PM2 서비스를 Windows 서비스로 등록 (가장 안정적):**
 ```powershell
@@ -429,6 +559,16 @@ npm install -g pm2-windows-service
 pm2-service-install
 # 안내에 따라 서비스 등록 후:
 pm2 save
+```
+
+#### (6) PM2 로그 로테이션(Logrotate) 설정 (권장)
+로그 파일이 디스크 용량을 지속해서 잠식하지 않도록 `pm2-logrotate` 모듈을 설치합니다:
+
+```powershell
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 50M
+pm2 set pm2-logrotate:retain 10
+pm2 set pm2-logrotate:compress true
 ```
 
 ---
@@ -475,13 +615,14 @@ nssm set LEMail-Mobile Start SERVICE_AUTO_START
 
 #### (5) `LEMail-IMAP` 등록
 ```powershell
-# Node.js v1 패키지 사용 시:
-nssm install LEMail-IMAP "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\imap\dist\index.js"
-# (--imap-v2 Rust 바이너리 패키지 사용 시 위 명령 대신 아래 명령 사용)
-# nssm install LEMail-IMAP "C:\LEMail\services\imap\bin\lemail-imap.exe"
+# 기본 Rust v2 네이티브 바이너리 실행:
+nssm install LEMail-IMAP "C:\LEMail\services\imap\bin\lemail-imap.exe"
 nssm set LEMail-IMAP AppDirectory "C:\LEMail\services\imap"
-nssm set LEMail-IMAP AppEnvironmentExtra "NODE_ENV=production"
-nssm set LEMail-IMAP Description "LEMail IMAP4rev1 Microservice"
+nssm set LEMail-IMAP AppEnvironmentExtra "RUST_LOG=info"
+# (--imap-v1 Node.js 패키지 사용 시 위 명령 대신 아래 명령 사용)
+# nssm install LEMail-IMAP "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\imap\dist\index.js"
+# nssm set LEMail-IMAP AppEnvironmentExtra "NODE_ENV=production"
+nssm set LEMail-IMAP Description "LEMail IMAP4rev1 Microservice (Rust v2)"
 nssm set LEMail-IMAP Start SERVICE_AUTO_START
 ```
 

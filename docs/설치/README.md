@@ -36,7 +36,7 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 5. **공식 배포 패키지(ZIP) 기반 배포**:
    * 개발 환경 소스코드 빌드(`yarn build`) 불필요
    * 배포 압축 해제 ➔ 운영 의존성 설치(`yarn install --production`) ➔ 스키마 초기화(`node apps/api/dist/modules/database/scripts/init-schema.js`) ➔ 서비스 기동
-   * `--imap-v2` 옵션으로 패키징된 경우 Rust 기반 고성능 IMAP 바이너리(`services/imap/bin/lemail-imap`)가 자동 포함되며 `pm2 start ecosystem.config.js` 실행 시 자동 감지되어 기동됩니다.
+   * 기본 배포 패키지는 Rust 기반 고성능 IMAP 바이너리(`services/imap/bin/lemail-imap`, `lemail-imap.exe`)를 함께 포함하며 `pm2 start ecosystem.config.js` 실행 시 OS에 맞게 자동 감지되어 기동됩니다.
 
 ---
 
