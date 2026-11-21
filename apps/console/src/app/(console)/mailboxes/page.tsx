@@ -517,7 +517,7 @@ export default function MailboxesPage() {
                     onClick={() => setPage(p)}
                     className={`h-7 w-7 rounded-lg text-xs font-semibold transition ${
                       isActive
-                        ? 'bg-indigo-600 text-white shadow-sm'
+                        ? 'bg-sky-600 text-white shadow-sm'
                         : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >

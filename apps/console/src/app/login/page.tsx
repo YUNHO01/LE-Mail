@@ -85,7 +85,7 @@ function ConsoleLoginForm() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-12 sm:px-6">
-      {/* 배경 이미지 및 다크 오버레이 */}
+      {/* 배경 오피스 이미지 및 딤드 오버레이 (웹메일과 동일) */}
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/login-bg.jpg"
@@ -95,19 +95,19 @@ function ConsoleLoginForm() {
           className="object-cover object-center"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[3px]" />
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]" />
       </div>
 
       {/* Top Brand Header */}
       <div className="mb-8 flex flex-col items-center text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 ring-4 ring-white/20">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-500/30 ring-4 ring-white/20">
           <ShieldCheck className="h-8 w-8" />
         </div>
         <div className="mt-4 flex items-center gap-2">
           <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-md">
             {brandName}
           </h1>
-          <span className="rounded-md bg-indigo-500/30 border border-indigo-400/50 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-indigo-100">
+          <span className="rounded-md bg-blue-500/30 border border-blue-300/50 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-blue-100">
             Admin
           </span>
         </div>
@@ -117,13 +117,13 @@ function ConsoleLoginForm() {
       </div>
 
       {/* Main Login Card */}
-      <div className="w-full max-w-[420px] rounded-3xl border border-white/20 bg-white/95 p-8 shadow-2xl backdrop-blur-md sm:p-10">
+      <div className="w-full max-w-[420px] rounded-3xl border border-white/40 bg-white/95 p-8 shadow-2xl backdrop-blur-md sm:p-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xl font-bold text-slate-900">
-            <Lock className="h-5 w-5 text-indigo-600" />
+            <Lock className="h-5 w-5 text-blue-600" />
             <span>관리자 로그인</span>
           </div>
-          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 border border-indigo-200">
+          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200">
             SYSTEM_ADMIN
           </span>
         </div>
@@ -158,7 +158,7 @@ function ConsoleLoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@lineedge.com"
-                className="w-full rounded-xl border border-indigo-100 bg-indigo-50/40 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full rounded-xl border border-blue-100 bg-blue-50/60 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
@@ -175,7 +175,7 @@ function ConsoleLoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full rounded-xl border border-indigo-100 bg-indigo-50/40 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full rounded-xl border border-blue-100 bg-blue-50/60 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
@@ -183,7 +183,7 @@ function ConsoleLoginForm() {
           <button
             type="submit"
             disabled={isBusy}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-semibold text-white shadow-md shadow-indigo-600/30 transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50"
           >
             {loginPhase === 'redirecting' ? (
               <span>이동 중...</span>
@@ -204,12 +204,12 @@ function ConsoleLoginForm() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 backdrop-blur-sm"
         >
           <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl border border-white/40 bg-white/95 px-6 py-7 text-center shadow-2xl">
             <div className="relative flex items-center justify-center">
-              <div className="h-11 w-11 rounded-full border-[3px] border-indigo-100" />
-              <div className="absolute inset-0 h-11 w-11 animate-spin rounded-full border-[3px] border-indigo-600 border-t-transparent" />
+              <div className="h-11 w-11 rounded-full border-[3px] border-blue-100" />
+              <div className="absolute inset-0 h-11 w-11 animate-spin rounded-full border-[3px] border-blue-600 border-t-transparent" />
             </div>
             <div className="space-y-1">
               <p className="text-sm font-semibold text-slate-800">

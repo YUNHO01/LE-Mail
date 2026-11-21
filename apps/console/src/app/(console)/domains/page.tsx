@@ -417,7 +417,7 @@ export default function DomainsPage() {
                 <tr>
                   <td colSpan={7} className="py-16 text-center text-slate-400">
                     <div className="flex items-center justify-center gap-2">
-                      <RefreshCw className="h-5 w-5 animate-spin text-indigo-600" />
+                      <RefreshCw className="h-5 w-5 animate-spin text-sky-600" />
                       <span className="font-medium">도메인 목록을 불러오는 중...</span>
                     </div>
                   </td>
@@ -441,7 +441,7 @@ export default function DomainsPage() {
                     <tr
                       key={domain.id}
                       className={`transition-colors duration-100 hover:bg-slate-50/80 ${
-                        isSelected ? 'bg-indigo-50/40' : 'bg-white'
+                        isSelected ? 'bg-sky-50/40' : 'bg-white'
                       }`}
                     >
                       {/* 선택 체크박스 */}
@@ -453,7 +453,7 @@ export default function DomainsPage() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {}}
-                          className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
                         />
                       </td>
 
@@ -468,7 +468,7 @@ export default function DomainsPage() {
                           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
                             domain.isDefault
                               ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
-                              : 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100'
+                              : 'bg-sky-50 text-sky-600 ring-1 ring-sky-100'
                           }`}>
                             <Globe className="h-4 w-4" />
                           </div>
@@ -505,19 +505,19 @@ export default function DomainsPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedDomainForDns(domain)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition"
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 hover:text-sky-600 hover:border-sky-200 transition"
                             title="MX / SPF / DKIM DNS 레코드 설정 안내 보기"
                           >
-                            <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
+                            <HelpCircle className="h-3.5 w-3.5 text-sky-500" />
                             <span>DNS 가이드</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => runHealthCheck(domain)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-xs"
+                            className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-100 transition shadow-xs"
                             title="DNS 보안 4종(MX/SPF/DKIM/DMARC) 및 RBL 블랙리스트 실시간 진단"
                           >
-                            <Activity className="h-3.5 w-3.5 text-indigo-600" />
+                            <Activity className="h-3.5 w-3.5 text-sky-600" />
                             <span>보안 진단</span>
                           </button>
                         </div>
@@ -613,7 +613,7 @@ export default function DomainsPage() {
                     onClick={() => setPage(p)}
                     className={`h-7 w-7 rounded-lg text-xs font-semibold transition ${
                       isActive
-                        ? 'bg-indigo-600 text-white shadow-sm'
+                        ? 'bg-sky-600 text-white shadow-sm'
                         : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -641,7 +641,7 @@ export default function DomainsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-              <Globe className="h-5 w-5 text-indigo-600" />
+              <Globe className="h-5 w-5 text-sky-600" />
               <span>신규 도메인 등록</span>
             </h3>
             <p className="text-xs text-slate-500 mb-4">
@@ -658,7 +658,7 @@ export default function DomainsPage() {
                   placeholder="예: lineedge.com 또는 mail.company.com"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono"
+                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
                 />
               </div>
 
@@ -671,7 +671,7 @@ export default function DomainsPage() {
                   placeholder="예: 본사 공식 메일 도메인"
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 />
               </div>
 
@@ -696,7 +696,7 @@ export default function DomainsPage() {
                 <button
                   type="submit"
                   disabled={creating}
-                  className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition disabled:opacity-50"
+                  className="rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-500 transition disabled:opacity-50"
                 >
                   {creating ? '등록 중...' : '등록하기'}
                 </button>
@@ -713,11 +713,11 @@ export default function DomainsPage() {
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-indigo-600" />
+                  <ShieldCheck className="h-5 w-5 text-sky-600" />
                   <span>DNS 레코드 설정 가이드</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 font-mono">
-                  대상 도메인: <strong className="text-indigo-600 font-bold">{selectedDomainForDns.name}</strong>
+                  대상 도메인: <strong className="text-sky-600 font-bold">{selectedDomainForDns.name}</strong>
                 </p>
               </div>
               <button
@@ -732,7 +732,7 @@ export default function DomainsPage() {
             <div className="space-y-3.5 my-4 text-xs">
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-2">
                 <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-indigo-600"></span>
+                  <span className="h-2 w-2 rounded-full bg-sky-600"></span>
                   1. MX 레코드 (메일 수신 목적지)
                 </div>
                 <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700">
@@ -777,7 +777,7 @@ export default function DomainsPage() {
                     type="button"
                     disabled={generatingDkim}
                     onClick={handleGenerateDkim}
-                    className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition disabled:opacity-50"
+                    className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 transition disabled:opacity-50"
                   >
                     {generatingDkim ? '생성 중...' : dkimInfo?.hasKey ? 'DKIM 재발급' : 'DKIM 키 생성'}
                   </button>
@@ -816,11 +816,11 @@ export default function DomainsPage() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-indigo-600" />
+                  <Activity className="h-5 w-5 text-sky-600" />
                   <span>DNS 보안 4종 및 평판 실시간 진단 (Health Check)</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 font-mono">
-                  대상 도메인: <strong className="text-indigo-600 font-bold">{selectedDomainForHealth.name}</strong>
+                  대상 도메인: <strong className="text-sky-600 font-bold">{selectedDomainForHealth.name}</strong>
                 </p>
               </div>
               <button
@@ -834,13 +834,13 @@ export default function DomainsPage() {
 
             {loadingHealth ? (
               <div className="py-12 flex flex-col items-center justify-center space-y-3 text-slate-500 text-xs">
-                <RefreshCw className="h-7 w-7 animate-spin text-indigo-600" />
+                <RefreshCw className="h-7 w-7 animate-spin text-sky-600" />
                 <span>네임서버(DNS) 레코드 및 RBL 블랙리스트 실시간 조회 중...</span>
               </div>
             ) : healthReport ? (
               <div className="space-y-4">
                 {/* 종합 점수 카드 */}
-                <div className="rounded-xl p-4 border flex items-center justify-between bg-gradient-to-r from-slate-50 to-indigo-50/40 border-slate-200">
+                <div className="rounded-xl p-4 border flex items-center justify-between bg-gradient-to-r from-slate-50 to-sky-50/40 border-slate-200">
                   <div>
                     <div className="text-xs text-slate-500 font-medium">종합 보안 인증 점수</div>
                     <div className="text-2xl font-black text-slate-900 mt-0.5">
@@ -853,7 +853,7 @@ export default function DomainsPage() {
                         healthReport.grade === 'EXCELLENT'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : healthReport.grade === 'GOOD'
-                          ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          ? 'bg-sky-50 text-sky-700 border-sky-200'
                           : healthReport.grade === 'WARNING'
                           ? 'bg-amber-50 text-amber-700 border-amber-200'
                           : 'bg-rose-50 text-rose-700 border-rose-200'

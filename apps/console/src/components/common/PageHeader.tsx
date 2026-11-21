@@ -38,13 +38,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       <div>
         <div className="flex items-center gap-2 mb-1">
           {icon && <span className="shrink-0">{icon}</span>}
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-[#1d1d1f] tracking-tight">
             {title}
           </h1>
           {badge && <span className="shrink-0">{badge}</span>}
         </div>
         {subtitle && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[#6e6e73]">
             {subtitle}
           </p>
         )}

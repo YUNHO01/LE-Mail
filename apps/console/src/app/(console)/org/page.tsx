@@ -307,7 +307,7 @@ export default function AdminOrgPage() {
               ) : (
                 <span className="w-5 inline-block" />
               )}
-              <Building2 className="h-4 w-4 text-indigo-600 shrink-0" />
+              <Building2 className="h-4 w-4 text-sky-600 shrink-0" />
               <span className="text-sm font-semibold text-slate-900 truncate">{node.name}</span>
               {node.code && (
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-mono text-slate-600">
@@ -340,7 +340,7 @@ export default function AdminOrgPage() {
                   type="button"
                   onClick={() => openCreateModal(node.id)}
                   title="하위 부서 추가"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50"
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
@@ -373,14 +373,14 @@ export default function AdminOrgPage() {
     <div className="space-y-6">
       <PageHeader
         title="조직도 및 AMS 연동"
-        icon={<Building2 className="h-6 w-6 text-indigo-600" />}
+        icon={<Building2 className="h-6 w-6 text-sky-600" />}
         subtitle="단독 운영 시 사내 부서를 직접 관리하거나, AMS 조직도 데이터를 동기화합니다."
         action={
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setSyncModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100"
             >
               <UploadCloud className="h-4 w-4" />
               <span>AMS 동기화 실행</span>
@@ -388,7 +388,7 @@ export default function AdminOrgPage() {
             <button
               type="button"
               onClick={() => openCreateModal('')}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500"
             >
               <Plus className="h-4 w-4" />
               <span>부서 추가</span>
@@ -426,7 +426,7 @@ export default function AdminOrgPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-200 bg-slate-50/70">
           <div className="flex items-center gap-2">
-            <Settings className="h-4 w-4 text-indigo-600" />
+            <Settings className="h-4 w-4 text-sky-600" />
             <span className="text-sm font-bold text-slate-900">AMS 연동 및 자동 동기화 설정</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -750,7 +750,7 @@ export default function AdminOrgPage() {
                 <button
                   type="submit"
                   disabled={savingDept}
-                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
                 >
                   {savingDept ? '저장 중...' : '저장'}
                 </button>
@@ -792,7 +792,7 @@ export default function AdminOrgPage() {
                 <button
                   type="submit"
                   disabled={syncing}
-                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
                 >
                   {syncing ? '동기화 실행 중...' : '동기화 실행'}
                 </button>
@@ -836,7 +836,7 @@ export default function AdminOrgPage() {
 
             <div className="w-full space-y-2.5 pt-1">
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full rounded-full w-full bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500 animate-pulse" />
+                <div className="h-full rounded-full w-full bg-gradient-to-r from-sky-500 via-sky-500 to-sky-500 animate-pulse" />
               </div>
               <p className="text-[11px] font-medium rounded-lg py-1.5 px-3 border text-amber-600 bg-amber-50 border-amber-200/60">
                 조직도 동기화가 완료될 때까지 브라우저 창을 닫거나 새로고침하지 마세요.

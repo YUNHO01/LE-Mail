@@ -233,7 +233,7 @@ export default function AdminDashboardPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-500">Node Heap / RSS</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
               <Server className="h-5 w-5" />
             </div>
           </div>
@@ -281,7 +281,7 @@ export default function AdminDashboardPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
           <div>
             <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-indigo-600" />
+              <ShieldAlert className="h-5 w-5 text-sky-600" />
               <span>스팸 및 보안 위협 방어 현황 (최근 7일)</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -311,7 +311,7 @@ export default function AdminDashboardPage() {
           <div className="rounded-xl bg-slate-50 p-4 border border-slate-200/80">
             <span className="text-xs font-medium text-slate-500">전체 스팸 차단율</span>
             <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl font-extrabold text-indigo-600">
+              <span className="text-2xl font-extrabold text-sky-600">
                 {spamAnalytics?.kpi?.blockRatePercent ?? 0}%
               </span>
               <span className="text-xs text-slate-500">차단됨</span>

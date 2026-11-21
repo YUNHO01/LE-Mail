@@ -583,7 +583,7 @@ export default function AdminLogsPage() {
                               </span>
                             )}
                             {log.dmarcResult === 'PASS' && (
-                              <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200">
+                              <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 border border-sky-200">
                                 DMARC
                               </span>
                             )}

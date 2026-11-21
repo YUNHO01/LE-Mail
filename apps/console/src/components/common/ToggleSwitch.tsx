@@ -16,14 +16,14 @@ export interface ToggleSwitchProps {
 
 const COLOR_MAP: Record<'indigo' | 'sky' | 'amber', { bg: string; ring: string; text: string }> = {
   indigo: {
-    bg: 'bg-indigo-600',
-    ring: 'focus:ring-indigo-500',
-    text: 'text-indigo-600',
+    bg: 'bg-[#0071e3]',
+    ring: 'focus:ring-[#0071e3]',
+    text: 'text-[#0071e3]',
   },
   sky: {
-    bg: 'bg-sky-600',
-    ring: 'focus:ring-sky-500',
-    text: 'text-sky-600',
+    bg: 'bg-[#0071e3]',
+    ring: 'focus:ring-[#0071e3]',
+    text: 'text-[#0071e3]',
   },
   amber: {
     bg: 'bg-amber-500',
@@ -38,7 +38,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   label,
   showStatusText = true,
   size = 'md',
-  color = 'indigo',
+  color = 'sky',
   disabled = false,
   id,
   className = '',

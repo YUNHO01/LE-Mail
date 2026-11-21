@@ -191,7 +191,7 @@ export default function AdminSpamRulesPage() {
     <div className="space-y-6">
       <PageHeader
         title="스팸 필터 및 차단 정책 (Whitelist & Blacklist)"
-        icon={<Filter className="h-6 w-6 text-indigo-500" />}
+        icon={<Filter className="h-6 w-6 text-sky-500" />}
         subtitle="전사 또는 도메인 단위의 이메일 수신 허용(화이트리스트) 및 차단(블랙리스트) 규칙을 관리합니다."
       />
 
@@ -199,7 +199,7 @@ export default function AdminSpamRulesPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
@@ -237,7 +237,7 @@ export default function AdminSpamRulesPage() {
               onChange={(e) => setClamavHost(e.target.value)}
               disabled={!clamavEnabled}
               placeholder="예: 127.0.0.1 또는 clamav"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none disabled:opacity-50"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none disabled:opacity-50"
             />
           </div>
 
@@ -251,7 +251,7 @@ export default function AdminSpamRulesPage() {
               onChange={(e) => setClamavPort(Number(e.target.value))}
               disabled={!clamavEnabled}
               placeholder="기본값: 3310"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none disabled:opacity-50"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none disabled:opacity-50"
             />
           </div>
 
@@ -265,7 +265,7 @@ export default function AdminSpamRulesPage() {
               onChange={(e) => setClamavTimeoutMs(Number(e.target.value))}
               disabled={!clamavEnabled}
               placeholder="기본값: 3000"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none disabled:opacity-50"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none disabled:opacity-50"
             />
           </div>
         </div>
@@ -315,7 +315,7 @@ export default function AdminSpamRulesPage() {
               disabled={testingConnection}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50"
             >
-              <Activity className={`h-3.5 w-3.5 text-indigo-500 ${testingConnection ? 'animate-spin' : ''}`} />
+              <Activity className={`h-3.5 w-3.5 text-sky-500 ${testingConnection ? 'animate-spin' : ''}`} />
               <span>{testingConnection ? '연결 확인 중...' : '연결 테스트 (Ping)'}</span>
             </button>
 
@@ -323,7 +323,7 @@ export default function AdminSpamRulesPage() {
               type="button"
               onClick={handleSaveClamavConfig}
               disabled={configSaving}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 transition disabled:opacity-50"
             >
               <Save className="h-3.5 w-3.5" />
               <span>{configSaving ? '저장 중...' : '설정 저장'}</span>
@@ -335,7 +335,7 @@ export default function AdminSpamRulesPage() {
       {/* 새 규칙 등록 카드 */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <Plus className="h-4 w-4 text-indigo-600" />
+          <Plus className="h-4 w-4 text-sky-600" />
           <span>새 전사 차단/허용 규칙 등록</span>
         </h2>
 
@@ -383,7 +383,7 @@ export default function AdminSpamRulesPage() {
               value={newPattern}
               onChange={(e) => setNewPattern(e.target.value)}
               placeholder="예: @bad-spammer.com"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none"
             />
           </div>
 
@@ -396,7 +396,7 @@ export default function AdminSpamRulesPage() {
               value={newReason}
               onChange={(e) => setNewReason(e.target.value)}
               placeholder="예: 해외 도박성 대량 스팸 도메인"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none"
             />
           </div>
 
@@ -404,7 +404,7 @@ export default function AdminSpamRulesPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-lg bg-indigo-600 py-2 px-4 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition disabled:opacity-50"
+              className="w-full rounded-lg bg-sky-600 py-2 px-4 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 transition disabled:opacity-50"
             >
               {isSubmitting ? '등록 중...' : '규칙 추가'}
             </button>
@@ -422,7 +422,7 @@ export default function AdminSpamRulesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="패턴 또는 사유 검색..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs focus:border-indigo-500 focus:bg-white focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none"
             />
           </div>
 

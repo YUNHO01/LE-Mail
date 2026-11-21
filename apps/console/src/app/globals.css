@@ -11,8 +11,9 @@
 }
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f5f5f7;
+  --foreground: #1d1d1f;
+  --icloud-blue: #0071e3;
 }
 
 body {
@@ -66,12 +67,12 @@ body {
   }
 
   .btn-primary {
-    background-color: #4f46e5;
+    background-color: #0071e3;
     color: #ffffff;
     border-color: transparent;
   }
   .btn-primary:hover {
-    background-color: #4338ca;
+    background-color: #0077ed;
   }
 
   .btn-secondary {
@@ -124,8 +125,8 @@ body {
   .form-select:focus,
   select.form-select:focus {
     outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+    border-color: #0071e3;
+    box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.15);
   }
 }
 

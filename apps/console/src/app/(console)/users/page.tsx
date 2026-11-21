@@ -829,7 +829,7 @@ export default function UsersManagementPage() {
                                 </span>
                               )}
                               {(item.departmentName || item.position) && (
-                                <span className="inline-flex items-center rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200">
+                                <span className="inline-flex items-center rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 border border-sky-200">
                                   {[item.departmentName, item.position].filter(Boolean).join(' · ')}
                                 </span>
                               )}
@@ -1039,7 +1039,7 @@ export default function UsersManagementPage() {
                     onClick={() => setPage(p)}
                     className={`h-7 w-7 rounded-lg text-xs font-semibold transition ${
                       isActive
-                        ? 'bg-indigo-600 text-white shadow-sm'
+                        ? 'bg-sky-600 text-white shadow-sm'
                         : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >

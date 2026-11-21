@@ -102,32 +102,32 @@ export const ConsoleSidebar: React.FC<ConsoleSidebarProps> = ({
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-30 w-64 bg-slate-950 text-slate-300 border-r border-slate-800 transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-30 w-60 flex flex-col bg-[#f5f5f7] text-[#1d1d1f] border-r border-black/[0.08] transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      {/* Brand Header */}
-      <div className="flex h-16 items-center justify-between border-b border-slate-800/80 px-5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
-            <ShieldCheck className="h-5 w-5" />
+      {/* Brand Header (웹메일 UserSidebar와 동일한 48px 규격) */}
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-black/[0.08] px-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-b from-[#2997ff] to-[#0071e3] text-white shadow-xs">
+            <ShieldCheck className="h-4 w-4" />
           </div>
           <div className="flex items-center gap-1.5 min-w-0">
             <span
-              className="text-base font-bold tracking-tight text-white truncate"
+              className="text-[15px] font-semibold tracking-tight text-[#1d1d1f] truncate"
               title={brandName}
             >
               {brandName}
             </span>
-            <span className="shrink-0 rounded bg-indigo-950 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400 border border-indigo-800">
+            <span className="shrink-0 rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-[#6e6e73]">
               Admin
             </span>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col justify-between h-[calc(100vh-4rem)] overflow-y-auto px-4 py-5">
-        <div className="space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 justify-between px-3 py-3">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-3.5 pr-0.5">
           {/* Optional External Link to User Webmail */}
           {WEBMAIL_URL && (
             <div>
@@ -135,20 +135,21 @@ export const ConsoleSidebar: React.FC<ConsoleSidebarProps> = ({
                 href={WEBMAIL_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center gap-2 w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all shadow-sm group"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center justify-center gap-2 w-full rounded-xl bg-white border border-black/[0.08] px-3 py-2 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition-all shadow-xs group"
               >
                 <span>사용자 웹메일 열기</span>
-                <ExternalLink className="h-3.5 w-3.5 text-sky-400" />
+                <ExternalLink className="h-3.5 w-3.5 text-[#0071e3]" />
               </a>
             </div>
           )}
 
           {/* Admin Navigation */}
           <div>
-            <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <div className="px-2.5 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#86868b]">
               시스템 관리 콘솔
             </div>
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isLinkActive(item.href);
@@ -161,35 +162,18 @@ export const ConsoleSidebar: React.FC<ConsoleSidebarProps> = ({
                       startNavigation(item.href);
                     }}
                     onMouseDown={() => startNavigation(item.href)}
-                    className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
                       active
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                        : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                        ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                        : 'text-[#1d1d1f] hover:bg-black/[0.04]'
                     }`}
                   >
-                    <Icon className={`h-4 w-4 ${active ? 'text-white' : 'text-slate-400'}`} />
-                    <span>{item.label}</span>
+                    <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-[#0071e3]' : 'text-[#6e6e73]'}`} />
+                    <span className="truncate">{item.label}</span>
                   </Link>
                 );
               })}
             </nav>
-          </div>
-        </div>
-
-        {/* Server Status Footer */}
-        <div className="rounded-xl bg-slate-900/90 p-3.5 border border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-            </span>
-            <span className="text-xs font-semibold text-slate-200">SMTP Core Engine</span>
-          </div>
-          <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Port 2525</span>
-            <span className="rounded bg-emerald-950 px-1 py-0.2 text-[10px] text-emerald-400 border border-emerald-800">
-              Healthy
-            </span>
           </div>
         </div>
       </div>

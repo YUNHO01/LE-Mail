@@ -66,7 +66,7 @@ export default function ErrorBoundary({
         <button
           type="button"
           onClick={handleGoToLogin}
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
+          className="flex items-center gap-2 rounded-xl bg-[#0071e3] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0077ed] transition"
         >
           <LogIn className="h-4 w-4" />
           <span>관리자 로그인으로 이동</span>

@@ -198,7 +198,7 @@ export default function AdminHolidaysPage() {
 
       <PageHeader
         title="대한민국 공휴일 관리"
-        icon={<CalendarDays className="h-6 w-6 text-indigo-600" />}
+        icon={<CalendarDays className="h-6 w-6 text-sky-600" />}
         subtitle="한국천문연구원 특일정보 API 자동 동기화 및 임시·대체공휴일을 관리합니다."
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -214,7 +214,7 @@ export default function AdminHolidaysPage() {
               type="button"
               onClick={handleSyncNow}
               disabled={syncing}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 shadow-sm transition disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
               <span>{syncing ? '동기화 중...' : '천문연 API 즉시 동기화'}</span>
@@ -252,7 +252,7 @@ export default function AdminHolidaysPage() {
                   : '기록 없음'}
               </span>
               {settings?.lastSyncStatus && (
-                <span className="ml-2 text-indigo-600">
+                <span className="ml-2 text-sky-600">
                   ({settings.lastSyncStatus})
                 </span>
               )}
@@ -278,7 +278,7 @@ export default function AdminHolidaysPage() {
               value={kasiApiKey}
               onChange={(e) => setKasiApiKey(e.target.value)}
               placeholder="Decoding 또는 Encoding ServiceKey"
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-mono text-slate-800 focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-mono text-slate-800 focus:border-sky-500 focus:outline-none"
             />
           </div>
 
@@ -292,7 +292,7 @@ export default function AdminHolidaysPage() {
               value={icsFeedUrl}
               onChange={(e) => setIcsFeedUrl(e.target.value)}
               placeholder="https://.../ko.south_korea.official#holiday@group.v.calendar.google.com/public/basic.ics"
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-800 focus:border-sky-500 focus:outline-none"
             />
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function AdminHolidaysPage() {
           <button
             type="submit"
             disabled={savingSettings}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 transition disabled:opacity-50"
           >
             <Save className="h-3.5 w-3.5" />
             <span>{savingSettings ? '저장 중...' : '연동 설정 저장'}</span>

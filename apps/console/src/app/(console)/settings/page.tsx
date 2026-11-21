@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
 import {
   SettingCategory,
@@ -9,7 +10,7 @@ import {
   SaveStepSettingsResponseDto,
   AiProvider,
 } from '@lemail/shared-types';
-import { PageHeader } from '@/components/common';
+import { PageHeader, ToggleSwitch } from '@/components/common';
 import {
   Server,
   Mail,
@@ -17,23 +18,19 @@ import {
   ShieldCheck,
   Database,
   Lock,
-  Unlock,
   AlertTriangle,
   CheckCircle2,
   XCircle,
   RefreshCw,
-  ChevronRight,
-  ChevronLeft,
   Save,
-  HelpCircle,
   Info,
-  Layers,
   Cpu,
   Wifi,
   Eye,
   EyeOff,
   Zap,
   Sparkles,
+  Settings,
 } from 'lucide-react';
 
 interface SettingMetadata {
@@ -74,8 +71,18 @@ interface ModulesStatus {
   };
 }
 
-const STEPS = [
+type SettingsTabKey = 'server' | 'inbound' | 'outbound' | 'auth' | 'infra' | 'ai';
+
+const TABS: Array<{
+  key: SettingsTabKey;
+  step: number;
+  category: SettingCategory;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  summary: string;
+}> = [
   {
+    key: 'server',
     step: 1,
     category: SettingCategory.SERVER,
     label: '기본 서버',
@@ -83,6 +90,7 @@ const STEPS = [
     summary: 'API 서버 포트, 동시성 스레드 풀, 디스크 스풀 및 메일 아카이브 경로를 설정합니다.',
   },
   {
+    key: 'inbound',
     step: 2,
     category: SettingCategory.SMTP_INBOUND,
     label: '메일 수신 (SMTP)',
@@ -90,6 +98,7 @@ const STEPS = [
     summary: 'ESMTP 수신 리스닝 포트, 동시 접속 제한, 역방향 프록시 및 사서함 캐시 유효 시간을 제어합니다.',
   },
   {
+    key: 'outbound',
     step: 3,
     category: SettingCategory.SMTP_OUTBOUND,
     label: '발송 & 릴레이',
@@ -97,6 +106,7 @@ const STEPS = [
     summary: '자체 Haraka MTA 발송 및 상위 스마트호스트(Google Workspace, SES, 사내 릴레이)를 설정합니다.',
   },
   {
+    key: 'auth',
     step: 4,
     category: SettingCategory.AUTH,
     label: '보안 & JWT 인증',
@@ -104,6 +114,7 @@ const STEPS = [
     summary: 'JWT 액세스 토큰 서명 키, 토큰 유효 기간 및 기본 시스템 관리자 계정 정보를 관리합니다.',
   },
   {
+    key: 'infra',
     step: 5,
     category: SettingCategory.INFRA,
     label: '인프라 (DB & Redis)',
@@ -111,6 +122,7 @@ const STEPS = [
     summary: 'MySQL 데이터베이스 및 BullMQ 작업 큐, IMAP 실시간 Push에 사용되는 Redis 연결을 설정합니다.',
   },
   {
+    key: 'ai',
     step: 6,
     category: SettingCategory.AI,
     label: 'AI 지원',
@@ -129,7 +141,6 @@ const FIELD_HELP: Record<
     tip?: string;
   }
 > = {
-  // Step 1
   PORT: {
     title: 'API 서버 HTTP 리스닝 포트',
     desc: 'LEMail 코어 백엔드 REST API 서버가 수신 대기할 HTTP 네트워크 포트입니다. Nginx/ALB 등의 리버스 프록시 뒤에 배치할 경우 해당 프록시가 전달하는 대상 포트와 일치해야 합니다.',
@@ -157,8 +168,6 @@ const FIELD_HELP: Record<
     desc: '메일 파싱 및 DB 색인이 완료된 직후 mail-spool 임시 파일을 디스크에서 즉시 삭제할지 여부입니다.',
     recommended: 'false (안전 보관 후 스케줄러로 일괄 정리 권장)',
   },
-
-  // Step 2
   SMTP_PORT: {
     title: 'ESMTP 수신 리스닝 포트',
     desc: '외부 메일 서버 및 내부 클라이언트로부터 메일을 수신하는 고성능 ESMTP 서버의 바인딩 포트입니다.',
@@ -181,8 +190,6 @@ const FIELD_HELP: Record<
     desc: '수신 메일의 Early Reject(사서함 미존재 시 조기 차단)를 위해 Redis에 캐싱하는 사서함 존재 여부의 유효 기간(초)입니다.',
     recommended: '60초 (기본값) ~ 300초',
   },
-
-  // Step 3
   HARAKA_ENABLED: {
     title: 'Haraka Direct MX 아웃바운드 발송 활성화',
     desc: '외부 릴레이 없이 LEMail 자체 내장 고속 Haraka MTA 엔진을 통해 수신자 도메인의 DNS MX 레코드를 직접 조회하여 발송합니다.',
@@ -234,8 +241,6 @@ const FIELD_HELP: Record<
     desc: '사내 폐쇄망 사설 인증서나 자체 서명된 SSL 인증서를 사용할 경우 false로 설정하여 인증서 신뢰 오류를 방지합니다.',
     recommended: 'false (사내망/테스트 환경) 또는 true (공인 인증서)',
   },
-
-  // Step 4
   DEFAULT_ADMIN_EMAIL: {
     title: '시스템 기본 관리자 이메일',
     desc: 'LEMail 시스템 초기 부트스트랩 시 생성된 시스템 최고 관리자 계정 이메일입니다.',
@@ -257,8 +262,6 @@ const FIELD_HELP: Record<
     desc: '로그인 후 발급되는 토큰의 유효 기간입니다.',
     recommended: '1d (하루) 또는 사내 보안 정책에 맞는 기간 (예: 12h, 7d)',
   },
-
-  // Step 5
   DB_HOST: {
     title: 'MySQL 데이터베이스 호스트',
     desc: 'LEMail 사서함, 메시지, 도메인 메타데이터가 저장되는 MySQL 데이터베이스 서버의 IP 또는 도메인입니다.',
@@ -304,8 +307,6 @@ const FIELD_HELP: Record<
     desc: 'Redis 서버 인증 비밀번호입니다. (없을 경우 비워둘 수 있습니다.)',
     recommended: '비밀번호를 변경할 때만 새로 입력하세요.',
   },
-
-  // Step 6: AI
   AI_PERSONAL_EXTERNAL_ENABLED: {
     title: '개인용 외부 AI 사용 허용',
     desc: '사용자가 환경설정에서 본인의 외부 AI API Key(OpenAI, Gemini, Anthropic 등)를 등록해 메일·주소록·일정에서 AI 보조 기능을 사용할 수 있도록 허용합니다.',
@@ -339,9 +340,15 @@ const FIELD_HELP: Record<
   },
 };
 
-export default function SettingsPage() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [stepData, setStepData] = useState<StepResponse | null>(null);
+function SystemSettingsContent() {
+  const searchParams = useSearchParams();
+  const initialTabParam = searchParams.get('tab') as SettingsTabKey | null;
+  const validTabKeys = TABS.map((t) => t.key);
+
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>(
+    initialTabParam && validTabKeys.includes(initialTabParam) ? initialTabParam : 'server',
+  );
+  const [tabData, setTabData] = useState<StepResponse | null>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -357,7 +364,7 @@ export default function SettingsPage() {
   const [testingRedis, setTestingRedis] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // 피드백 알림 (상단 토스트)
+  // 피드백 알림
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
@@ -370,7 +377,6 @@ export default function SettingsPage() {
     restartLevel: RestartLevel;
     targetModules: TargetModule[];
     message: string;
-    nextStepAfterRestart?: number;
   }>({
     open: false,
     changedKeys: [],
@@ -380,7 +386,31 @@ export default function SettingsPage() {
   });
   const [restartingModule, setRestartingModule] = useState(false);
 
-  // 모듈 상태 조회
+  const currentTabMeta = TABS.find((t) => t.key === activeTab) || TABS[0];
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as SettingsTabKey | null;
+    if (tabParam && validTabKeys.includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  // 탭 전환 시 Next.js 라우터 대신 브라우저 히스토리를 갱신하여 스크롤 점프 방지
+  const handleTabChange = (tab: SettingsTabKey) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      window.history.replaceState(null, '', url.toString());
+
+      const scrollParents = document.querySelectorAll('.overflow-y-auto');
+      scrollParents.forEach((el) => {
+        el.scrollTop = 0;
+      });
+      window.scrollTo(0, 0);
+    }
+  };
+
   const loadModulesStatus = async () => {
     try {
       setCheckingStatus(true);
@@ -393,14 +423,14 @@ export default function SettingsPage() {
     }
   };
 
-  // 해당 스텝 설정 로드
-  const loadStepSettings = async (step: number) => {
+  const loadTabSettings = async (step: number) => {
     try {
       setLoading(true);
       setTestResult(null);
       setFeedback(null);
+      setShowPassword({});
       const res = await fetchApi<StepResponse>(`/admin/settings/step/${step}`);
-      setStepData(res);
+      setTabData(res);
       setFormValues(res.settings || {});
     } catch (e: any) {
       setFeedback({
@@ -417,10 +447,9 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    loadStepSettings(currentStep);
-  }, [currentStep]);
+    loadTabSettings(currentTabMeta.step);
+  }, [currentTabMeta.step]);
 
-  // 입력값 변경 핸들러
   const handleInputChange = (key: string, value: any) => {
     setFormValues((prev) => ({
       ...prev,
@@ -428,9 +457,7 @@ export default function SettingsPage() {
     }));
   };
 
-  // 비밀번호 표시 토글 및 실제 암호 복호화 조회
   const toggleShowPassword = async (key: string) => {
-    // 이미 열려 있으면 닫기
     if (showPassword[key]) {
       setShowPassword((prev) => ({
         ...prev,
@@ -439,7 +466,6 @@ export default function SettingsPage() {
       return;
     }
 
-    // 마스킹된 상태(••••••••)라면 서버에서 실제 복호화된 원본 암호를 조회하여 반영
     const currentValue = formValues[key];
     if (currentValue === '••••••••') {
       try {
@@ -476,22 +502,21 @@ export default function SettingsPage() {
     }
   };
 
-  // 1. 현재 스텝 저장 및 적용 핸들러
-  const handleSaveStep = async () => {
+  // 현재 탭 설정 독립 저장
+  const handleSaveTab = async () => {
     try {
       setSaving(true);
       setFeedback(null);
       setTestResult(null);
 
       const res = await fetchApi<SaveStepSettingsResponseDto>(
-        `/admin/settings/step/${currentStep}`,
+        `/admin/settings/step/${currentTabMeta.step}`,
         {
           method: 'PUT',
           body: JSON.stringify({ settings: formValues }),
         },
       );
 
-      // 모듈 재시작이 필요한 경우 팝업 다이얼로그 표시
       if (res.requiresRestart) {
         setRestartModal({
           open: true,
@@ -499,19 +524,12 @@ export default function SettingsPage() {
           restartLevel: res.restartLevel,
           targetModules: res.targetModules,
           message: res.message,
-          nextStepAfterRestart: currentStep < 6 ? currentStep + 1 : undefined,
         });
       } else {
         setFeedback({
           type: 'success',
           message: `${res.message} (재시작 불필요: 런타임에 즉시 반영되었습니다)`,
         });
-        // 재시작이 필요 없으면 잠시 후 다음 스텝으로 자연스럽게 안내
-        if (currentStep < 6) {
-          setTimeout(() => {
-            setCurrentStep((prev) => prev + 1);
-          }, 1000);
-        }
       }
 
       await loadModulesStatus();
@@ -525,14 +543,6 @@ export default function SettingsPage() {
     }
   };
 
-  // 2. 이전 단계 이동
-  const handlePrevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  };
-
-  // 4. 모듈 즉시 재시작 실행
   const handleExecuteRestart = async () => {
     try {
       setRestartingModule(true);
@@ -553,11 +563,6 @@ export default function SettingsPage() {
 
       setRestartModal((prev) => ({ ...prev, open: false }));
       await loadModulesStatus();
-
-      // 다음 스텝으로 이동
-      if (restartModal.nextStepAfterRestart) {
-        setCurrentStep(restartModal.nextStepAfterRestart);
-      }
     } catch (e: any) {
       setFeedback({
         type: 'error',
@@ -568,7 +573,6 @@ export default function SettingsPage() {
     }
   };
 
-  // 5. SMTP 릴레이 연결 테스트
   const handleTestRelay = async () => {
     try {
       setTestingRelay(true);
@@ -598,7 +602,6 @@ export default function SettingsPage() {
     }
   };
 
-  // 6. Redis 연결 테스트
   const handleTestRedis = async () => {
     try {
       setTestingRedis(true);
@@ -625,247 +628,252 @@ export default function SettingsPage() {
     }
   };
 
-  const currentStepMeta = STEPS[currentStep - 1];
+  const CurrentIcon = currentTabMeta.icon;
 
   return (
-    <div className="space-y-6">
-      {/* 1. Page Header */}
+    <div className="space-y-6 w-full">
+      {/* 1. 웹메일 환경설정과 동일한 표준 PageHeader */}
       <PageHeader
-        title="웹 환경설정 (System Configuration)"
-        subtitle="서버 포트, ESMTP 인바운드 수신 엔진, 아웃바운드 릴레이, 보안 인증 및 인프라 설정을 웹 콘솔에서 단계별로 안전하게 구성합니다."
+        title="시스템 환경설정"
+        icon={<Settings className="h-6 w-6 text-[#0071e3]" />}
+        subtitle="서버 포트, ESMTP 수신 엔진, 아웃바운드 릴레이, 보안 인증, 인프라 및 AI 정책을 카테고리별로 통합 관리합니다."
       />
 
-      {/* 2. System Live Modules Status Card */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+      {/* 2. 시스템 서브모듈 실시간 런타임 상태 카드 (라이트 톤) */}
+      <div className="rounded-xl border border-black/[0.08] bg-white p-5 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0071e3]/10 text-[#0071e3]">
               <Cpu className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">시스템 서브모듈 실시간 런타임 상태</h3>
-              <p className="text-xs text-slate-400">설정 변경 시 소켓 리스너의 가동 상태를 실시간 점검합니다.</p>
+              <h3 className="text-sm font-semibold text-[#1d1d1f]">시스템 서브모듈 실시간 런타임 상태</h3>
+              <p className="text-xs text-[#6e6e73]">설정 변경 시 소켓 리스너의 가동 상태를 실시간 점검합니다.</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={loadModulesStatus}
             disabled={checkingStatus}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${checkingStatus ? 'animate-spin text-sky-400' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${checkingStatus ? 'animate-spin text-[#0071e3]' : ''}`} />
             <span>상태 새로고침</span>
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           {/* SMTP Ingestion */}
-          <div className="flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-[#f5f5f7]/60 p-3.5">
             <div>
-              <div className="text-xs font-medium text-slate-400">SMTP 수신 엔진</div>
-              <div className="mt-1 text-sm font-bold text-white">
+              <div className="text-xs font-medium text-[#6e6e73]">SMTP 수신 엔진</div>
+              <div className="mt-1 text-sm font-bold text-[#1d1d1f]">
                 포트: {modulesStatus?.smtpIngestion?.port || 2525}
               </div>
             </div>
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
                 modulesStatus?.smtpIngestion?.status === 'RUNNING'
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-rose-50 text-rose-700 border border-rose-200'
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${modulesStatus?.smtpIngestion?.status === 'RUNNING' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  modulesStatus?.smtpIngestion?.status === 'RUNNING'
+                    ? 'bg-emerald-500 animate-pulse'
+                    : 'bg-rose-500'
+                }`}
+              />
               {modulesStatus?.smtpIngestion?.status || 'RUNNING'}
             </span>
           </div>
 
           {/* Haraka MTA */}
-          <div className="flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-[#f5f5f7]/60 p-3.5">
             <div>
-              <div className="text-xs font-medium text-slate-400">Haraka Outbound MTA</div>
-              <div className="mt-1 text-sm font-bold text-white">
+              <div className="text-xs font-medium text-[#6e6e73]">Haraka Outbound MTA</div>
+              <div className="mt-1 text-sm font-bold text-[#1d1d1f]">
                 포트: {modulesStatus?.harakaMta?.port || 2526}
               </div>
             </div>
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
                 modulesStatus?.harakaMta?.status === 'RUNNING'
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-amber-50 text-amber-700 border border-amber-200'
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${modulesStatus?.harakaMta?.status === 'RUNNING' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  modulesStatus?.harakaMta?.status === 'RUNNING' ? 'bg-emerald-500' : 'bg-amber-500'
+                }`}
+              />
               {modulesStatus?.harakaMta?.status || 'STANDBY'}
             </span>
           </div>
 
           {/* IMAP Service */}
-          <div className="flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-[#f5f5f7]/60 p-3.5">
             <div>
-              <div className="text-xs font-medium text-slate-400">IMAP4rev1 서비스</div>
-              <div className="mt-1 text-sm font-bold text-white">포트: 1143 / 1993</div>
+              <div className="text-xs font-medium text-[#6e6e73]">IMAP4rev1 서비스</div>
+              <div className="mt-1 text-sm font-bold text-[#1d1d1f]">포트: 1143 / 1993</div>
             </div>
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
                 modulesStatus?.imapService?.status === 'RUNNING'
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-rose-50 text-rose-700 border border-rose-200'
               }`}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              정상 대기
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  modulesStatus?.imapService?.status === 'RUNNING'
+                    ? 'bg-emerald-500 animate-pulse'
+                    : 'bg-rose-500'
+                }`}
+              />
+              {modulesStatus?.imapService?.status || 'RUNNING'}
             </span>
           </div>
         </div>
       </div>
 
-      {/* 3. Feedback Banner */}
+      {/* 3. 웹메일 환경설정과 동일한 수평 탭 네비게이션 */}
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => handleTabChange(tab.key)}
+              className={`flex items-center gap-2 pb-3.5 px-4 text-sm font-semibold border-b-2 whitespace-nowrap transition ${
+                isActive
+                  ? 'border-[#0071e3] text-[#0071e3]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 4. 피드백 배너 */}
       {feedback && (
         <div
           className={`flex items-start gap-3 rounded-xl border p-4 text-sm transition-all ${
             feedback.type === 'success'
-              ? 'border-emerald-500/30 bg-emerald-950/30 text-emerald-300'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
               : feedback.type === 'error'
-              ? 'border-rose-500/30 bg-rose-950/30 text-rose-300'
-              : 'border-sky-500/30 bg-sky-950/30 text-sky-300'
+              ? 'border-rose-200 bg-rose-50 text-rose-800'
+              : 'border-sky-200 bg-sky-50 text-sky-800'
           }`}
         >
           {feedback.type === 'success' ? (
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400 mt-0.5" />
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
           ) : feedback.type === 'error' ? (
-            <AlertTriangle className="h-5 w-5 shrink-0 text-rose-400 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" />
           ) : (
-            <Info className="h-5 w-5 shrink-0 text-sky-400 mt-0.5" />
+            <Info className="h-5 w-5 shrink-0 text-sky-600 mt-0.5" />
           )}
           <div className="flex-1 font-medium">{feedback.message}</div>
           <button
+            type="button"
             onClick={() => setFeedback(null)}
-            className="text-slate-400 hover:text-white transition"
+            className="text-slate-400 hover:text-slate-700 transition"
           >
             &times;
           </button>
         </div>
       )}
 
-      {/* 4. Step-by-Step Wizard Stepper Bar */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-lg">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {STEPS.map((s) => {
-            const Icon = s.icon;
-            const isActive = s.step === currentStep;
-            const isPassed = s.step < currentStep;
-
-            return (
-              <button
-                key={s.step}
-                onClick={() => setCurrentStep(s.step)}
-                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
-                  isActive
-                    ? 'border-indigo-500 bg-indigo-600/20 text-white shadow-md shadow-indigo-500/10'
-                    : isPassed
-                    ? 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700 hover:bg-slate-800/40'
-                    : 'border-slate-800/60 bg-slate-950/30 text-slate-500 hover:text-slate-400'
-                }`}
-              >
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                    isActive
-                      ? 'bg-indigo-600 text-white'
-                      : isPassed
-                      ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-slate-800 text-slate-500'
-                  }`}
-                >
-                  {isPassed ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                    Step {s.step}
-                  </div>
-                  <div className="truncate text-xs font-bold">{s.label}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 5. Main Form Card */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
-        {/* Step Title Header */}
-        <div className="border-b border-slate-800/80 pb-5">
+      {/* 5. 선택된 탭 본문 카드 (라이트 톤 + 독립 저장) */}
+      <div className="rounded-xl border border-black/[0.08] bg-white p-6 shadow-xs">
+        {/* 탭 섹션 헤더 */}
+        <div className="border-b border-slate-100 pb-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
-                {React.createElement(currentStepMeta?.icon || Server, { className: 'h-5 w-5' })}
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0071e3]/10 text-[#0071e3]">
+                <CurrentIcon className="h-5 w-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-indigo-950 px-2 py-0.5 text-xs font-semibold text-indigo-400 border border-indigo-800">
-                    STEP {currentStep} / 5
-                  </span>
-                  <h2 className="text-lg font-bold text-white">
-                    {stepData?.categoryLabel || currentStepMeta?.label}
-                  </h2>
-                </div>
-                <p className="mt-1 text-xs text-slate-400">{currentStepMeta?.summary}</p>
+                <h2 className="text-base font-bold text-[#1d1d1f]">
+                  {tabData?.categoryLabel || currentTabMeta.label}
+                </h2>
+                <p className="mt-0.5 text-xs text-[#6e6e73]">{currentTabMeta.summary}</p>
               </div>
             </div>
 
-            {/* Test Connection Buttons */}
-            {currentStep === 3 && (
-              <button
-                type="button"
-                onClick={handleTestRelay}
-                disabled={testingRelay}
-                className="flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 transition disabled:opacity-50"
-              >
-                <Wifi className={`h-3.5 w-3.5 ${testingRelay ? 'animate-spin' : ''}`} />
-                <span>{testingRelay ? '릴레이 연결 검증 중...' : 'SMTP 릴레이 연결 테스트'}</span>
-              </button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {activeTab === 'outbound' && (
+                <button
+                  type="button"
+                  onClick={handleTestRelay}
+                  disabled={testingRelay}
+                  className="flex items-center gap-1.5 rounded-lg border border-[#0071e3]/30 bg-[#0071e3]/5 px-3.5 py-2 text-xs font-semibold text-[#0071e3] hover:bg-[#0071e3]/10 transition disabled:opacity-50"
+                >
+                  <Wifi className={`h-3.5 w-3.5 ${testingRelay ? 'animate-spin' : ''}`} />
+                  <span>{testingRelay ? '릴레이 연결 검증 중...' : 'SMTP 릴레이 연결 테스트'}</span>
+                </button>
+              )}
 
-            {currentStep === 5 && (
+              {activeTab === 'infra' && (
+                <button
+                  type="button"
+                  onClick={handleTestRedis}
+                  disabled={testingRedis}
+                  className="flex items-center gap-1.5 rounded-lg border border-[#0071e3]/30 bg-[#0071e3]/5 px-3.5 py-2 text-xs font-semibold text-[#0071e3] hover:bg-[#0071e3]/10 transition disabled:opacity-50"
+                >
+                  <Wifi className={`h-3.5 w-3.5 ${testingRedis ? 'animate-spin' : ''}`} />
+                  <span>{testingRedis ? 'Redis PING 중...' : 'Redis 연결 테스트'}</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={handleTestRedis}
-                disabled={testingRedis}
-                className="flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 transition disabled:opacity-50"
+                onClick={handleSaveTab}
+                disabled={saving || loading}
+                className="flex items-center gap-1.5 rounded-lg bg-[#0071e3] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#0077ed] transition disabled:opacity-50"
               >
-                <Wifi className={`h-3.5 w-3.5 ${testingRedis ? 'animate-spin' : ''}`} />
-                <span>{testingRedis ? 'Redis PING 중...' : 'Redis 연결 테스트'}</span>
+                <Save className={`h-3.5 w-3.5 ${saving ? 'animate-spin' : ''}`} />
+                <span>{saving ? '저장 중...' : '설정 저장'}</span>
               </button>
-            )}
+            </div>
           </div>
 
-          {/* Test Result Message Box */}
+          {/* 연결 테스트 결과 배너 */}
           {testResult && (
             <div
               className={`mt-4 flex items-center gap-2.5 rounded-xl border p-3.5 text-xs font-medium ${
                 testResult.success
-                  ? 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300'
-                  : 'border-rose-500/30 bg-rose-950/20 text-rose-300'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border-rose-200 bg-rose-50 text-rose-800'
               }`}
             >
               {testResult.success ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
               ) : (
-                <XCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                <XCircle className="h-4 w-4 shrink-0 text-rose-600" />
               )}
               <span>{testResult.message}</span>
             </div>
           )}
         </div>
 
-        {/* Fields List */}
+        {/* 설정 필드 목록 */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <RefreshCw className="h-7 w-7 animate-spin text-indigo-500 mb-3" />
+          <div className="flex flex-col items-center justify-center py-16 text-[#6e6e73]">
+            <RefreshCw className="h-7 w-7 animate-spin text-[#0071e3] mb-3" />
             <span className="text-sm">설정 항목을 안전하게 조회하고 있습니다...</span>
           </div>
         ) : (
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 space-y-4">
             {Object.keys(formValues).map((key) => {
-              const meta = stepData?.metadata?.[key];
+              const meta = tabData?.metadata?.[key];
               const help = FIELD_HELP[key];
               const value = formValues[key];
               const isPasswordType = meta?.isSecret;
@@ -873,79 +881,73 @@ export default function SettingsPage() {
               return (
                 <div
                   key={key}
-                  className="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4 transition-all hover:border-slate-700/80"
+                  className="rounded-xl border border-slate-200/80 bg-[#f5f5f7]/40 p-4 transition-all hover:border-slate-300"
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    {/* Field Description Column */}
+                    {/* 항목 설명 컬럼 */}
                     <div className="lg:w-7/12 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold text-white">
+                        <span className="text-sm font-bold text-[#1d1d1f]">
                           {help?.title || key}
                         </span>
-                        <code className="rounded bg-slate-800 px-1.5 py-0.5 text-[11px] font-mono text-sky-300">
+                        <code className="rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[11px] font-mono text-[#0071e3]">
                           {key}
                         </code>
 
-                        {/* Badges */}
                         {meta?.isEncrypted && (
-                          <span className="inline-flex items-center gap-1 rounded bg-amber-950/80 border border-amber-800/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                             <Lock className="h-2.5 w-2.5" />
                             AES-256-GCM 암호화
                           </span>
                         )}
 
                         {meta?.restartRequired === RestartLevel.HARD && (
-                          <span className="rounded bg-rose-950/80 border border-rose-800/60 px-1.5 py-0.5 text-[10px] font-semibold text-rose-400">
+                          <span className="rounded bg-rose-50 border border-rose-200 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
                             서버 재시작 필요
                           </span>
                         )}
                         {meta?.restartRequired === RestartLevel.SOFT && (
-                          <span className="rounded bg-amber-950/80 border border-amber-800/60 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
+                          <span className="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                             모듈 핫리로드 필요
                           </span>
                         )}
                         {meta?.restartRequired === RestartLevel.NONE && (
-                          <span className="rounded bg-emerald-950/80 border border-emerald-800/60 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                          <span className="rounded bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
                             즉시 반영
                           </span>
                         )}
                       </div>
 
-                      <p className="text-xs leading-relaxed text-slate-300">
+                      <p className="text-xs leading-relaxed text-[#6e6e73]">
                         {help?.desc || meta?.description || '환경변수 설정값입니다.'}
                       </p>
 
                       {help?.recommended && (
-                        <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                          <span className="font-semibold text-slate-400">권장값:</span>
-                          <span className="text-indigo-300">{help.recommended}</span>
+                        <div className="flex items-center gap-1 text-[11px] text-[#86868b]">
+                          <span className="font-semibold text-[#6e6e73]">권장값:</span>
+                          <span className="text-[#0071e3] font-medium">{help.recommended}</span>
                         </div>
                       )}
 
                       {help?.tip && (
-                        <div className="flex items-start gap-1 text-[11px] text-amber-400/90">
-                          <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-1 text-[11px] text-amber-700">
+                          <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5 text-amber-600" />
                           <span>{help.tip}</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Field Input Control Column */}
+                    {/* 입력 컨트롤 컬럼 */}
                     <div className="lg:w-4/12">
                       {meta?.valueType === 'boolean' ? (
-                        <div className="flex items-center gap-3 pt-2">
-                          <label className="relative inline-flex cursor-pointer items-center">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(value)}
-                              onChange={(e) => handleInputChange(key, e.target.checked)}
-                              className="peer sr-only"
-                            />
-                            <div className="peer h-6 w-11 rounded-full bg-slate-800 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full peer-focus:outline-none"></div>
-                          </label>
-                          <span className="text-xs font-semibold text-slate-300">
-                            {value ? '활성화 (Enabled)' : '비활성화 (Disabled)'}
-                          </span>
+                        <div className="flex items-center gap-3 pt-1">
+                          <ToggleSwitch
+                            checked={Boolean(value)}
+                            onChange={(checked) => handleInputChange(key, checked)}
+                            color="sky"
+                            showStatusText={false}
+                            label={value ? '활성화 (Enabled)' : '비활성화 (Disabled)'}
+                          />
                         </div>
                       ) : isPasswordType ? (
                         <div className="relative">
@@ -954,26 +956,26 @@ export default function SettingsPage() {
                             value={value || ''}
                             onChange={(e) => handleInputChange(key, e.target.value)}
                             placeholder="변경할 때만 새 비밀번호를 입력하세요"
-                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 pr-10 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2 pr-10 text-xs text-[#1d1d1f] placeholder-slate-400 focus:border-[#0071e3] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/15"
                           />
                           <button
                             type="button"
                             onClick={() => toggleShowPassword(key)}
                             disabled={revealingSecret[key]}
                             title={showPassword[key] ? '암호 숨기기' : '원래 암호 보기'}
-                            className="absolute right-3 top-2.5 text-slate-400 hover:text-white transition disabled:opacity-50"
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-[#1d1d1f] transition disabled:opacity-50"
                           >
                             {revealingSecret[key] ? (
-                              <RefreshCw className="h-4 w-4 animate-spin text-indigo-400" />
+                              <RefreshCw className="h-4 w-4 animate-spin text-[#0071e3]" />
                             ) : showPassword[key] ? (
-                              <EyeOff className="h-4 w-4 text-indigo-400" />
+                              <EyeOff className="h-4 w-4 text-[#0071e3]" />
                             ) : (
                               <Eye className="h-4 w-4" />
                             )}
                           </button>
                         </div>
                       ) : key === 'AI_ALLOWED_PROVIDERS' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                           {(Object.values(AiProvider) as AiProvider[]).map((prov) => {
                             const selectedList: string[] = Array.isArray(value)
                               ? value
@@ -994,10 +996,10 @@ export default function SettingsPage() {
                             return (
                               <label
                                 key={prov}
-                                className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs font-medium cursor-pointer transition ${
+                                className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs font-medium cursor-pointer transition ${
                                   checked
-                                    ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-200'
-                                    : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600'
+                                    ? 'border-[#0071e3]/40 bg-[#0071e3]/5 text-[#0071e3]'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                                 }`}
                               >
                                 <span className="font-semibold">{prov}</span>
@@ -1013,7 +1015,7 @@ export default function SettingsPage() {
                                     }}
                                     className="peer sr-only"
                                   />
-                                  <span className="peer h-5 w-9 rounded-full bg-slate-800 after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-4 peer-focus:outline-none"></span>
+                                  <span className="peer h-5 w-9 rounded-full bg-slate-300 after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#0071e3] peer-checked:after:translate-x-4 peer-focus:outline-none"></span>
                                 </span>
                               </label>
                             );
@@ -1029,7 +1031,7 @@ export default function SettingsPage() {
                               meta?.valueType === 'number' ? Number(e.target.value) : e.target.value,
                             )
                           }
-                          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs text-[#1d1d1f] placeholder-slate-400 focus:border-[#0071e3] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/15"
                         />
                       )}
                     </div>
@@ -1040,77 +1042,50 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* 6. Bottom Navigation & Action Buttons */}
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 pt-6">
-          {/* Previous Button */}
-          <div>
-            {currentStep > 1 ? (
-              <button
-                type="button"
-                onClick={handlePrevStep}
-                className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span>이전 단계 (Step {currentStep - 1})</span>
-              </button>
-            ) : (
-              <div />
-            )}
-          </div>
-
-          {/* Action Buttons: Save */}
-          <div className="flex items-center gap-3">
-            {/* 이 단계 저장 및 적용 버튼 */}
-            <button
-              type="button"
-              onClick={handleSaveStep}
-              disabled={saving || loading}
-              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition disabled:opacity-50"
-            >
-              <Save className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
-              <span>
-                {saving
-                  ? '설정 저장 중...'
-                  : currentStep === 6
-                  ? 'Step 6 저장 및 전체 완료'
-                  : `Step ${currentStep} 저장 후 다음으로`}
-              </span>
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </button>
-          </div>
+        {/* 하단 독립 저장 버튼 */}
+        <div className="mt-6 flex items-center justify-end border-t border-slate-100 pt-5">
+          <button
+            type="button"
+            onClick={handleSaveTab}
+            disabled={saving || loading}
+            className="flex items-center gap-2 rounded-lg bg-[#0071e3] px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#0077ed] transition disabled:opacity-50"
+          >
+            <Save className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
+            <span>{saving ? '설정 저장 중...' : `${currentTabMeta.label} 설정 저장`}</span>
+          </button>
         </div>
       </div>
 
-      {/* 7. Modal: Module Restart Confirmation */}
+      {/* 6. 모듈 재시작 확인 모달 (라이트 톤) */}
       {restartModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-2xl border border-amber-500/40 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center gap-3 text-amber-400">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/30">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-black/[0.08] bg-white p-6 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 border border-amber-200 text-amber-600">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">서브모듈 재시작 필요 안내</h3>
-                <p className="text-xs text-amber-300">
+                <h3 className="text-base font-bold text-[#1d1d1f]">서브모듈 재시작 필요 안내</h3>
+                <p className="text-xs text-amber-700">
                   변경 사항을 적용하기 위해 해당 서비스의 재시작이 필요합니다.
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/70 p-4 space-y-2 text-xs">
+            <div className="mt-4 rounded-xl border border-slate-200 bg-[#f5f5f7] p-4 space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">재시작 대상 모듈:</span>
-                <span className="font-bold text-indigo-400">
+                <span className="text-[#6e6e73]">재시작 대상 모듈:</span>
+                <span className="font-bold text-[#0071e3]">
                   {restartModal.targetModules.join(', ') || 'SMTP_INGESTION'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">재시작 수준:</span>
+                <span className="text-[#6e6e73]">재시작 수준:</span>
                 <span
                   className={`font-semibold ${
                     restartModal.restartLevel === RestartLevel.HARD
-                      ? 'text-rose-400'
-                      : 'text-amber-400'
+                      ? 'text-rose-600'
+                      : 'text-amber-700'
                   }`}
                 >
                   {restartModal.restartLevel === RestartLevel.HARD
@@ -1118,39 +1093,37 @@ export default function SettingsPage() {
                     : '소프트 핫 리로드 (SMTP 리스너 재시작)'}
                 </span>
               </div>
-              <div className="border-t border-slate-800/80 pt-2 text-slate-300">
-                <span className="font-semibold text-slate-400">변경된 항목:</span>{' '}
+              <div className="border-t border-slate-200 pt-2 text-[#1d1d1f]">
+                <span className="font-semibold text-[#6e6e73]">변경된 항목:</span>{' '}
                 {restartModal.changedKeys.map((k) => (
-                  <code key={k} className="mr-1.5 rounded bg-slate-800 px-1.5 py-0.5 text-sky-300">
+                  <code
+                    key={k}
+                    className="mr-1.5 rounded bg-white border border-slate-200 px-1.5 py-0.5 text-[#0071e3]"
+                  >
                     {k}
                   </code>
                 ))}
               </div>
             </div>
 
-            <p className="mt-3 text-xs leading-relaxed text-slate-400">
+            <p className="mt-3 text-xs leading-relaxed text-[#6e6e73]">
               지금 모듈을 재시작하시겠습니까? 소프트 재시작의 경우 메일 수신 소켓만 1~2초간 재바인딩되며, 다른 작업에는 영향을 주지 않습니다.
             </p>
 
-            <div className="mt-6 flex items-center justify-end gap-3">
+            <div className="mt-6 flex items-center justify-end gap-2.5">
               <button
                 type="button"
-                onClick={() => {
-                  setRestartModal((prev) => ({ ...prev, open: false }));
-                  if (restartModal.nextStepAfterRestart) {
-                    setCurrentStep(restartModal.nextStepAfterRestart);
-                  }
-                }}
-                className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"
+                onClick={() => setRestartModal((prev) => ({ ...prev, open: false }))}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
               >
-                나중에 적용 (다음 단계로)
+                나중에 적용
               </button>
 
               <button
                 type="button"
                 onClick={handleExecuteRestart}
                 disabled={restartingModule}
-                className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-amber-400 transition disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition disabled:opacity-50"
               >
                 <Zap className={`h-3.5 w-3.5 ${restartingModule ? 'animate-spin' : ''}`} />
                 <span>{restartingModule ? '모듈 재시작 중...' : '지금 모듈 재시작'}</span>
@@ -1160,5 +1133,19 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SystemSettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-16 text-center text-xs text-[#86868b]">
+          시스템 환경설정을 불러오는 중입니다...
+        </div>
+      }
+    >
+      <SystemSettingsContent />
+    </Suspense>
   );
 }

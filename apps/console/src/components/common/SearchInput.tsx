@@ -35,7 +35,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg bg-white border border-slate-200 focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500 shadow-xs transition-colors ${
+      className={`flex items-center gap-2 rounded-lg bg-white border border-black/[0.08] focus-within:border-[#0071e3] focus-within:ring-1 focus-within:ring-[#0071e3] shadow-xs transition-colors ${
         isSm ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-xs'
       } ${disabled ? 'opacity-50 cursor-not-allowed bg-slate-50' : ''} ${className}`}
     >

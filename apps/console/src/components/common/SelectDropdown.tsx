@@ -141,8 +141,8 @@ export function SelectDropdown<T extends string = string>({
           disabled
             ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75'
             : isOpen
-              ? 'border-sky-500 ring-2 ring-sky-500/20 text-slate-800 cursor-pointer'
-              : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+              ? 'border-[#0071e3] ring-2 ring-[#0071e3]/20 text-[#1d1d1f] cursor-pointer'
+              : 'border-black/[0.08] text-[#1d1d1f] hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
         }`}
       >
         <span className="flex items-center gap-2 min-w-0">
@@ -206,8 +206,8 @@ export function SelectDropdown<T extends string = string>({
                       opt.disabled
                         ? 'text-slate-300 cursor-not-allowed'
                         : isSelected
-                          ? 'bg-sky-50 text-sky-800 font-semibold'
-                          : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900 cursor-pointer'
+                          ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                          : 'text-[#1d1d1f] hover:bg-black/[0.04] cursor-pointer'
                     }`}
                   >
                     <span className="flex items-center gap-2 min-w-0">
@@ -218,7 +218,7 @@ export function SelectDropdown<T extends string = string>({
                       )}
                       <span className="truncate">{opt.label}</span>
                     </span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-sky-600 shrink-0" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-[#0071e3] shrink-0" />}
                   </button>
                 );
               })}
