@@ -223,7 +223,10 @@ sudo chown -R $USER:$USER /opt/lemail
 unzip lemail_v1.2.0_*_obfuscated.zip -d /opt/lemail/
 cd /opt/lemail
 
-# 3. 런타임 공용 저장소 및 인증서 디렉터리 준비
+# 3. IMAP v2 네이티브 바이너리 실행 권한 부여 (ZIP 해제 환경에 따라 권한 누락 방지)
+chmod +x /opt/lemail/services/imap/bin/lemail-imap
+
+# 4. 런타임 공용 저장소 및 인증서 디렉터리 준비
 mkdir -p /opt/lemail/mail-spool /opt/lemail/mail-archive /opt/lemail/mail-attachments /opt/lemail/license /opt/lemail/certs
 ```
 
@@ -847,6 +850,9 @@ WantedBy=multi-user.target
 ```
 
 #### (5) IMAP Microservice (`/etc/systemd/system/lemail-imap.service`)
+> [!NOTE]
+> 서비스 기동 전 `chmod +x /opt/lemail/services/imap/bin/lemail-imap` 실행 권한이 부여되어 있는지 확인하십시오 (`Permission denied` 오류 방지).
+
 ```ini
 [Unit]
 Description=LEMail IMAP4rev1 Microservice (Rust v2)
