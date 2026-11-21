@@ -16,8 +16,9 @@
 * **Mail Services**:
   * Core API & Inbound ESMTP (포트 2525, 9200)
   * Webmail UI Next.js (포트 9000)
+  * Admin Console Next.js (포트 9100, `SYSTEM_ADMIN` 전용)
   * Mobile PWA Next.js (포트 9300)
-  * IMAP4rev1 Microservice (포트 1143, 1993, STARTTLS/IMAPS 지원)
+  * IMAP4rev1 Microservice (Node.js v1 / Rust v2, 포트 1143, 1993, STARTTLS/IMAPS 지원)
   * Haraka Outbound Relay MTA (포트 2526, TLS 아웃바운드)
 
 ---
@@ -179,7 +180,24 @@ services:
     networks:
       - lemail-net
 
-  # 5-2. Mobile PWA Next.js
+  # 5-2. Admin Console (Next.js)
+  console:
+    image: lemail/console:latest
+    build:
+      context: .
+      dockerfile: apps/console/Dockerfile
+    container_name: lemail-console
+    restart: always
+    depends_on:
+      - api
+    env_file:
+      - .env
+    ports:
+      - "9100:9100"
+    networks:
+      - lemail-net
+
+  # 5-3. Mobile PWA Next.js
   mobile:
     image: lemail/mobile:latest
     build:
@@ -248,6 +266,7 @@ services:
     restart: always
     depends_on:
       - web
+      - console
       - api
       - imap
     ports:
@@ -366,7 +385,7 @@ http {
 
     server {
         listen 80;
-        server_name mail.yourdomain.com m.yourdomain.com;
+        server_name mail.yourdomain.com admin.yourdomain.com m.yourdomain.com;
         return 301 https://$host$request_uri;
     }
 
@@ -380,6 +399,39 @@ http {
 
         location / {
             proxy_pass http://web:9000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api {
+            proxy_pass http://api:9200;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 300s;
+        }
+    }
+
+    # Admin Console 프록시 (예: admin.yourdomain.com, 시스템 관리자 전용)
+    server {
+        listen 443 ssl http2;
+        server_name admin.yourdomain.com;
+
+        ssl_certificate /etc/ssl/certs/fullchain.pem;
+        ssl_certificate_key /etc/ssl/certs/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://console:9100;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
@@ -457,9 +509,9 @@ docker compose exec api node dist/modules/database/scripts/init-schema.js
 
 ## 8. 최종 동작 확인
 
-1. 브라우저에서 `https://mail.yourdomain.com` 접속 후 관리자 계정으로 로그인.
-2. 관리자 메뉴 ➔ **스팸 & 보안 설정 (`/admin/spam-rules`)**에서 ClamAV 연결 테스트 실행 (`clamav:3310` 연결 정상 확인).
-3. 관리자 메뉴 ➔ **도메인 관리 (`/admin/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
+1. 브라우저에서 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://admin.yourdomain.com`) 접속 후 `SYSTEM_ADMIN` 계정으로 로그인.
+2. 관리자 메뉴 ➔ **스팸 & 보안 설정 (`/spam-rules`)**에서 ClamAV 연결 테스트 실행 (`clamav:3310` 연결 정상 확인).
+3. 관리자 메뉴 ➔ **도메인 관리 (`/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
 4. 외부 메일 발송 및 IMAP 수신 검증.
 
 > [!WARNING]

@@ -11,7 +11,7 @@
 
 * **웹 프론트엔드 & 리버스 프록시**: Nginx (HTTPS: 443, HTTP: 80 ➔ 443 자동 리다이렉트)
 * **메일 수신 & 발송**: Nginx Stream 또는 직접 바인딩 (Inbound ESMTP: 25, IMAP: 143/993, Haraka MTA: 2526)
-* **백엔드 애플리케이션**: Node.js 20 LTS (Core API, Webmail UI, IMAP Microservice, Haraka MTA)
+* **백엔드 및 웹 애플리케이션**: Node.js 20 LTS (Core API, Webmail UI, Admin Console, Mobile PWA, IMAP v1, Haraka MTA) 및 Rust 네이티브 바이너리 (IMAP v2 선택 지원)
 * **인프라 저장소**: MySQL 8.0 (데이터베이스), Redis 7.x (작업 큐 & 캐시, 비밀번호 인증 필수)
 * **보안 백신**: ClamAV Daemon (`clamd`, TCP: 3310 스트리밍 실시간 첨부파일 검사)
 * **보안 암호화**: 웹 SSL (Let's Encrypt/공인 인증서), 메일 TLS (IMAP STARTTLS/IMAPS, SMTP TLS)
@@ -248,7 +248,7 @@ nano .env
 # ==========================================
 # LEMail Production Environment Configuration
 # ==========================================
-# ※ API Core(9200), Webmail(9000), Mobile PWA(9300) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
+# ※ API Core(9200), Webmail(9000), Console(9100), Mobile PWA(9300) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
 NODE_ENV=production
 
 # 1. MySQL Database
@@ -295,7 +295,7 @@ LICENSE_FILE_PATH=/opt/lemail/license/lemail-license.lic
 
 > [!IMPORTANT]
 > **디스크 저장소 절대 경로 설정 주의사항**
-> LEMail은 Core API, Webmail UI, IMAP Microservice, Haraka MTA가 프로세스별로 분리 구동됩니다.
+> LEMail은 Core API, Webmail UI, Admin Console, Mobile PWA, IMAP Microservice, Haraka MTA가 프로세스별로 분리 구동됩니다.
 > 메일 본문(EML) 및 첨부파일 저장소가 각 서비스별 작업 디렉터리로 격리되지 않고 공유될 수 있도록, `MAIL_ARCHIVE_DIR`, `MAIL_ATTACHMENT_DIR`, `MAIL_SPOOL_DIR`는 반드시 `/opt/lemail/...`과 같은 **절대 경로(Absolute Path)**로 구성하십시오.
 
 ### 5.4 데이터베이스 스키마 및 초기 시드 실행
@@ -337,9 +337,9 @@ node apps/api/dist/modules/database/scripts/init-schema.js
 # 1. 80 포트 점유 방지를 위해 Nginx가 실행 중인 경우 일시 정지
 sudo systemctl stop nginx 2>/dev/null || true
 
-# 2. Let's Encrypt 멀티도메인(SAN) 통합 인증서 발급 (웹메일 + 모바일 도메인, RSA 호환 체인)
-sudo certbot certonly --standalone --key-type rsa -d mail.yourdomain.com -d m.yourdomain.com
-# (기존 mail.yourdomain.com 인증서에 m.yourdomain.com 을 추가 확장할 경우 --expand 옵션 함께 사용)
+# 2. Let's Encrypt 멀티도메인(SAN) 통합 인증서 발급 (웹메일 + 관리자 콘솔 + 모바일 도메인, RSA 호환 체인)
+sudo certbot certonly --standalone --key-type rsa -d mail.yourdomain.com -d admin.yourdomain.com -d m.yourdomain.com
+# (기존 mail.yourdomain.com 인증서에 도메인을 추가 확장할 경우 --expand 옵션 함께 사용)
 ```
 * 발급 원본 경로:
   * 인증서(Full Chain): `/etc/letsencrypt/live/mail.yourdomain.com/fullchain.pem`
@@ -419,7 +419,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/lemail-cert-sync.sh
 # HTTP -> HTTPS 리다이렉트
 server {
     listen 80;
-    server_name mail.yourdomain.com m.yourdomain.com;
+    server_name mail.yourdomain.com admin.yourdomain.com m.yourdomain.com;
     return 301 https://$host$request_uri;
 }
 
@@ -450,6 +450,40 @@ server {
     }
 
     # 2. REST API & WebSocket
+    location /api {
+        proxy_pass http://127.0.0.1:9200;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
+
+# 2-2. Admin Console HTTPS (예: admin.yourdomain.com, 시스템 관리자 전용)
+server {
+    listen 443 ssl http2;
+    server_name admin.yourdomain.com;
+
+    ssl_certificate /opt/lemail/certs/fullchain.pem;
+    ssl_certificate_key /opt/lemail/certs/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass http://127.0.0.1:9100;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /api {
         proxy_pass http://127.0.0.1:9200;
         proxy_http_version 1.1;
@@ -520,7 +554,7 @@ sudo netfilter-persistent save 2>/dev/null || sudo iptables-save | sudo tee /etc
 
 ## 8. 서비스 데몬화 및 프로세스 상시화 (PM2 / systemd)
 
-LEMail의 5대 핵심 서비스(Core API, Webmail UI, Mobile PWA, IMAP Microservice, Haraka MTA)를 24x365 무중단 운영하기 위한 프로세스 관리 방법입니다.  
+LEMail의 6대 핵심 서비스(Core API, Webmail UI, Admin Console, Mobile PWA, IMAP Microservice, Haraka MTA)를 24x365 무중단 운영하기 위한 프로세스 관리 방법입니다.  
 **Node.js 표준 프로세스 매니저인 [방법 1] PM2 사용을 적극 권장**하며, OS 표준 서비스 규격을 준수해야 하는 환경에서는 **[방법 2] `systemd` 등록 방식**을 사용할 수 있습니다.
 
 ---
@@ -536,9 +570,17 @@ pm2 -v
 ```
 
 #### (2) `ecosystem.config.js` 설정 확인
-LEMail 배포 패키지 루트 디렉터리에 `ecosystem.config.js` 파일이 기본 포함되어 있습니다:
+LEMail 배포 패키지 루트 디렉터리에 `ecosystem.config.js` 파일이 기본 포함되어 있습니다 (`--imap-v2` 패키징 시 `services/imap/bin/lemail-imap` Rust 네이티브 바이너리를 자동 감지하여 실행합니다):
 
 ```javascript
+const fs = require('fs');
+const path = require('path');
+
+const useImapV2 = process.env.USE_IMAP_V2 === 'true';
+const imapV2BinName = process.platform === 'win32' ? 'lemail-imap.exe' : 'lemail-imap';
+const packagedImapV2 = fs.existsSync(path.join(__dirname, 'services', 'imap', 'bin', imapV2BinName));
+const imapV2Binary = `target/release/${imapV2BinName}`;
+
 module.exports = {
   apps: [
     {
@@ -578,6 +620,24 @@ module.exports = {
       },
     },
     {
+      name: 'lemail-console',
+      cwd: './apps/console',
+      script: 'scripts/start.js',
+      instances: 1,
+      exec_mode: 'fork',
+      node_args: '--max-old-space-size=2048',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      watch: false,
+      max_memory_restart: '2G',
+      time: true,
+      env: {
+        NODE_ENV: 'production',
+        PORT: 9100,
+      },
+    },
+    {
       name: 'lemail-mobile',
       cwd: './apps/mobile',
       script: 'scripts/start.js',
@@ -595,23 +655,41 @@ module.exports = {
         PORT: 9300,
       },
     },
-    {
-      name: 'lemail-imap',
-      cwd: './services/imap',
-      script: 'dist/index.js',
-      instances: 1,
-      exec_mode: 'fork',
-      node_args: '--max-old-space-size=2048',
-      autorestart: true,
-      max_restarts: 10,
-      restart_delay: 5000,
-      watch: false,
-      max_memory_restart: '2G',
-      time: true,
-      env: {
-        NODE_ENV: 'production',
-      },
-    },
+    packagedImapV2 || useImapV2
+      ? {
+          name: 'lemail-imap',
+          cwd: packagedImapV2 ? './services/imap' : './services/imap.v2',
+          script: packagedImapV2 ? `bin/${imapV2BinName}` : imapV2Binary,
+          interpreter: 'none',
+          instances: 1,
+          exec_mode: 'fork',
+          autorestart: true,
+          max_restarts: 10,
+          restart_delay: 5000,
+          watch: false,
+          max_memory_restart: '512M',
+          time: true,
+          env: {
+            RUST_LOG: 'info',
+          },
+        }
+      : {
+          name: 'lemail-imap',
+          cwd: './services/imap',
+          script: 'dist/index.js',
+          instances: 1,
+          exec_mode: 'fork',
+          node_args: '--max-old-space-size=2048',
+          autorestart: true,
+          max_restarts: 10,
+          restart_delay: 5000,
+          watch: false,
+          max_memory_restart: '2G',
+          time: true,
+          env: {
+            NODE_ENV: 'production',
+          },
+        },
     {
       name: 'lemail-haraka',
       cwd: './services/haraka',
@@ -653,11 +731,12 @@ pm2 status
 ┌────┬────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┐
 │ id │ name           │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │
 ├────┼────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┤
-│ 0  │ lemail-api     │ default     │ 1.1.0   │ fork    │ 12345    │ 10s    │ 0    │ online    │ 0.5%     │ 120.4 MB │
-│ 1  │ lemail-web     │ default     │ 1.1.0   │ fork    │ 12346    │ 10s    │ 0    │ online    │ 0.2%     │ 85.1 MB  │
-│ 2  │ lemail-mobile  │ default     │ 1.1.0   │ fork    │ 12347    │ 10s    │ 0    │ online    │ 0.2%     │ 82.5 MB  │
-│ 3  │ lemail-imap    │ default     │ 1.1.0   │ fork    │ 12348    │ 10s    │ 0    │ online    │ 0.1%     │ 65.8 MB  │
-│ 4  │ lemail-haraka  │ default     │ 1.1.0   │ fork    │ 12349    │ 10s    │ 0    │ online    │ 0.1%     │ 72.3 MB  │
+│ 0  │ lemail-api     │ default     │ 1.5.6   │ fork    │ 12345    │ 10s    │ 0    │ online    │ 0.5%     │ 120.4 MB │
+│ 1  │ lemail-web     │ default     │ 1.5.6   │ fork    │ 12346    │ 10s    │ 0    │ online    │ 0.2%     │ 85.1 MB  │
+│ 2  │ lemail-console │ default     │ 1.5.6   │ fork    │ 12347    │ 10s    │ 0    │ online    │ 0.1%     │ 78.4 MB  │
+│ 3  │ lemail-mobile  │ default     │ 1.5.6   │ fork    │ 12348    │ 10s    │ 0    │ online    │ 0.2%     │ 82.5 MB  │
+│ 4  │ lemail-imap    │ default     │ 1.5.6   │ fork    │ 12349    │ 10s    │ 0    │ online    │ 0.1%     │ 18.2 MB  │
+│ 5  │ lemail-haraka  │ default     │ 1.5.6   │ fork    │ 12350    │ 10s    │ 0    │ online    │ 0.1%     │ 72.3 MB  │
 └────┴────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┘
 ```
 
@@ -678,10 +757,10 @@ pm2 save
 
 | 작업 구분 | CLI 명령어 | 설명 |
 | :--- | :--- | :--- |
-| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 5대 서비스 일괄 등록 및 기동 |
+| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 6대 서비스 일괄 등록 및 기동 |
 | **실행 상태 확인** | `pm2 status` 또는 `pm2 list` | CPU, 메모리, 업타임, 재시작 횟수 확인 |
 | **실시간 로그 모니터링** | `pm2 logs` | 전체 서비스의 통합 실시간 로그 스트리밍 |
-| **특정 서비스 로그** | `pm2 logs lemail-api` | 지정 서비스(`lemail-api`, `lemail-web`, `lemail-mobile`, `lemail-imap`, `lemail-haraka`) 전용 로그 |
+| **특정 서비스 로그** | `pm2 logs lemail-api` | 지정 서비스(`lemail-api`, `lemail-web`, `lemail-console`, `lemail-mobile`, `lemail-imap`, `lemail-haraka`) 전용 로그 |
 | **CPU/메모리 실시간 대시보드** | `pm2 monit` | 터미널 기반 실시간 자원 모니터링 대시보드 |
 | **무중단 리로드** | `pm2 reload ecosystem.config.js` | 신규 배포 시 세션 끊김 없는 순차적 재기동 |
 | **서비스 재시작** | `pm2 restart ecosystem.config.js` | 전체 프로세스 재시작 |
@@ -753,7 +832,27 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-#### (3) Mobile PWA (`/etc/systemd/system/lemail-mobile.service`)
+#### (3) Admin Console (`/etc/systemd/system/lemail-console.service`)
+```ini
+[Unit]
+Description=LEMail Admin Console Next.js Client
+After=network.target lemail-api.service
+
+[Service]
+Type=simple
+User=lemail
+WorkingDirectory=/opt/lemail/apps/console
+Environment=NODE_ENV=production
+Environment=PORT=9100
+ExecStart=/usr/bin/node scripts/start.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### (4) Mobile PWA (`/etc/systemd/system/lemail-mobile.service`)
 ```ini
 [Unit]
 Description=LEMail Mobile PWA Next.js Client
@@ -773,7 +872,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-#### (4) IMAP Microservice (`/etc/systemd/system/lemail-imap.service`)
+#### (5) IMAP Microservice (`/etc/systemd/system/lemail-imap.service`)
 ```ini
 [Unit]
 Description=LEMail IMAP4rev1 Microservice
@@ -784,7 +883,10 @@ Type=simple
 User=lemail
 WorkingDirectory=/opt/lemail/services/imap
 Environment=NODE_ENV=production
+# Node.js v1 패키지 사용 시:
 ExecStart=/usr/bin/node dist/index.js
+# (--imap-v2 Rust 바이너리 패키지 사용 시 위 ExecStart 대신 아래 줄 사용)
+# ExecStart=/opt/lemail/services/imap/bin/lemail-imap
 Restart=always
 RestartSec=5
 LimitNOFILE=65536
@@ -793,7 +895,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-#### (5) Haraka Outbound MTA (`/etc/systemd/system/lemail-haraka.service`)
+#### (6) Haraka Outbound MTA (`/etc/systemd/system/lemail-haraka.service`)
 ```ini
 [Unit]
 Description=LEMail Haraka Outbound Relay MTA
@@ -812,13 +914,13 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-#### (6) 서비스 일괄 등록 및 시작
+#### (7) 서비스 일괄 등록 및 시작
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now lemail-api lemail-web lemail-mobile lemail-imap lemail-haraka
+sudo systemctl enable --now lemail-api lemail-web lemail-console lemail-mobile lemail-imap lemail-haraka
 
 # 구동 상태 확인
-sudo systemctl status lemail-api lemail-web lemail-mobile lemail-imap lemail-haraka
+sudo systemctl status lemail-api lemail-web lemail-console lemail-mobile lemail-imap lemail-haraka
 ```
 
 ---
@@ -844,12 +946,12 @@ sudo firewall-cmd --reload
 
 ## 10. 설치 후 최종 검증
 
-1. **웹 브라우저 접속**: `https://mail.yourdomain.com` 접속 확인.
-2. **관리자 로그인**: `admin@yourdomain.com` 및 설정한 비밀번호로 로그인.
+1. **웹 브라우저 접속**: 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://admin.yourdomain.com`) 접속 확인.
+2. **관리자 로그인**: 관리자 콘솔에서 `admin@yourdomain.com` 및 설정한 비밀번호로 로그인 (`SYSTEM_ADMIN` 권한 전용).
 3. **보안 및 연동 점검**:
-   * 관리자 콘솔 ➔ **스팸 & 보안 관리 (`/admin/spam-rules`)** 접속.
+   * 관리자 콘솔 ➔ **스팸 & 보안 관리 (`/spam-rules`)** 접속.
    * **ClamAV 안티바이러스 연동 설정**에서 `127.0.0.1:3310` **"연결 테스트"** 클릭 ➔ "ClamAV 데몬 연결 성공" 확인.
-   * 관리자 콘솔 ➔ **도메인 관리 (`/admin/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태를 확인합니다.
+   * 관리자 콘솔 ➔ **도메인 관리 (`/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태를 확인합니다.
 4. **메일 송수신 테스트**: 도메인 및 사서함 계정을 추가하여 외부 메일 송수신 및 IMAP 클라이언트 연동을 확인합니다.
 
 ---

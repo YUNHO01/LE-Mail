@@ -21,7 +21,7 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 모든 배포 환경에서 안정적인 운영을 위해 다음 5대 컴포넌트 구성을 준수해야 합니다:
 
 1. **Nginx 리버스 프록시**:
-   * 웹메일(9000), 모바일 PWA(9300), REST API(9200) 라우팅 및 HTTPS(443) 강제 리다이렉트
+   * 웹메일(9000), 관리자 콘솔(9100), 모바일 PWA(9300), REST API(9200) 라우팅 및 HTTPS(443) 강제 리다이렉트
    * 대용량 첨부파일 업로드 제한 해제(`client_max_body_size 50M`)
 2. **ClamAV 안티바이러스 데몬**:
    * 첨부파일 바이러스/악성코드 실시간 검사를 위한 `clamd` TCP 포트(`3310`) 활성화
@@ -36,6 +36,7 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 5. **공식 배포 패키지(ZIP) 기반 배포**:
    * 개발 환경 소스코드 빌드(`yarn build`) 불필요
    * 배포 압축 해제 ➔ 운영 의존성 설치(`yarn install --production`) ➔ 스키마 초기화(`node apps/api/dist/modules/database/scripts/init-schema.js`) ➔ 서비스 기동
+   * `--imap-v2` 옵션으로 패키징된 경우 Rust 기반 고성능 IMAP 바이너리(`services/imap/bin/lemail-imap`)가 자동 포함되며 `pm2 start ecosystem.config.js` 실행 시 자동 감지되어 기동됩니다.
 
 ---
 
@@ -50,6 +51,7 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
 | **143** | TCP | IMAP (STARTTLS) | IMAP 표준 메일 클라이언트 포트 (STARTTLS 암호화) |
 | **993** | TCP | IMAPS (SSL/TLS) | 보안 IMAP 클라이언트 전용 포트 (Direct SSL/TLS) |
 | **9000** | TCP | Webmail UI | 데스크톱 웹메일 Next.js 포트 (Nginx 프록시로만 노출) |
+| **9100** | TCP | Admin Console | 시스템 관리자 전용 콘솔(`apps/console`) Next.js 포트 (Nginx 프록시로만 노출) |
 | **9300** | TCP | Mobile PWA | 모바일 웹메일 PWA Next.js 포트 (Nginx 프록시로만 노출) |
 | **9200** | TCP | REST API | 백엔드 API 서비스 포트 (Nginx `/api` 프록시로만 노출) |
 | **3310** | TCP | ClamAV Daemon | ClamAV TCP 데몬 통신 포트 (로컬 내부 127.0.0.1 전용) |
@@ -74,9 +76,9 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
      ```
    * **systemd / NSSM 사용 시**: 가이드에 따라 개별 서비스 등록 및 활성화 (`systemctl` / `nssm`).
 6. **관리자 웹 콘솔 접속 & 검증**:
-   * `https://mail.yourdomain.com` 접속 후 관리자 계정 로그인.
-   * **스팸 & 보안 관리 (`/admin/spam-rules`)**에서 ClamAV 연결 테스트 실행 (정상 확인).
-   * **도메인 관리 (`/admin/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
+   * 분리된 관리자 콘솔(`https://admin.yourdomain.com` 또는 포트 `9100`) 접속 후 `SYSTEM_ADMIN` 계정 로그인.
+   * **스팸 & 보안 관리 (`/spam-rules`)**에서 ClamAV 연결 테스트 실행 (정상 확인).
+   * **도메인 관리 (`/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
    * 사서함 계정 생성 후 외부 메일 송수신 테스트.
 
 ---
@@ -91,7 +93,7 @@ LEMail은 스팸 메일 유입을 선제적으로 차단하고 발송 도메인�
   * 블랙리스트에 등재된 IP로 확인되면 메일 본문 수신 전 연결 단계에서 `554 5.7.1 Service unavailable; Client host [...] blocked using ...` 응답으로 즉시 거부합니다.
   * 사설/루프백 IP(`127.0.0.1`, `10.x.x.x`, `172.16.x.x`, `192.168.x.x`) 및 인증된 발신 세션은 RBL 검사를 우회합니다.
 * **아웃바운드 도메인 헬스체크 (`DomainHealthService`)**:
-  * 관리자 콘솔의 **도메인 관리 (`/admin/domains`)** 헬스체크 실행 시, 자사 MX 호스트 IP가 `zen.spamhaus.org`에 등재되어 있는지 점검하여 외부 포털(Gmail, Naver 등) 발송 차단 위험을 사전에 진단합니다.
+  * 관리자 콘솔의 **도메인 관리 (`/domains`)** 헬스체크 실행 시, 자사 MX 호스트 IP가 `zen.spamhaus.org`에 등재되어 있는지 점검하여 외부 포털(Gmail, Naver 등) 발송 차단 위험을 사전에 진단합니다.
 
 ### 2. 설치 시 필수 DNS 리졸버 주의사항 (오탐 차단 방지)
 > [!WARNING]

@@ -12,11 +12,16 @@
  *   - 부팅 시 자동실행: pm2 startup && pm2 save
  */
 
+const fs = require('fs');
+const path = require('path');
+
 const useImapV2 = process.env.USE_IMAP_V2 === 'true';
-const imapV2Binary =
-  process.platform === 'win32'
-    ? 'target/release/lemail-imap.exe'
-    : 'target/release/lemail-imap';
+const imapV2BinName =
+  process.platform === 'win32' ? 'lemail-imap.exe' : 'lemail-imap';
+const packagedImapV2 = fs.existsSync(
+  path.join(__dirname, 'services', 'imap', 'bin', imapV2BinName),
+);
+const imapV2Binary = `target/release/${imapV2BinName}`;
 
 module.exports = {
   apps: [
@@ -92,11 +97,11 @@ module.exports = {
         PORT: 9300,
       },
     },
-    useImapV2
+    packagedImapV2 || useImapV2
       ? {
           name: 'lemail-imap',
-          cwd: './services/imap.v2',
-          script: imapV2Binary,
+          cwd: packagedImapV2 ? './services/imap' : './services/imap.v2',
+          script: packagedImapV2 ? `bin/${imapV2BinName}` : imapV2Binary,
           interpreter: 'none',
           instances: 1,
           exec_mode: 'fork',

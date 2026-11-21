@@ -14,7 +14,7 @@
 * **데이터베이스**: MySQL 8.0 for Windows (utf8mb4 인코딩)
 * **캐시 & 작업 큐**: Memurai (Redis 7 호환 엔진, `requirepass` 인증 필수)
 * **보안 백신**: ClamAV for Windows (`clamd`, TCP: 3310 첨부파일 실시간 검사)
-* **프로세스 관리**: PM2 프로세스 매니저 또는 NSSM (4대 핵심 마이크로서비스 및 Nginx/ClamAV 백그라운드 상시화)
+* **프로세스 관리**: PM2 프로세스 매니저 또는 NSSM (6대 핵심 서비스: Core API, Webmail, Admin Console, Mobile PWA, IMAP v1/v2, Haraka 및 Nginx/ClamAV 백그라운드 상시화)
 
 ---
 
@@ -156,7 +156,7 @@ notepad .env
 # ==========================================
 # LEMail Production Environment Configuration
 # ==========================================
-# ※ API Core(9200), Webmail(9000), Mobile PWA(9300) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
+# ※ API Core(9200), Webmail(9000), Console(9100), Mobile PWA(9300) 포트는 ecosystem.config.js 에서 각 서비스별로 설정됩니다.
 NODE_ENV=production
 
 # 1. Database
@@ -245,7 +245,7 @@ http {
     # 1. HTTP -> HTTPS 리다이렉트
     server {
         listen 80;
-        server_name mail.yourdomain.com m.yourdomain.com;
+        server_name mail.yourdomain.com admin.yourdomain.com m.yourdomain.com;
         return 301 https://$host$request_uri;
     }
 
@@ -260,6 +260,39 @@ http {
 
         location / {
             proxy_pass http://127.0.0.1:9000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api {
+            proxy_pass http://127.0.0.1:9200;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 300s;
+        }
+    }
+
+    # 2-2. Admin Console HTTPS (예: admin.yourdomain.com, 시스템 관리자 전용)
+    server {
+        listen 443 ssl http2;
+        server_name admin.yourdomain.com;
+
+        ssl_certificate C:/LEMail/ssl/fullchain.pem;
+        ssl_certificate_key C:/LEMail/ssl/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://127.0.0.1:9100;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
@@ -331,14 +364,14 @@ nssm start Nginx
 
 ## 8. Windows 프로세스 상시화 및 서비스 등록 (PM2 / NSSM)
 
-LEMail의 5대 핵심 서비스(Core API, Webmail, Mobile PWA, IMAP, Haraka)를 상시 구동하고 재부팅 시 자동 시작하도록 구성합니다.  
+LEMail의 6대 핵심 서비스(Core API, Webmail, Admin Console, Mobile PWA, IMAP, Haraka)를 상시 구동하고 재부팅 시 자동 시작하도록 구성합니다.  
 **[방법 1] PM2 프로세스 매니저**를 사용하면 실시간 리소스 모니터링 및 통합 로그 관리가 편리하며, **[방법 2] NSSM**을 사용하면 각 서비스를 Windows 표준 서비스(`services.msc`)로 직접 등록할 수 있습니다.
 
 ---
 
 ### 8.1 [방법 1] PM2 프로세스 매니저를 통한 등록 및 실행 (권장)
 
-배포 루트 디렉터리에 포함된 `ecosystem.config.js`를 활용하여 5대 서비스를 원클릭으로 등록 및 실행합니다.
+배포 루트 디렉터리에 포함된 `ecosystem.config.js`를 활용하여 6대 서비스를 원클릭으로 등록 및 실행합니다(`--imap-v2` 패키징 시 `services/imap/bin/lemail-imap.exe` Rust 바이너리를 자동 감지하여 실행합니다).
 
 #### (1) PM2 글로벌 설치 및 확인
 관리자 권한 PowerShell에서 실행:
@@ -353,7 +386,7 @@ LEMail 설치 루트 디렉터리(`C:\LEMail`)에서 실행합니다:
 ```powershell
 cd C:\LEMail
 
-# PM2 설정 파일로 5대 서비스 일괄 기동
+# PM2 설정 파일로 6대 서비스 일괄 기동
 pm2 start ecosystem.config.js
 
 # 구동 상태 확인
@@ -364,10 +397,10 @@ pm2 status
 
 | 작업 | PowerShell 명령어 | 설명 |
 | :--- | :--- | :--- |
-| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 5대 서비스 일괄 등록 및 기동 |
+| **전체 프로세스 기동** | `pm2 start ecosystem.config.js` | 6대 서비스 일괄 등록 및 기동 |
 | **상태 확인** | `pm2 status` | CPU, 메모리, 상태, 재시작 횟수 확인 |
 | **실시간 로그 모니터링** | `pm2 logs` | 전체 서비스 실시간 스트리밍 로그 |
-| **특정 서비스 로그** | `pm2 logs lemail-api` | `lemail-api`, `lemail-web`, `lemail-mobile`, `lemail-imap`, `lemail-haraka` 개별 로그 |
+| **특정 서비스 로그** | `pm2 logs lemail-api` | `lemail-api`, `lemail-web`, `lemail-console`, `lemail-mobile`, `lemail-imap`, `lemail-haraka` 개별 로그 |
 | **리소스 대시보드** | `pm2 monit` | 실시간 CPU 및 메모리 터미널 대시보드 |
 | **무중단 리로드** | `pm2 reload ecosystem.config.js` | 무중단 순차적 재기동 |
 | **전체 재시작** | `pm2 restart ecosystem.config.js` | 전체 프로세스 재시작 |
@@ -422,7 +455,16 @@ nssm set LEMail-Web Description "LEMail Next.js Webmail Client"
 nssm set LEMail-Web Start SERVICE_AUTO_START
 ```
 
-#### (3) `LEMail-Mobile` 등록
+#### (3) `LEMail-Console` 등록
+```powershell
+nssm install LEMail-Console "C:\Program Files\nodejs\node.exe" "C:\LEMail\apps\console\scripts\start.js"
+nssm set LEMail-Console AppDirectory "C:\LEMail\apps\console"
+nssm set LEMail-Console AppEnvironmentExtra "NODE_ENV=production" "PORT=9100"
+nssm set LEMail-Console Description "LEMail Next.js Admin Console"
+nssm set LEMail-Console Start SERVICE_AUTO_START
+```
+
+#### (4) `LEMail-Mobile` 등록
 ```powershell
 nssm install LEMail-Mobile "C:\Program Files\nodejs\node.exe" "C:\LEMail\apps\mobile\scripts\start.js"
 nssm set LEMail-Mobile AppDirectory "C:\LEMail\apps\mobile"
@@ -431,16 +473,19 @@ nssm set LEMail-Mobile Description "LEMail Next.js Mobile PWA Client"
 nssm set LEMail-Mobile Start SERVICE_AUTO_START
 ```
 
-#### (4) `LEMail-IMAP` 등록
+#### (5) `LEMail-IMAP` 등록
 ```powershell
+# Node.js v1 패키지 사용 시:
 nssm install LEMail-IMAP "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\imap\dist\index.js"
+# (--imap-v2 Rust 바이너리 패키지 사용 시 위 명령 대신 아래 명령 사용)
+# nssm install LEMail-IMAP "C:\LEMail\services\imap\bin\lemail-imap.exe"
 nssm set LEMail-IMAP AppDirectory "C:\LEMail\services\imap"
 nssm set LEMail-IMAP AppEnvironmentExtra "NODE_ENV=production"
 nssm set LEMail-IMAP Description "LEMail IMAP4rev1 Microservice"
 nssm set LEMail-IMAP Start SERVICE_AUTO_START
 ```
 
-#### (5) `LEMail-Haraka` 등록
+#### (6) `LEMail-Haraka` 등록
 ```powershell
 nssm install LEMail-Haraka "C:\Program Files\nodejs\node.exe" "C:\LEMail\services\haraka\index.js"
 nssm set LEMail-Haraka AppDirectory "C:\LEMail\services\haraka"
@@ -449,10 +494,11 @@ nssm set LEMail-Haraka Description "LEMail Haraka Outbound Relay MTA"
 nssm set LEMail-Haraka Start SERVICE_AUTO_START
 ```
 
-#### (6) 서비스 일괄 시작 및 상태 확인
+#### (7) 서비스 일괄 시작 및 상태 확인
 ```powershell
 nssm start LEMail-API
 nssm start LEMail-Web
+nssm start LEMail-Console
 nssm start LEMail-Mobile
 nssm start LEMail-IMAP
 nssm start LEMail-Haraka
@@ -481,10 +527,10 @@ netsh interface portproxy add v4tov4 listenport=25 listenaddress=0.0.0.0 connect
 
 ## 10. 설치 후 최종 검증
 
-1. 웹 브라우저에서 `https://mail.yourdomain.com` 접속.
-2. 초기 관리자 계정(`admin@yourdomain.com`)으로 로그인.
-3. 관리자 메뉴 ➔ **스팸 & 보안 관리 (`/admin/spam-rules`)**에서 ClamAV 연결 테스트 (`127.0.0.1:3310` 성공 확인).
-4. 관리자 메뉴 ➔ **도메인 관리 (`/admin/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
+1. 웹 브라우저에서 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://admin.yourdomain.com`) 접속.
+2. 관리자 콘솔에서 초기 관리자 계정(`admin@yourdomain.com`, `SYSTEM_ADMIN` 권한)으로 로그인.
+3. 관리자 메뉴 ➔ **스팸 & 보안 관리 (`/spam-rules`)**에서 ClamAV 연결 테스트 (`127.0.0.1:3310` 성공 확인).
+4. 관리자 메뉴 ➔ **도메인 관리 (`/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
 5. 도메인 및 사서함 계정을 생성하고 메일 송수신 및 IMAP 클라이언트 연동을 확인합니다.
 
 > [!WARNING]

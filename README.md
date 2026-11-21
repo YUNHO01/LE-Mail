@@ -42,15 +42,16 @@
 ```
                              [ 외부 메일 서버 / 클라이언트 ]
                                            │
-         ┌─────────────────────────┬───────┴─────────────────┬─────────────────────────┐
-         │ (SMTP Inbound: 2525)    │ (IMAP: 1143 / 1993)     │ (Web: 9000)             │ (Mobile PWA: 9300)
-         ▼                         ▼                         ▼                         ▼
-┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
-│  apps/api        │      │  services/imap   │      │  apps/web        │      │  apps/mobile     │
-│  (SMTP Ingestion)│      │  (IMAP4rev1)     │      │  (Next.js 15)    │      │  (Next.js 15 PWA)│
-└────────┬─────────┘      └────────┬─────────┘      └────────┬─────────┘      └────────┬─────────┘
-         │                         │                         │                         │
-         ▼                         │                         └────────────┬────────────┘
+                                            │ (Console: 9100)
+         ┌─────────────────────────┬───────┴─────────────────┬─────────────────────────┬─────────────────────────┐
+         │ (SMTP Inbound: 2525)    │ (IMAP: 1143 / 1993)     │ (Web: 9000)             │ (Console: 9100)         │ (Mobile PWA: 9300)
+         ▼                         ▼                         ▼                         ▼                         ▼
+┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
+│  apps/api        │      │ services/imap.v2 │      │  apps/web        │      │  apps/console    │      │  apps/mobile     │
+│  (SMTP Ingestion)│      │ (Rust IMAP4rev1) │      │  (Next.js 15)    │      │ (Admin Console)  │      │  (Next.js 15 PWA)│
+└────────┬─────────┘      └────────┬─────────┘      └────────┬─────────┘      └────────┬─────────┘      └────────┬─────────┘
+         │                         │                         │                         │                         │
+         ▼                         │                         └─────────────────────────┴────────────┬────────────┘
  ┌───────────────┐                 │                                      ▼
  │ Raw Spooling  │                 │                             ┌──────────────────┐
  │ (Disk Spool)  │                 │                             │  apps/api        │
@@ -87,7 +88,8 @@
 | **App** | `apps/web` | `9000` (HTTP) | 데스크톱 웹메일(메일·주소록·캘린더) 및 PWA 클라이언트 (Next.js 15 / React 19) |
 | **App** | `apps/console` | `9100` (HTTP) | 시스템 관리자(`SYSTEM_ADMIN`) 전용 운영 콘솔 (Next.js 15 / React 19) |
 | **App** | `apps/mobile` | `9300` (HTTP) | 모바일 최적화 웹메일, 주소록·캘린더 및 오프라인 PWA 클라이언트 (Next.js 15 / React 19) |
-| **Service** | `services/imap` | `1143` (TCP/STARTTLS)<br>`1993` (IMAPS) | 경량·고성능 자체 구현 IMAP4rev1 마이크로서비스 (Node.js/TypeScript) |
+| **Service** | `services/imap` | `1143` (TCP/STARTTLS)<br>`1993` (IMAPS) | 경량·고성능 자체 구현 IMAP4rev1 마이크로서비스 (Node.js/TypeScript v1) |
+| **Service** | `services/imap.v2` | `1143` (TCP/STARTTLS)<br>`1993` (IMAPS) | Rust(`tokio` + `tokio-rustls`) 기반 고성능 IMAP4rev1 마이크로서비스 (기본 개발/선택 운영 지원) |
 | **Service** | `services/haraka` | `2526` (SMTP) | Haraka 기반 아웃바운드 MTA, 외부 릴레이(Smarthost) 및 라이선스 검증 연동 서비스 |
 | **Package** | `packages/shared-types` | - | 프론트엔드/백엔드/마이크로서비스 간 공유 TypeScript 타입 및 인터페이스 |
 
@@ -126,27 +128,28 @@
 - **주소록 (`contacts`)**: 개인/공용 연락처 관리, 검색 및 **CSV / Excel(`.xlsx`) / vCard(`.vcf`) 가져오기·내보내기**.
 - **캘린더 (`calendar`)**: 일정 생성·반복·공유, **`.ics`(iCalendar) 가져오기·내보내기**, 일정 리마인더 알림, **한국 공휴일 자동 연동**.
 
-### 5. 통합 시스템 관리자 콘솔 (`apps/web/admin`)
-- **실시간 모니터링 대시보드 (`/admin/dashboard`)**: CPU/메모리 사용률, BullMQ 큐 상태(대기/진행/완료/실패), 사서함 캐시 히트율, 스팸 통계 실시간 시각화.
+### 5. 통합 시스템 관리자 콘솔 (`apps/console`, 포트 `9100`)
+- **독립 관리자 웹 서비스**: 사용자 웹메일(`apps/web`)과 분리된 `SYSTEM_ADMIN` 전용 운영 콘솔(`POST /api/auth/admin/login`).
+- **실시간 모니터링 대시보드 (`/dashboard`)**: CPU/메모리 사용률, BullMQ 큐 상태(대기/진행/완료/실패), 사서함 캐시 히트율, 스팸 통계 실시간 시각화.
 - **도메인·사용자·사서함·조직도 관리**:
-  - 다중 도메인 등록 및 기본 도메인 지정 (`/admin/domains`)
-  - 계정 생성, 역할 할당(`SYSTEM_ADMIN`, `USER`), 사서함 할당량(Quota MB) 설정 (`/admin/users`, `/admin/mailboxes`)
-  - 부서 계층 구조 및 **조직도 관리·동기화** (`/admin/org`)
-- **동적 시스템 설정 GUI (`/admin/settings`)**: `APP_ENCRYPTION_KEY` 기반 **AES-256-GCM 암호화**를 통해 SMTP 릴레이, 작업자 동시성, 보안 정책 등 운영 설정을 DB에 안전하게 저장 및 즉시 반영.
+  - 다중 도메인 등록 및 기본 도메인 지정 (`/domains`)
+  - 계정 생성, 역할 할당(`SYSTEM_ADMIN`, `USER`), 사서함 할당량(Quota MB) 설정 (`/users`, `/mailboxes`)
+  - 부서 계층 구조 및 **조직도 관리·동기화** (`/org`)
+- **동적 시스템 설정 GUI (`/settings`)**: `APP_ENCRYPTION_KEY` 기반 **AES-256-GCM 암호화**를 통해 SMTP 릴레이, 작업자 동시성, 보안 정책 등 운영 설정을 DB에 안전하게 저장 및 즉시 반영.
 - **보안·정책·감사 관리**:
-  - 스팸 필터 규칙 설정 (`/admin/spam-rules`) 및 격리함 관리 (`/admin/quarantine`)
-  - 공휴일 관리 (`/admin/holidays`) 및 처리/감사 로그 조회 (`/admin/logs`)
-  - **엔터프라이즈 라이선스 관리 (`/admin/license`)**: 라이선스 키 검증, 정원·만료일 조회 및 갱신.
+  - 스팸 필터 규칙 설정 (`/spam-rules`) 및 격리함 관리 (`/quarantine`)
+  - 공휴일 관리 (`/holidays`) 및 처리/감사 로그 조회 (`/logs`)
+  - **엔터프라이즈 라이선스 관리 (`/license`)**: 라이선스 키 검증, 정원·만료일 조회 및 갱신.
 
 ### 6. 엔터프라이즈 라이선스 & TLS 인증서 자동화
-- **전 서비스 라이선스 검증**: 비대칭키 서명 기반 라이선스 발급 도구(`tools/license-issuer`)를 제공하며, `apps/api`, `services/haraka`, `services/imap` 전반에서 라이선스 유효성 및 사용자 정원을 검증합니다.
+- **전 서비스 라이선스 검증**: 비대칭키 서명 기반 라이선스 발급 도구(`tools/license-issuer`)를 제공하며, `apps/api`, `services/haraka`, `services/imap`, `services/imap.v2` 전반에서 라이선스 유효성 및 사용자 정원을 검증합니다.
 - **TLS 인증서 만료 검사 및 자동 갱신 (`scripts/manage-tls-certs.js`)**: Haraka SMTP, IMAP Server, API Inbound SMTP용 SAN X.509 인증서의 만료일을 검사하고 일괄 생성/갱신합니다.
 
 ---
 
 ## 🛠 기술 스택 (Tech Stack)
 
-- **언어 및 런타임**: Node.js (v20+ 권장), TypeScript 5.x
+- **언어 및 런타임**: Node.js (v20+ 권장), TypeScript 5.x, Rust (Edition 2021, `services/imap.v2`)
 - **모노레포 빌드 시스템**: Turborepo 2.x, Yarn Workspaces (v1.22+)
 - **백엔드 프레임워크**: NestJS 11.x, TypeORM 1.x, Express, Swagger (OpenAPI 3.0)
 - **프론트엔드 프레임워크**: Next.js 15.x (App Router), React 19, Tailwind CSS, Quill, Lucide Icons, DOMPurify
@@ -166,6 +169,7 @@
 
 - **Node.js**: v20.x 이상
 - **Yarn**: v1.22.x
+- **Rust / Cargo** *(선택 사항)*: `services/imap.v2` 소스 빌드 및 개발 시 필요
 - **MySQL**: 8.0 이상 (기본 포트: `3306`)
 - **Redis**: 6.x 이상 (기본 포트: `6379`)
 - **ClamAV** *(선택 사항)*: 실시간 바이러스 검사 사용 시 `3310` 포트 연동 (최소 4GB RAM 권장)
@@ -183,7 +187,7 @@ yarn install
 ### 3. 환경 변수 설정 (`.env`)
 
 프로젝트 루트의 `.env.example`을 복사하여 `.env` 파일을 생성합니다.
-초기 설치용 `.env`에는 인프라 연결 및 부트스트랩 필수 항목만 포함되며, 스마트호스트 릴레이·작업자 동시성 등 세부 운영 설정은 최초 기동 후 **관리자 웹 콘솔(`/admin/settings`)**에서 GUI로 구성합니다.
+초기 설치용 `.env`에는 인프라 연결 및 부트스트랩 필수 항목만 포함되며, 스마트호스트 릴레이·작업자 동시성 등 세부 운영 설정은 최초 기동 후 **관리자 웹 콘솔(`http://localhost:9100/settings`)**에서 GUI로 구성합니다.
 
 ```bash
 cp .env.example .env
@@ -248,10 +252,11 @@ yarn --cwd apps/api schema:init
 
 ### 전체 서비스 동시 실행 (개발 모드)
 
-Turborepo를 이용하여 API, Web, Mobile, IMAP, Haraka 서비스를 한 번에 병렬로 실행합니다.
+Turborepo를 이용하여 API, Web, Console, Mobile, IMAP(v2 Rust 기본), Haraka 서비스를 한 번에 병렬로 실행합니다.
 
 ```bash
-yarn dev
+yarn dev          # IMAP v2 (Rust) 포함 전체 실행
+yarn dev:v1       # IMAP v1 (Node.js) 포함 전체 실행
 ```
 
 ### 개별 서비스 실행
@@ -260,8 +265,10 @@ yarn dev
 | :--- | :--- | :--- | :--- |
 | **API Server** | `yarn api:dev` | `yarn --cwd apps/api start:prod` | `yarn api:build` |
 | **Web Frontend** | `yarn web:dev` | `yarn --cwd apps/web start` | `yarn web:build` |
+| **Admin Console** | `yarn console:dev` | `yarn --cwd apps/console start` | `yarn console:build` |
 | **Mobile PWA** | `yarn mobile:dev` | `yarn --cwd apps/mobile start` | `yarn mobile:build` |
-| **IMAP Service** | `yarn imap:dev` | `yarn imap:start` | `yarn imap:build` |
+| **IMAP v1 (Node.js)** | `yarn imap:dev` | `yarn imap:start` | `yarn imap:build` |
+| **IMAP v2 (Rust)** | `yarn imap:v2:dev` | `yarn imap:v2:start` | `yarn imap:v2:build` |
 | **Haraka MTA** | `yarn haraka:dev` | `yarn haraka:start` | - |
 
 ---
@@ -270,7 +277,8 @@ yarn dev
 
 | 서비스 | URL / 주소 | 설명 |
 | :--- | :--- | :--- |
-| **Webmail & Admin** | [http://localhost:9000](http://localhost:9000) | 데스크톱 웹메일 및 관리자 콘솔 |
+| **Webmail** | [http://localhost:9000](http://localhost:9000) | 데스크톱 웹메일 (사용자 전용) |
+| **Admin Console** | [http://localhost:9100](http://localhost:9100) | 시스템 관리자(`SYSTEM_ADMIN`) 전용 운영 콘솔 |
 | **Mobile Webmail (PWA)** | [http://localhost:9300](http://localhost:9300) | 모바일 최적화 웹메일 및 PWA 클라이언트 |
 | **REST API Server** | [http://localhost:9200](http://localhost:9200) | 백엔드 API 서버 |
 | **Swagger API Docs** | [http://localhost:9200/api/docs](http://localhost:9200/api/docs) | OpenAPI 3.0 대화형 API 명세서 |
@@ -330,7 +338,7 @@ LEMail 모노레포는 **[standard-version](https://github.com/conventional-chan
 ### 1. 릴리즈 자동화 워크플로우
 
 - **Conventional Commits 기반 분석**: Git 커밋 메시지 유형(`feat`, `fix`, `perf`, `refactor`, `chore`, `docs` 등)을 분석하여 버전을 자동으로 결정합니다.
-- **모노레포 전체 버전 동기화**: 단일 릴리즈 명령으로 루트 `package.json`뿐만 아니라 `apps/api`, `apps/web`, `apps/mobile`, `services/imap`, `services/haraka`, `packages/shared-types`의 버전이 일괄 갱신됩니다.
+- **모노레포 전체 버전 동기화**: 단일 릴리즈 명령으로 루트 `package.json`뿐만 아니라 `apps/api`, `apps/web`, `apps/console`, `apps/mobile`, `services/imap`, `services/haraka`, `packages/shared-types`의 버전이 일괄 갱신됩니다.
 - **내부 의존성 및 Lockfile 자동 동기화 (`postbump`)**: 버전 범프 직후 `scripts/sync-workspace-deps.js`가 자동으로 실행되어 각 하위 패키지의 `@lemail/shared-types` 의존성 버전을 맞추고, `yarn install`을 통해 `yarn.lock` 트리를 동기화하여 릴리즈 커밋에 함께 스테이징합니다.
 - **Git 커밋 및 태그 자동 생성**: `vX.Y.Z` 형식의 릴리즈 커밋과 Git 태그를 생성합니다.
 
@@ -369,10 +377,10 @@ LEMail은 엔터프라이즈 고객사 설치 및 운영 환경 배포 시 **지
 ### 1. 배포 패키징 명령어
 
 ```bash
-# 1. 난독화 배포 패키지 생성 (운영 배포 기본 권장)
+# 1. 난독화 배포 패키지 생성 (운영 배포 기본 권장 - Node.js IMAP v1 포함)
 yarn package:obfuscate
-# 또는 직접 실행:
-node scripts/package-dist.js --obfuscate
+# 또는 Rust IMAP v2 네이티브 바이너리 포함 패키징:
+node scripts/package-dist.js --obfuscate --imap-v2
 
 # 2. 표준 배포 패키지 생성 (난독화 미적용 일반 빌드 패키지)
 yarn package
@@ -388,9 +396,10 @@ yarn dist:package
 [1/5] 빌드 산출물 확인 및 난독화 컴파일
   ├── packages/shared-types: tsc 타입 빌드
   ├── apps/api: nest build ➔ 메타데이터/소스맵 제거 ➔ JS 난독화 ➔ dist/index.js 래퍼 생성
-  ├── services/imap: tsc 컴파일 ➔ 소스맵 제거 ➔ JS 난독화
+  ├── services/imap (또는 --imap-v2): tsc 컴파일 + JS 난독화 (또는 Rust 릴리즈 바이너리 빌드)
   ├── services/haraka: 플러그인 및 스크립트 .js 파일 대상 인라인 난독화 처리
   ├── apps/web: Next.js 15 프로덕션 최적화 빌드 (next build)
+  ├── apps/console: Next.js 15 관리자 콘솔 프로덕션 빌드 (next build)
   └── apps/mobile: Next.js 15 모바일 PWA 프로덕션 빌드 (next build)
         │
         ▼
@@ -402,8 +411,9 @@ yarn dist:package
   ├── 루트: 운영 전용 package.json (dev 의존성 제거, pm2/start 실행 스크립트 구성) 및 yarn.lock
   ├── apps/api: dist/ (난독화 JS), swagger.json, 운영용 package.json
   ├── apps/web: .next/ (cache 제외), public/, scripts/, next.config.mjs, 운영용 package.json
+  ├── apps/console: .next/ (cache 제외), public/, scripts/, next.config.mjs, 운영용 package.json
   ├── apps/mobile: .next/ (cache 제외), public/, scripts/, next.config.mjs, 운영용 package.json
-  ├── services/imap: dist/ (난독화 JS), keys/, 운영용 package.json
+  ├── services/imap: dist/ (난독화 JS) 또는 bin/lemail-imap (Rust v2 바이너리), keys/, 운영용 package.json
   ├── services/haraka: 난독화된 JS 파일, config/ (불필요한 docs, README 제외)
   └── 공통 운영 파일: ecosystem.config.js (PM2 설정), .env.example, license_dev.lic, swagger.json, docs/
         │
@@ -435,7 +445,7 @@ bin/
 └── lemail_v1.2.2_20261114_obfuscated/       # 압축 전 스테이징 폴더 (검증용)
     ├── package.json                        # 운영 전용 경량화 package.json
     ├── yarn.lock                           # 의존성 락파일
-    ├── ecosystem.config.js                 # PM2 프로세스 매니저 설정 파일 (5개 서비스)
+    ├── ecosystem.config.js                 # PM2 프로세스 매니저 설정 파일 (6개 서비스)
     ├── .env.example                        # 환경 변수 템플릿
     ├── license_dev.lic                     # 기본 라이선스 파일
     ├── swagger.json                        # REST API 명세서
@@ -444,9 +454,10 @@ bin/
     ├── apps/
     │   ├── api/                            # 난독화된 NestJS 백엔드 (dist/, package.json)
     │   ├── web/                            # 프로덕션 빌드 Next.js 15 웹메일 (.next/, public/)
+    │   ├── console/                        # 프로덕션 빌드 Next.js 15 관리자 콘솔 (.next/, public/)
     │   └── mobile/                         # 프로덕션 빌드 Next.js 15 모바일 PWA (.next/, public/)
     └── services/
-        ├── imap/                           # 난독화된 IMAP4rev1 서비스 (dist/, package.json)
+        ├── imap/                           # 난독화된 Node.js IMAP4rev1 또는 Rust v2 바이너리(bin/)
         └── haraka/                         # 난독화된 Haraka MTA 엔진
 ```
 
@@ -470,13 +481,13 @@ cp .env.example .env
 # 4. 데이터베이스 스키마 초기화
 node apps/api/dist/modules/database/scripts/init-schema.js
 
-# 5. PM2 프로세스 매니저로 전체 5개 서비스 백그라운드 기동 (권장)
+# 5. PM2 프로세스 매니저로 전체 6개 서비스 백그라운드 기동 (권장)
 pm2 start ecosystem.config.js
 pm2 save
 pm2 startup
 
 # 또는 PM2 관리 명령어 활용
-yarn pm2:status   # 전체 서비스 상태 확인 (api, web, mobile, imap, haraka)
+yarn pm2:status   # 전체 서비스 상태 확인 (api, web, console, mobile, imap, haraka)
 yarn pm2:logs     # 실시간 통합 로그 확인
 yarn pm2:restart  # 전체 서비스 재시작
 ```
@@ -513,8 +524,10 @@ LE-Mail/
 │   │   │   │   └── worker-pool/  # Piscina 멀티스레드 MIME 파서
 │   │   │   └── main.ts
 │   │   └── test/                 # e2e 파이프라인, 보안 및 라이선스 테스트 스크립트
-│   ├── web/                      # Next.js 15 / React 19 데스크톱 웹메일 & 관리자 콘솔
-│   │   └── src/app/              # App Router (admin, mail, login, offline)
+│   ├── web/                      # Next.js 15 / React 19 데스크톱 웹메일
+│   │   └── src/app/              # App Router (mail, login, offline)
+│   ├── console/                  # Next.js 15 / React 19 시스템 관리자 콘솔 (포트 9100)
+│   │   └── src/app/              # App Router ((console), login)
 │   └── mobile/                   # Next.js 15 / React 19 모바일 전용 웹메일 & PWA
 │       └── src/app/              # App Router (mail, login, offline, manifest.ts)
 ├── services/
@@ -523,12 +536,15 @@ LE-Mail/
 │   │   ├── plugins/              # 릴레이 라우팅 커스텀 플러그인
 │   │   ├── license-checker.js    # 아웃바운드 라이선스 검증기
 │   │   └── index.js
-│   └── imap/                     # IMAP4rev1 독립 마이크로서비스
-│       ├── src/
-│       │   ├── handlers/         # AUTH, FOLDER, MESSAGE, APPEND 핸들러
-│       │   ├── protocol/         # IMAP 응답 및 상태 상수
-│       │   ├── server/           # TCP/TLS 소켓 서버 및 세션 상태 머신
-│       │   └── services/         # DB, 라이선스 및 Redis Pub/Sub(IDLE 푸시) 연동
+│   ├── imap/                     # IMAP4rev1 독립 마이크로서비스 (Node.js v1)
+│   │   ├── src/
+│   │   │   ├── handlers/         # AUTH, FOLDER, MESSAGE, APPEND 핸들러
+│   │   │   ├── protocol/         # IMAP 응답 및 상태 상수
+│   │   │   ├── server/           # TCP/TLS 소켓 서버 및 세션 상태 머신
+│   │   │   └── services/         # DB, 라이선스 및 Redis Pub/Sub(IDLE 푸시) 연동
+│   └── imap.v2/                  # IMAP4rev1 독립 마이크로서비스 (Rust v2: tokio + sqlx)
+│       ├── src/                  # Rust 소스 (handlers, protocol, server, services)
+│       └── scripts/              # 크로스 플랫폼 Cargo 빌드/실행 헬퍼
 ├── packages/
 │   └── shared-types/             # 모노레포 공용 TypeScript 타입 정의
 ├── scripts/
@@ -538,7 +554,7 @@ LE-Mail/
 ├── tools/
 │   └── license-issuer/           # 엔터프라이즈 라이선스 키 생성 및 발급 CLI
 ├── docs/                         # 시스템 용량 산정, HA 구성, OS별 설치 가이드
-├── ecosystem.config.js           # PM2 5개 서비스 통합 운영 설정
+├── ecosystem.config.js           # PM2 6개 서비스 통합 운영 설정 (USE_IMAP_V2 지원)
 ├── CHANGELOG.md                  # standard-version 자동 생성 변경 이력
 └── package.json                  # 모노레포 루트 패키지 설정
 ```
