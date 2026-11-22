@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Award, Plus, Trash2, Pencil, RefreshCw, X, Sparkles } from 'lucide-react';
+import { Award, Plus, Trash2, RefreshCw, X, Sparkles } from 'lucide-react';
 import type { OrgRankDto, OrgTitleDto, RankPresetType } from '@lemail/shared-types';
 import { PageHeader } from '@/components/common';
 import { orgApi } from '@/lib/api';
@@ -407,13 +407,12 @@ export default function PositionsPage() {
                   <th className="px-3 py-2.5">직위명</th>
                   <th className="px-3 py-2.5">직위코드</th>
                   <th className="px-3 py-2.5">설명</th>
-                  <th className="w-14 px-3 py-2.5 text-center">수정</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.05] text-xs">
                 {ranks.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-[#86868b]">
+                    <td colSpan={5} className="px-4 py-10 text-center text-[#86868b]">
                       {loading
                         ? '불러오는 중입니다...'
                         : '등록된 직급이 없습니다. 상단에서 업종 템플릿을 선택하거나 직접 추가해 주세요.'}
@@ -423,11 +422,15 @@ export default function PositionsPage() {
                   ranks.map((rank) => (
                     <tr
                       key={rank.id}
-                      className={`hover:bg-slate-50/80 transition-colors ${
+                      onClick={() => openEditRankModal(rank)}
+                      className={`cursor-pointer hover:bg-slate-50/80 transition-colors ${
                         selectedRankIds.has(rank.id) ? 'bg-blue-50/40' : ''
                       }`}
                     >
-                      <td className="px-3 py-2.5 text-center">
+                      <td
+                        className="px-3 py-2.5 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={selectedRankIds.has(rank.id)}
@@ -443,16 +446,6 @@ export default function PositionsPage() {
                       <td className="px-3 py-2.5 font-mono text-[11px] text-[#6e6e73]">{rank.code}</td>
                       <td className="px-3 py-2.5 text-[#6e6e73] max-w-[180px] truncate" title={rank.description || ''}>
                         {rank.description || '-'}
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <button
-                          type="button"
-                          onClick={() => openEditRankModal(rank)}
-                          title="직급 수정"
-                          className="rounded-md p-1 text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
                       </td>
                     </tr>
                   ))
@@ -511,13 +504,12 @@ export default function PositionsPage() {
                   <th className="w-16 px-3 py-2.5">순서</th>
                   <th className="px-3 py-2.5">직책명</th>
                   <th className="px-3 py-2.5">설명</th>
-                  <th className="w-14 px-3 py-2.5 text-center">수정</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.05] text-xs">
                 {titles.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-[#86868b]">
+                    <td colSpan={4} className="px-4 py-10 text-center text-[#86868b]">
                       {loading ? '불러오는 중입니다...' : '등록된 직책이 없습니다. 직책을 추가해 주세요.'}
                     </td>
                   </tr>
@@ -525,11 +517,15 @@ export default function PositionsPage() {
                   titles.map((title) => (
                     <tr
                       key={title.id}
-                      className={`hover:bg-slate-50/80 transition-colors ${
+                      onClick={() => openEditTitleModal(title)}
+                      className={`cursor-pointer hover:bg-slate-50/80 transition-colors ${
                         selectedTitleIds.has(title.id) ? 'bg-blue-50/40' : ''
                       }`}
                     >
-                      <td className="px-3 py-2.5 text-center">
+                      <td
+                        className="px-3 py-2.5 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={selectedTitleIds.has(title.id)}
@@ -544,16 +540,6 @@ export default function PositionsPage() {
                       <td className="px-3 py-2.5 font-medium text-[#1d1d1f]">{title.name}</td>
                       <td className="px-3 py-2.5 text-[#6e6e73] max-w-[220px] truncate" title={title.description || ''}>
                         {title.description || '-'}
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <button
-                          type="button"
-                          onClick={() => openEditTitleModal(title)}
-                          title="직책 수정"
-                          className="rounded-md p-1 text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
                       </td>
                     </tr>
                   ))

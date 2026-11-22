@@ -1271,39 +1271,41 @@ export default function UsersManagementPage() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       직위 (직급)
                     </label>
-                    <select
+                    <SelectDropdown
+                      options={[
+                        { value: '', label: '선택 안함' },
+                        ...orgRanks.map((r) => ({
+                          value: r.name,
+                          label: r.name,
+                        })),
+                      ]}
                       value={createForm.position}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, position: e.target.value })
+                      onChange={(val) =>
+                        setCreateForm({ ...createForm, position: val })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    >
-                      <option value="">선택 안함</option>
-                      {orgRanks.map((r) => (
-                        <option key={r.id} value={r.name}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
+                      size="md"
+                      fullWidth
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       직책
                     </label>
-                    <select
+                    <SelectDropdown
+                      options={[
+                        { value: '', label: '선택 안함' },
+                        ...orgTitles.map((t) => ({
+                          value: t.name,
+                          label: t.name,
+                        })),
+                      ]}
                       value={createForm.jobTitle}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, jobTitle: e.target.value })
+                      onChange={(val) =>
+                        setCreateForm({ ...createForm, jobTitle: val })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    >
-                      <option value="">선택 안함</option>
-                      {orgTitles.map((t) => (
-                        <option key={t.id} value={t.name}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
+                      size="md"
+                      fullWidth
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1549,48 +1551,44 @@ export default function UsersManagementPage() {
                     직위 / 직책
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    <select
-                      aria-label="직위"
+                    <SelectDropdown
+                      options={[
+                        { value: '', label: '직위 선택 안함' },
+                        ...(editForm.position &&
+                        !orgRanks.some((r) => r.name === editForm.position)
+                          ? [{ value: editForm.position, label: `${editForm.position} (기존 값)` }]
+                          : []),
+                        ...orgRanks.map((r) => ({
+                          value: r.name,
+                          label: r.name,
+                        })),
+                      ]}
                       value={editForm.position}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, position: e.target.value })
+                      onChange={(val) =>
+                        setEditForm({ ...editForm, position: val })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    >
-                      <option value="">직위 선택 안함</option>
-                      {editForm.position &&
-                        !orgRanks.some((r) => r.name === editForm.position) && (
-                          <option value={editForm.position}>
-                            {editForm.position} (기존 값)
-                          </option>
-                        )}
-                      {orgRanks.map((r) => (
-                        <option key={r.id} value={r.name}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      aria-label="직책"
+                      size="md"
+                      fullWidth
+                    />
+                    <SelectDropdown
+                      options={[
+                        { value: '', label: '직책 선택 안함' },
+                        ...(editForm.jobTitle &&
+                        !orgTitles.some((t) => t.name === editForm.jobTitle)
+                          ? [{ value: editForm.jobTitle, label: `${editForm.jobTitle} (기존 값)` }]
+                          : []),
+                        ...orgTitles.map((t) => ({
+                          value: t.name,
+                          label: t.name,
+                        })),
+                      ]}
                       value={editForm.jobTitle}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, jobTitle: e.target.value })
+                      onChange={(val) =>
+                        setEditForm({ ...editForm, jobTitle: val })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    >
-                      <option value="">직책 선택 안함</option>
-                      {editForm.jobTitle &&
-                        !orgTitles.some((t) => t.name === editForm.jobTitle) && (
-                          <option value={editForm.jobTitle}>
-                            {editForm.jobTitle} (기존 값)
-                          </option>
-                        )}
-                      {orgTitles.map((t) => (
-                        <option key={t.id} value={t.name}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
+                      size="md"
+                      fullWidth
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
