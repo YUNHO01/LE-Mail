@@ -1,26 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatBrandName } from '@lemail/shared-types';
+import { ShieldCheck, ExternalLink, ChevronDown } from 'lucide-react';
 import {
-  Activity,
-  UserCog,
-  Mail,
-  Globe,
-  Layers,
-  ShieldCheck,
-  ShieldAlert,
-  Filter,
-  ExternalLink,
-  Settings,
-  KeyRound,
-  CalendarDays,
-  Building2,
-} from 'lucide-react';
+  CONSOLE_TOP_ITEMS,
+  CONSOLE_NAV_GROUPS,
+  type ConsoleNavItem,
+} from '../../config/navigation';
 
 interface ConsoleSidebarProps {
   sidebarOpen: boolean;
@@ -29,76 +20,80 @@ interface ConsoleSidebarProps {
 
 const WEBMAIL_URL = (process.env.NEXT_PUBLIC_WEBMAIL_URL || '').trim();
 
+function isPathActive(pathname: string | null, href: string): boolean {
+  return pathname === href || Boolean(pathname?.startsWith(`${href}/`));
+}
+
+function findActiveGroupId(pathname: string | null): string | null {
+  const matched = CONSOLE_NAV_GROUPS.find((group) =>
+    group.items.some((item) => isPathActive(pathname, item.href)),
+  );
+  return matched ? matched.id : null;
+}
+
 export const ConsoleSidebar: React.FC<ConsoleSidebarProps> = ({
   sidebarOpen,
   setSidebarOpen,
 }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { startNavigation } = useNavigation();
   const { licenseStatus } = useAuth();
   const brandName = formatBrandName(licenseStatus);
 
-  const isLinkActive = (path: string) => {
-    return pathname === path || pathname?.startsWith(`${path}/`);
+  // 아코디언 상태: 현재 선택된 그룹 1개만 펼치고 나머지는 닫힘
+  const [openGroupId, setOpenGroupId] = useState<string | null>(() =>
+    findActiveGroupId(pathname),
+  );
+
+  // 경로 변경 시 해당 메뉴가 속한 그룹만 열고 나머지는 닫음
+  useEffect(() => {
+    setOpenGroupId(findActiveGroupId(pathname));
+  }, [pathname]);
+
+  const toggleGroup = (groupId: string) => {
+    const willOpen = openGroupId !== groupId;
+    setOpenGroupId(willOpen ? groupId : null);
+
+    if (willOpen) {
+      const targetGroup = CONSOLE_NAV_GROUPS.find((g) => g.id === groupId);
+      const firstItem = targetGroup?.items[0];
+      if (firstItem) {
+        setSidebarOpen(false);
+        startNavigation(firstItem.href);
+        router.push(firstItem.href);
+      }
+    }
   };
 
-  const navItems = [
-    {
-      href: '/dashboard',
-      label: '모니터링 대시보드',
-      icon: Activity,
-    },
-    {
-      href: '/users',
-      label: '사용자 계정 관리',
-      icon: UserCog,
-    },
-    {
-      href: '/org',
-      label: '조직도 및 AMS 연동',
-      icon: Building2,
-    },
-    {
-      href: '/domains',
-      label: '도메인 관리',
-      icon: Globe,
-    },
-    {
-      href: '/mailboxes',
-      label: '사서함 관리',
-      icon: Mail,
-    },
-    {
-      href: '/logs',
-      label: '수신 및 보안 로그',
-      icon: Layers,
-    },
-    {
-      href: '/quarantine',
-      label: '스팸 격리함 관리',
-      icon: ShieldAlert,
-    },
-    {
-      href: '/spam-rules',
-      label: '스팸 차단 및 필터 정책',
-      icon: Filter,
-    },
-    {
-      href: '/settings',
-      label: '시스템 환경설정',
-      icon: Settings,
-    },
-    {
-      href: '/holidays',
-      label: '공휴일 관리',
-      icon: CalendarDays,
-    },
-    {
-      href: '/license',
-      label: '라이선스 관리',
-      icon: KeyRound,
-    },
-  ];
+  const renderNavLink = (item: ConsoleNavItem) => {
+    const Icon = item.icon;
+    const active = isPathActive(pathname, item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={() => {
+          setSidebarOpen(false);
+          startNavigation(item.href);
+        }}
+        onMouseDown={() => startNavigation(item.href)}
+        className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
+          active
+            ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+            : 'text-[#1d1d1f] hover:bg-black/[0.04]'
+        }`}
+      >
+        <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-[#0071e3]' : 'text-[#6e6e73]'}`} />
+        <span className="truncate flex-1">{item.label}</span>
+        {item.badge && (
+          <span className="shrink-0 rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[#6e6e73]">
+            {item.badge}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <aside
@@ -127,7 +122,7 @@ export const ConsoleSidebar: React.FC<ConsoleSidebarProps> = ({
       </div>
 
       <div className="flex flex-col flex-1 min-h-0 justify-between px-3 py-3">
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-3.5 pr-0.5">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-0.5">
           {/* Optional External Link to User Webmail */}
           {WEBMAIL_URL && (
             <div>
@@ -144,36 +139,41 @@ export const ConsoleSidebar: React.FC<ConsoleSidebarProps> = ({
             </div>
           )}
 
-          {/* Admin Navigation */}
-          <div>
-            <div className="px-2.5 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#86868b]">
-              시스템 관리 콘솔
-            </div>
-            <nav className="space-y-0.5">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = isLinkActive(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => {
-                      setSidebarOpen(false);
-                      startNavigation(item.href);
-                    }}
-                    onMouseDown={() => startNavigation(item.href)}
-                    className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
-                      active
-                        ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
-                        : 'text-[#1d1d1f] hover:bg-black/[0.04]'
+          {/* 상단 고정 메뉴 */}
+          {CONSOLE_TOP_ITEMS.length > 0 && (
+            <nav className="space-y-0.5">{CONSOLE_TOP_ITEMS.map(renderNavLink)}</nav>
+          )}
+
+          {/* 그룹별 Admin Navigation (아코디언 토글) */}
+          <div className="space-y-1.5 pt-1.5 border-t border-black/[0.06]">
+            {CONSOLE_NAV_GROUPS.map((group) => {
+              const isOpen = openGroupId === group.id;
+              const hasActiveItem = group.items.some((item) => isPathActive(pathname, item.href));
+
+              return (
+                <div key={group.id} className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.id)}
+                    aria-expanded={isOpen}
+                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                      isOpen || hasActiveItem
+                        ? 'text-[#1d1d1f] hover:bg-black/[0.04]'
+                        : 'text-[#86868b] hover:bg-black/[0.04] hover:text-[#1d1d1f]'
                     }`}
                   >
-                    <Icon className={`h-4 w-4 shrink-0 ${active ? 'text-[#0071e3]' : 'text-[#6e6e73]'}`} />
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
+                    <span className="truncate">{group.label}</span>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
+                        isOpen ? 'rotate-0' : '-rotate-90'
+                      }`}
+                    />
+                  </button>
+
+                  {isOpen && <nav className="space-y-0.5">{group.items.map(renderNavLink)}</nav>}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

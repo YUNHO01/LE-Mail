@@ -4246,6 +4246,279 @@
         ]
       }
     },
+    "/api/org/ranks": {
+      "get": {
+        "description": "등록된 직급(직위) 목록을 레벨 오름차순으로 조회합니다.",
+        "operationId": "OrgController_getRanks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직급 목록 조회",
+        "tags": [
+          "Organization"
+        ]
+      },
+      "post": {
+        "description": "레벨, 직위명, 직위코드, 설명을 입력하여 직급을 등록합니다.",
+        "operationId": "OrgController_createRank",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrgRankDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직급 등록 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/ranks/{id}": {
+      "patch": {
+        "description": "기존 직급의 레벨, 직위명, 직위코드, 설명을 수정합니다.",
+        "operationId": "OrgController_updateRank",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrgRankDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직급 수정 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/ranks/bulk-delete": {
+      "post": {
+        "description": "선택한 여러 건의 직급을 일괄 삭제합니다.",
+        "operationId": "OrgController_bulkDeleteRanks",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteIdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직급 다중 삭제 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/ranks/preset": {
+      "post": {
+        "description": "일반기업/공공연구/제조생산 템플릿의 직급을 중복을 제외하고 자동 추가합니다.",
+        "operationId": "OrgController_applyRankPreset",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyRankPresetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직급 업종 템플릿 자동 추가 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/titles": {
+      "get": {
+        "description": "등록된 직책 목록을 순서 오름차순으로 조회합니다.",
+        "operationId": "OrgController_getTitles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직책 목록 조회",
+        "tags": [
+          "Organization"
+        ]
+      },
+      "post": {
+        "description": "순서, 직책명, 설명을 입력하여 직책을 등록합니다.",
+        "operationId": "OrgController_createTitle",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrgTitleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직책 등록 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/titles/{id}": {
+      "patch": {
+        "description": "기존 직책의 순서, 직책명, 설명을 수정합니다.",
+        "operationId": "OrgController_updateTitle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrgTitleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직책 수정 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
+    "/api/org/titles/bulk-delete": {
+      "post": {
+        "description": "선택한 여러 건의 직책을 일괄 삭제합니다.",
+        "operationId": "OrgController_bulkDeleteTitles",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteIdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "직책 다중 삭제 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
     "/api/ai/policy": {
       "get": {
         "description": "현재 로그인한 사용자가 개인 외부 AI 및 이미지 해석 기능을 사용할 수 있는지 정책을 조회합니다.",
@@ -6064,6 +6337,138 @@
             "type": "boolean",
             "example": true,
             "description": "신규 사용자 생성 시 환영 메일 자동 발송 여부"
+          }
+        }
+      },
+      "CreateOrgRankDto": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "number",
+            "example": 10,
+            "description": "레벨(서열, 오름차순 정렬 기준)"
+          },
+          "name": {
+            "type": "string",
+            "example": "과장",
+            "description": "직위명"
+          },
+          "code": {
+            "type": "string",
+            "example": "GEN_40",
+            "description": "직위코드 (유니크)"
+          },
+          "description": {
+            "type": "object",
+            "example": "일반기업 중간 관리자",
+            "description": "설명"
+          }
+        },
+        "required": [
+          "level",
+          "name",
+          "code"
+        ]
+      },
+      "UpdateOrgRankDto": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "number",
+            "example": 10,
+            "description": "레벨(서열)"
+          },
+          "name": {
+            "type": "string",
+            "example": "과장",
+            "description": "직위명"
+          },
+          "code": {
+            "type": "string",
+            "example": "GEN_40",
+            "description": "직위코드"
+          },
+          "description": {
+            "type": "object",
+            "example": "설명",
+            "description": "설명"
+          }
+        }
+      },
+      "BulkDeleteIdsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "삭제할 ID 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "ApplyRankPresetDto": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PUBLIC_RESEARCH",
+              "MANUFACTURING"
+            ],
+            "example": "GENERAL",
+            "description": "직급 업종 템플릿 (GENERAL: 일반기업, PUBLIC_RESEARCH: 공공연구, MANUFACTURING: 제조생산)"
+          }
+        },
+        "required": [
+          "preset"
+        ]
+      },
+      "CreateOrgTitleDto": {
+        "type": "object",
+        "properties": {
+          "sortOrder": {
+            "type": "number",
+            "example": 10,
+            "description": "순서(서열, 오름차순 정렬 기준)"
+          },
+          "name": {
+            "type": "string",
+            "example": "팀장",
+            "description": "직책명"
+          },
+          "description": {
+            "type": "object",
+            "example": "팀 단위 업무 총괄",
+            "description": "설명"
+          }
+        },
+        "required": [
+          "sortOrder",
+          "name"
+        ]
+      },
+      "UpdateOrgTitleDto": {
+        "type": "object",
+        "properties": {
+          "sortOrder": {
+            "type": "number",
+            "example": 10,
+            "description": "순서(서열)"
+          },
+          "name": {
+            "type": "string",
+            "example": "팀장",
+            "description": "직책명"
+          },
+          "description": {
+            "type": "object",
+            "example": "팀 단위 업무 총괄",
+            "description": "설명"
           }
         }
       },

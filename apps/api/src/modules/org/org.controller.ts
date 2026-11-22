@@ -15,9 +15,18 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { DepartmentsService } from './departments.service';
+import { OrgPositionsService } from './org-positions.service';
 import { OrgSyncService } from './org-sync.service';
 import { CreateDepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
 import { SyncAmsOrgDto, UpdateAmsSyncSettingsDto } from './dto/ams-sync.dto';
+import {
+  ApplyRankPresetDto,
+  BulkDeleteIdsDto,
+  CreateOrgRankDto,
+  CreateOrgTitleDto,
+  UpdateOrgRankDto,
+  UpdateOrgTitleDto,
+} from './dto/positions.dto';
 
 @ApiTags('Organization')
 @ApiBearerAuth()
@@ -26,6 +35,7 @@ import { SyncAmsOrgDto, UpdateAmsSyncSettingsDto } from './dto/ams-sync.dto';
 export class OrgController {
   constructor(
     private readonly departmentsService: DepartmentsService,
+    private readonly orgPositionsService: OrgPositionsService,
     private readonly orgSyncService: OrgSyncService,
   ) {}
 
@@ -127,5 +137,97 @@ export class OrgController {
   })
   async pullFromAms() {
     return this.orgSyncService.pullAndSyncFromAms();
+  }
+
+  // ==================== 직급 (Ranks) ====================
+
+  @Get('ranks')
+  @ApiOperation({
+    summary: '직급 목록 조회',
+    description: '등록된 직급(직위) 목록을 레벨 오름차순으로 조회합니다.',
+  })
+  async getRanks() {
+    return this.orgPositionsService.findAllRanks();
+  }
+
+  @Post('ranks')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: '직급 등록 (관리자 전용)',
+    description: '레벨, 직위명, 직위코드, 설명을 입력하여 직급을 등록합니다.',
+  })
+  async createRank(@Body() dto: CreateOrgRankDto) {
+    return this.orgPositionsService.createRank(dto);
+  }
+
+  @Patch('ranks/:id')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: '직급 수정 (관리자 전용)',
+    description: '기존 직급의 레벨, 직위명, 직위코드, 설명을 수정합니다.',
+  })
+  async updateRank(@Param('id') id: string, @Body() dto: UpdateOrgRankDto) {
+    return this.orgPositionsService.updateRank(id, dto);
+  }
+
+  @Post('ranks/bulk-delete')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: '직급 다중 삭제 (관리자 전용)',
+    description: '선택한 여러 건의 직급을 일괄 삭제합니다.',
+  })
+  async bulkDeleteRanks(@Body() dto: BulkDeleteIdsDto) {
+    return this.orgPositionsService.bulkDeleteRanks(dto.ids);
+  }
+
+  @Post('ranks/preset')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: '직급 업종 템플릿 자동 추가 (관리자 전용)',
+    description: '일반기업/공공연구/제조생산 템플릿의 직급을 중복을 제외하고 자동 추가합니다.',
+  })
+  async applyRankPreset(@Body() dto: ApplyRankPresetDto) {
+    return this.orgPositionsService.applyRankPreset(dto.preset);
+  }
+
+  // ==================== 직책 (Titles) ====================
+
+  @Get('titles')
+  @ApiOperation({
+    summary: '직책 목록 조회',
+    description: '등록된 직책 목록을 순서 오름차순으로 조회합니다.',
+  })
+  async getTitles() {
+    return this.orgPositionsService.findAllTitles();
+  }
+
+  @Post('titles')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: '직책 등록 (관리자 전용)',
+    description: '순서, 직책명, 설명을 입력하여 직책을 등록합니다.',
+  })
+  async createTitle(@Body() dto: CreateOrgTitleDto) {
+    return this.orgPositionsService.createTitle(dto);
+  }
+
+  @Patch('titles/:id')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: '직책 수정 (관리자 전용)',
+    description: '기존 직책의 순서, 직책명, 설명을 수정합니다.',
+  })
+  async updateTitle(@Param('id') id: string, @Body() dto: UpdateOrgTitleDto) {
+    return this.orgPositionsService.updateTitle(id, dto);
+  }
+
+  @Post('titles/bulk-delete')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: '직책 다중 삭제 (관리자 전용)',
+    description: '선택한 여러 건의 직책을 일괄 삭제합니다.',
+  })
+  async bulkDeleteTitles(@Body() dto: BulkDeleteIdsDto) {
+    return this.orgPositionsService.bulkDeleteTitles(dto.ids);
   }
 }

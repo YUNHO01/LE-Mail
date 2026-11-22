@@ -59,6 +59,28 @@ const schemaStatements = [
     INDEX \`idx_dept_active\` (\`is_active\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
+  `CREATE TABLE IF NOT EXISTS \`org_ranks\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`level\` INT NOT NULL DEFAULT 1,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`code\` VARCHAR(50) NOT NULL,
+    \`description\` VARCHAR(255) NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE INDEX \`uq_org_ranks_code\` (\`code\`),
+    INDEX \`idx_org_ranks_level\` (\`level\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  `CREATE TABLE IF NOT EXISTS \`org_titles\` (
+    \`id\` VARCHAR(36) PRIMARY KEY,
+    \`sort_order\` INT NOT NULL DEFAULT 1,
+    \`name\` VARCHAR(100) NOT NULL,
+    \`description\` VARCHAR(255) NULL,
+    \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_org_titles_sort\` (\`sort_order\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
   `CREATE TABLE IF NOT EXISTS \`org_sync_log\` (
     \`id\` VARCHAR(36) PRIMARY KEY,
     \`sync_type\` ENUM('FULL', 'INCREMENTAL', 'WEBHOOK') NOT NULL DEFAULT 'FULL',

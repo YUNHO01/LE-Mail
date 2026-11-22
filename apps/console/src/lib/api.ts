@@ -1,8 +1,15 @@
 import type {
+  CreateOrgRankDto,
+  CreateOrgTitleDto,
   DepartmentDto,
   EmploymentStatus,
+  OrgRankDto,
   OrgSyncStatus,
   OrgSyncType,
+  OrgTitleDto,
+  RankPresetType,
+  UpdateOrgRankDto,
+  UpdateOrgTitleDto,
 } from '@lemail/shared-types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -176,6 +183,55 @@ export const orgApi = {
   deleteDepartment: (id: string) =>
     fetchApi<{ success: boolean; message: string }>(`/org/departments/${id}`, {
       method: 'DELETE',
+    }),
+
+  getRanks: () => fetchApi<OrgRankDto[]>('/org/ranks'),
+
+  createRank: (dto: CreateOrgRankDto) =>
+    fetchApi<OrgRankDto>('/org/ranks', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+  updateRank: (id: string, dto: UpdateOrgRankDto) =>
+    fetchApi<OrgRankDto>(`/org/ranks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  bulkDeleteRanks: (ids: string[]) =>
+    fetchApi<{ deletedCount: number }>('/org/ranks/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
+
+  applyRankPreset: (preset: RankPresetType) =>
+    fetchApi<{ addedCount: number; skippedCount: number; items: OrgRankDto[] }>(
+      '/org/ranks/preset',
+      {
+        method: 'POST',
+        body: JSON.stringify({ preset }),
+      },
+    ),
+
+  getTitles: () => fetchApi<OrgTitleDto[]>('/org/titles'),
+
+  createTitle: (dto: CreateOrgTitleDto) =>
+    fetchApi<OrgTitleDto>('/org/titles', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+
+  updateTitle: (id: string, dto: UpdateOrgTitleDto) =>
+    fetchApi<OrgTitleDto>(`/org/titles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
+  bulkDeleteTitles: (ids: string[]) =>
+    fetchApi<{ deletedCount: number }>('/org/titles/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
     }),
 
   syncAms: (payload: {

@@ -30,7 +30,15 @@ import {
   BadgeAlert,
   IdCard,
 } from 'lucide-react';
-import { UserDto, UserRole, DomainDto, DepartmentDto, EmploymentStatus } from '@lemail/shared-types';
+import {
+  UserDto,
+  UserRole,
+  DomainDto,
+  DepartmentDto,
+  EmploymentStatus,
+  OrgRankDto,
+  OrgTitleDto,
+} from '@lemail/shared-types';
 import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
 
@@ -80,6 +88,8 @@ export default function UsersManagementPage() {
 
   // 등록 폼 상태
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
+  const [orgRanks, setOrgRanks] = useState<OrgRankDto[]>([]);
+  const [orgTitles, setOrgTitles] = useState<OrgTitleDto[]>([]);
   const [createForm, setCreateForm] = useState<{
     localPart: string;
     selectedDomain: string;
@@ -347,10 +357,16 @@ export default function UsersManagementPage() {
     window.print();
   };
 
+  const loadOrgMasterOptions = () => {
+    orgApi.getDepartments().then(setDepartments).catch(() => {});
+    orgApi.getRanks().then(setOrgRanks).catch(() => {});
+    orgApi.getTitles().then(setOrgTitles).catch(() => {});
+  };
+
   // 신규 등록 모달 열기
   const openCreateModal = () => {
     loadAvailableDomains();
-    orgApi.getDepartments().then(setDepartments).catch(() => {});
+    loadOrgMasterOptions();
     setCreateForm({
       localPart: '',
       selectedDomain: '',
@@ -444,7 +460,7 @@ export default function UsersManagementPage() {
   // 수정 모달 열기
   const openEditModal = (target: UserDto) => {
     setTargetUser(target);
-    orgApi.getDepartments().then(setDepartments).catch(() => {});
+    loadOrgMasterOptions();
     setEditForm({
       name: target.name,
       role: target.role,
@@ -613,7 +629,7 @@ export default function UsersManagementPage() {
     <div className="space-y-6">
       {/* Top Header */}
       <PageHeader
-        title="사용자 계정 관리"
+        title="조직 관리"
         icon={<Users className="h-6 w-6 text-sky-600" />}
         subtitle="메일 시스템 접속 계정과 사서함 할당량, 언어, 사번 등 조직원 프로필을 관리합니다."
         action={
@@ -1253,31 +1269,41 @@ export default function UsersManagementPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      직위
+                      직위 (직급)
                     </label>
-                    <input
-                      type="text"
-                      placeholder="예: 과장"
+                    <select
                       value={createForm.position}
                       onChange={(e) =>
                         setCreateForm({ ...createForm, position: e.target.value })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    />
+                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    >
+                      <option value="">선택 안함</option>
+                      {orgRanks.map((r) => (
+                        <option key={r.id} value={r.name}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       직책
                     </label>
-                    <input
-                      type="text"
-                      placeholder="예: 팀장"
+                    <select
                       value={createForm.jobTitle}
                       onChange={(e) =>
                         setCreateForm({ ...createForm, jobTitle: e.target.value })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    />
+                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    >
+                      <option value="">선택 안함</option>
+                      {orgTitles.map((t) => (
+                        <option key={t.id} value={t.name}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1523,24 +1549,48 @@ export default function UsersManagementPage() {
                     직위 / 직책
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      placeholder="직위 (과장)"
+                    <select
+                      aria-label="직위"
                       value={editForm.position}
                       onChange={(e) =>
                         setEditForm({ ...editForm, position: e.target.value })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="직책 (팀장)"
+                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    >
+                      <option value="">직위 선택 안함</option>
+                      {editForm.position &&
+                        !orgRanks.some((r) => r.name === editForm.position) && (
+                          <option value={editForm.position}>
+                            {editForm.position} (기존 값)
+                          </option>
+                        )}
+                      {orgRanks.map((r) => (
+                        <option key={r.id} value={r.name}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="직책"
                       value={editForm.jobTitle}
                       onChange={(e) =>
                         setEditForm({ ...editForm, jobTitle: e.target.value })
                       }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    />
+                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    >
+                      <option value="">직책 선택 안함</option>
+                      {editForm.jobTitle &&
+                        !orgTitles.some((t) => t.name === editForm.jobTitle) && (
+                          <option value={editForm.jobTitle}>
+                            {editForm.jobTitle} (기존 값)
+                          </option>
+                        )}
+                      {orgTitles.map((t) => (
+                        <option key={t.id} value={t.name}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">

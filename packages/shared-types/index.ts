@@ -113,6 +113,57 @@ export interface DepartmentDto {
   updatedAt: string;
 }
 
+export type RankPresetType = 'GENERAL' | 'PUBLIC_RESEARCH' | 'MANUFACTURING';
+
+export interface OrgRankDto {
+  id: string;
+  level: number;
+  name: string;
+  code: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrgRankDto {
+  level: number;
+  name: string;
+  code: string;
+  description?: string | null;
+}
+
+export interface UpdateOrgRankDto {
+  level?: number;
+  name?: string;
+  code?: string;
+  description?: string | null;
+}
+
+export interface OrgTitleDto {
+  id: string;
+  sortOrder: number;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrgTitleDto {
+  sortOrder: number;
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateOrgTitleDto {
+  sortOrder?: number;
+  name?: string;
+  description?: string | null;
+}
+
+export interface BulkDeleteIdsDto {
+  ids: string[];
+}
+
 export interface UserDto {
   id: string;
   email: string;

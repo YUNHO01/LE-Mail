@@ -372,7 +372,7 @@ export default function AdminOrgPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="조직도 및 AMS 연동"
+        title="외부 조직도 연동"
         icon={<Building2 className="h-6 w-6 text-sky-600" />}
         subtitle="단독 운영 시 사내 부서를 직접 관리하거나, AMS 조직도 데이터를 동기화합니다."
         action={

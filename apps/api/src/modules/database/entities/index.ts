@@ -18,6 +18,8 @@ export * from './calendar-event.entity';
 export * from './calendar-event-attendee.entity';
 export * from './system-holiday.entity';
 export * from './department.entity';
+export * from './org-rank.entity';
+export * from './org-title.entity';
 export * from './org-sync-log.entity';
 export * from './user-passkey.entity';
 export * from './user-ai-setting.entity';
