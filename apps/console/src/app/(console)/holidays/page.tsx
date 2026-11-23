@@ -197,7 +197,7 @@ export default function AdminHolidaysPage() {
       />
 
       <PageHeader
-        title="대한민국 공휴일 관리"
+        title="공휴일 관리"
         icon={<CalendarDays className="h-6 w-6 text-sky-600" />}
         subtitle="한국천문연구원 특일정보 API 자동 동기화 및 임시·대체공휴일을 관리합니다."
         action={
@@ -310,19 +310,26 @@ export default function AdminHolidaysPage() {
       </form>
 
       {/* 연도별 공휴일 목록 */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/70">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-600">조회 연도:</span>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        {/* 1단 카드 헤더 (h-12) */}
+        <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <CalendarDays className="h-4 w-4 text-sky-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-900">연도별 공휴일 목록</span>
+            <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+              {holidays.length}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <div className="inline-flex rounded-lg bg-slate-200/70 p-0.5">
               {yearOptions.map((y) => (
                 <button
                   key={y}
                   type="button"
                   onClick={() => setYear(y)}
-                  className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
                     year === y
-                      ? 'bg-white text-slate-900 shadow-xs'
+                      ? 'bg-white text-sky-700 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -331,9 +338,6 @@ export default function AdminHolidaysPage() {
               ))}
             </div>
           </div>
-          <span className="text-xs text-slate-500">
-            총 <strong className="text-slate-800">{holidays.length}</strong>건
-          </span>
         </div>
 
         {loading ? (
@@ -346,15 +350,15 @@ export default function AdminHolidaysPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">날짜</th>
-                  <th className="px-5 py-3 font-semibold">공휴일명</th>
-                  <th className="px-5 py-3 font-semibold">구분</th>
-                  <th className="px-5 py-3 font-semibold">출처</th>
-                  <th className="px-5 py-3 font-semibold">캘린더 노출</th>
-                  <th className="px-5 py-3 font-semibold text-right">관리</th>
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+                  <th className="px-4 py-3 whitespace-nowrap">날짜</th>
+                  <th className="px-4 py-3 whitespace-nowrap">공휴일명</th>
+                  <th className="px-4 py-3 whitespace-nowrap">구분</th>
+                  <th className="px-4 py-3 whitespace-nowrap">출처</th>
+                  <th className="px-4 py-3 whitespace-nowrap">캘린더 노출</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap">관리</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

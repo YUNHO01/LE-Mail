@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -43,7 +44,21 @@ export class SpamController {
 
   @Get('config')
   async getConfig(@CurrentUser() user: User) {
-    return this.spamConfigService.getConfig();
+    const config = this.spamConfigService.getConfig();
+    const clamavHealth = await this.attachmentSecurityService
+      .pingClamAV(config.clamavHost, config.clamavPort, 1500)
+      .catch((err) => ({
+        enabled: config.clamavEnabled,
+        isHealthy: false,
+        host: config.clamavHost,
+        port: config.clamavPort,
+        errorMessage: err?.message || 'ClamAV 상태 확인 실패',
+      }));
+    return {
+      ...config,
+      clamavEnabled: clamavHealth.isHealthy ? config.clamavEnabled : false,
+      clamavHealth,
+    };
   }
 
   @Patch('config')
@@ -53,6 +68,17 @@ export class SpamController {
   ) {
     if (user.role !== UserRole.SYSTEM_ADMIN) {
       throw new ForbiddenException('시스템 관리자만 스팸 정책 설정을 변경할 수 있습니다.');
+    }
+    const current = this.spamConfigService.getConfig();
+    if (patch.clamavEnabled === true) {
+      const targetHost = (patch.clamavHost ?? current.clamavHost).trim();
+      const targetPort = Number(patch.clamavPort ?? current.clamavPort);
+      const health = await this.attachmentSecurityService.pingClamAV(targetHost, targetPort, 2000);
+      if (!health.isHealthy) {
+        throw new BadRequestException(
+          `ClamAV 데몬이 오프라인 상태이므로 백신 검사를 활성화할 수 없습니다. (${health.errorMessage || '연결 실패'})`,
+        );
+      }
     }
     return this.spamConfigService.updateConfig(patch);
   }

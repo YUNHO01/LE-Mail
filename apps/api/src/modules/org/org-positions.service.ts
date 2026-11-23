@@ -22,6 +22,17 @@ interface RankPresetSeed {
   description: string;
 }
 
+export interface EnsureRankInput {
+  name: string;
+  code?: string | null;
+  level?: number | null;
+}
+
+export interface EnsureTitleInput {
+  name: string;
+  sortOrder?: number | null;
+}
+
 const RANK_PRESETS: Record<RankPresetType, RankPresetSeed[]> = {
   GENERAL: [
     { level: 10, name: '사원', code: 'GEN_10', description: '일반기업 기본 직급' },
@@ -243,5 +254,138 @@ export class OrgPositionsService {
     }
     const result = await this.titleRepo.delete({ id: In(uniqueIds) });
     return { deletedCount: result.affected ?? 0 };
+  }
+
+  // ==================== 동기화 자동 등록 (Ensure) ====================
+
+  /**
+   * 외부 조직도 동기화 등에서 전달된 직급 목록 중 마스터에 없는 항목을 일괄 등록합니다.
+   */
+  async ensureRanks(inputs: EnsureRankInput[]): Promise<{ createdCount: number }> {
+    const deduped = new Map<string, EnsureRankInput>();
+    for (const raw of inputs) {
+      const name = raw.name?.trim();
+      if (!name) continue;
+      const prev = deduped.get(name);
+      if (!prev) {
+        deduped.set(name, {
+          name,
+          code: raw.code?.trim() || null,
+          level: raw.level ?? null,
+        });
+      } else {
+        if (!prev.code && raw.code?.trim()) prev.code = raw.code.trim();
+        if (prev.level == null && raw.level != null) prev.level = raw.level;
+      }
+    }
+
+    if (deduped.size === 0) {
+      return { createdCount: 0 };
+    }
+
+    const existing = await this.rankRepo.find();
+    const existingNames = new Set(existing.map((r) => r.name.trim()));
+    const existingCodes = new Set(existing.map((r) => r.code.trim().toLowerCase()));
+    let maxLevel = existing.reduce((max, r) => Math.max(max, r.level), 0);
+    let autoCodeSeq = 1;
+
+    const allocateUniqueCode = (preferred?: string | null): string => {
+      if (preferred) {
+        const candidate = preferred.slice(0, 50);
+        if (!existingCodes.has(candidate.toLowerCase())) {
+          existingCodes.add(candidate.toLowerCase());
+          return candidate;
+        }
+      }
+      while (true) {
+        const candidate = `AMS_RANK_${String(autoCodeSeq).padStart(3, '0')}`;
+        autoCodeSeq += 1;
+        if (!existingCodes.has(candidate.toLowerCase())) {
+          existingCodes.add(candidate.toLowerCase());
+          return candidate;
+        }
+      }
+    };
+
+    const toInsert: OrgRank[] = [];
+    for (const item of deduped.values()) {
+      if (existingNames.has(item.name)) {
+        continue;
+      }
+      const level =
+        typeof item.level === 'number' && Number.isFinite(item.level) && item.level >= 0
+          ? Math.trunc(item.level)
+          : (maxLevel += 10);
+
+      toInsert.push(
+        this.rankRepo.create({
+          level,
+          name: item.name.slice(0, 100),
+          code: allocateUniqueCode(item.code),
+          description: 'AMS 조직도 동기화 자동 등록',
+        }),
+      );
+      existingNames.add(item.name);
+    }
+
+    if (toInsert.length > 0) {
+      await this.rankRepo.save(toInsert);
+    }
+
+    return { createdCount: toInsert.length };
+  }
+
+  /**
+   * 외부 조직도 동기화 등에서 전달된 직책 목록 중 마스터에 없는 항목을 일괄 등록합니다.
+   */
+  async ensureTitles(inputs: EnsureTitleInput[]): Promise<{ createdCount: number }> {
+    const deduped = new Map<string, EnsureTitleInput>();
+    for (const raw of inputs) {
+      const name = raw.name?.trim();
+      if (!name) continue;
+      const prev = deduped.get(name);
+      if (!prev) {
+        deduped.set(name, {
+          name,
+          sortOrder: raw.sortOrder ?? null,
+        });
+      } else if (prev.sortOrder == null && raw.sortOrder != null) {
+        prev.sortOrder = raw.sortOrder;
+      }
+    }
+
+    if (deduped.size === 0) {
+      return { createdCount: 0 };
+    }
+
+    const existing = await this.titleRepo.find();
+    const existingNames = new Set(existing.map((t) => t.name.trim()));
+    let maxSortOrder = existing.reduce((max, t) => Math.max(max, t.sortOrder), 0);
+
+    const toInsert: OrgTitle[] = [];
+    for (const item of deduped.values()) {
+      if (existingNames.has(item.name)) {
+        continue;
+      }
+      const sortOrder =
+        typeof item.sortOrder === 'number' && Number.isFinite(item.sortOrder) && item.sortOrder >= 0
+          ? Math.trunc(item.sortOrder)
+          : (maxSortOrder += 10);
+
+      toInsert.push(
+        this.titleRepo.create({
+          sortOrder,
+          name: item.name.slice(0, 100),
+          description: 'AMS 조직도 동기화 자동 등록',
+        }),
+      );
+      existingNames.add(item.name);
+    }
+
+    if (toInsert.length > 0) {
+      await this.titleRepo.save(toInsert);
+    }
+
+    return { createdCount: toInsert.length };
   }
 }

@@ -1752,6 +1752,25 @@
                 "USER"
               ]
             }
+          },
+          {
+            "name": "departmentId",
+            "required": false,
+            "in": "query",
+            "description": "부서 ID 필터 (unassigned 입력 시 부서 미지정 사용자 조회)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeSubDepartments",
+            "required": false,
+            "in": "query",
+            "description": "하위 부서 소속 사용자 포함 여부",
+            "schema": {
+              "default": true,
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -4117,6 +4136,46 @@
         ]
       }
     },
+    "/api/org/departments/{id}/move": {
+      "patch": {
+        "description": "부서의 상위 부서를 변경하거나 동일 부모 내 정렬 순서를 재배치합니다.",
+        "operationId": "OrgController_moveDepartment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveDepartmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "부서 이동 및 순서 조절 (관리자 전용)",
+        "tags": [
+          "Organization"
+        ]
+      }
+    },
     "/api/org/sync/ams": {
       "post": {
         "description": "AMS 조직도 데이터를 수신하여 부서 트리 및 임직원(employeeNumber 기준) 상태를 동기화합니다. 퇴사/휴직자는 사서함 비활성화 후 메일 백업으로 대응할 수 있습니다.",
@@ -6135,6 +6194,21 @@
           }
         }
       },
+      "MoveDepartmentDto": {
+        "type": "object",
+        "properties": {
+          "targetParentId": {
+            "type": "object",
+            "nullable": true,
+            "description": "이동할 상위 부서 ID (생략 시 현재 상위 부서 유지)"
+          },
+          "targetIndex": {
+            "type": "number",
+            "example": 0,
+            "description": "대상 상위 부서 내 배치할 정렬 위치 (0부터 시작)"
+          }
+        }
+      },
       "AmsDepartmentPayloadDto": {
         "type": "object",
         "properties": {
@@ -6217,10 +6291,25 @@
             "example": "과장",
             "description": "직위"
           },
+          "positionCode": {
+            "type": "object",
+            "example": "GEN_40",
+            "description": "직위 코드 (미등록 직위 자동 생성 시 활용)"
+          },
+          "positionLevel": {
+            "type": "object",
+            "example": 40,
+            "description": "직위 레벨/서열 (미등록 직위 자동 생성 시 활용)"
+          },
           "jobTitle": {
             "type": "object",
             "example": "팀장",
             "description": "직책"
+          },
+          "jobTitleSortOrder": {
+            "type": "object",
+            "example": 10,
+            "description": "직책 정렬 순서 (미등록 직책 자동 생성 시 활용)"
           },
           "phone": {
             "type": "object",

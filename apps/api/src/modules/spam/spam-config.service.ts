@@ -28,7 +28,7 @@ export class SpamConfigService implements OnModuleInit {
     const envClamavEnabled =
       (this.configService.get<string>('CLAMAV_ENABLED') ||
         process.env.CLAMAV_ENABLED ||
-        'true') !== 'false';
+        'false').toLowerCase() === 'true';
     const envClamavHost =
       this.configService.get<string>('CLAMAV_HOST') ||
       process.env.CLAMAV_HOST ||

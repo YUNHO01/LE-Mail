@@ -192,7 +192,14 @@ export class UsersService {
   }
 
   async findAll(query: UserQueryDto) {
-    const { page = 1, limit = 20, search, role } = query;
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      role,
+      departmentId,
+      includeSubDepartments = true,
+    } = query;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.userRepository.createQueryBuilder('user');
@@ -208,7 +215,46 @@ export class UsersService {
       queryBuilder.andWhere('user.role = :role', { role });
     }
 
-    queryBuilder.orderBy('user.created_at', 'DESC');
+    if (departmentId) {
+      const shouldIncludeSub =
+        includeSubDepartments === undefined ||
+        includeSubDepartments === true ||
+        String(includeSubDepartments).toLowerCase() === 'true' ||
+        String(includeSubDepartments) === '1';
+
+      if (departmentId === 'unassigned') {
+        queryBuilder.andWhere('user.department_id IS NULL');
+      } else if (shouldIncludeSub) {
+        const selectedDept = await this.departmentRepository.findOne({ where: { id: departmentId } });
+        if (selectedDept?.path) {
+          const subDepts = await this.departmentRepository
+            .createQueryBuilder('dept')
+            .select(['dept.id'])
+            .where('dept.id = :deptId OR dept.path LIKE :pathPrefix', {
+              deptId: selectedDept.id,
+              pathPrefix: `${selectedDept.path}/%`,
+            })
+            .getMany();
+          const deptIds = subDepts.map((d) => d.id);
+          if (deptIds.length > 0) {
+            queryBuilder.andWhere('user.department_id IN (:...deptIds)', { deptIds });
+          } else {
+            queryBuilder.andWhere('user.department_id = :departmentId', { departmentId });
+          }
+        } else {
+          queryBuilder.andWhere('user.department_id = :departmentId', { departmentId });
+        }
+      } else {
+        queryBuilder.andWhere('user.department_id = :departmentId', { departmentId });
+      }
+    }
+
+    queryBuilder
+      .orderBy(
+        'COALESCE((SELECT MAX(r.level) FROM org_ranks r WHERE r.name = user.position), -1)',
+        'DESC',
+      )
+      .addOrderBy('user.name', 'ASC');
     queryBuilder.skip(skip).take(limit);
 
     const [users, total] = await queryBuilder.getManyAndCount();

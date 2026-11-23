@@ -17,7 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { DepartmentsService } from './departments.service';
 import { OrgPositionsService } from './org-positions.service';
 import { OrgSyncService } from './org-sync.service';
-import { CreateDepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
+import { CreateDepartmentDto, MoveDepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
 import { SyncAmsOrgDto, UpdateAmsSyncSettingsDto } from './dto/ams-sync.dto';
 import {
   ApplyRankPresetDto,
@@ -78,6 +78,19 @@ export class OrgController {
     @Body() dto: UpdateDepartmentDto,
   ) {
     return this.departmentsService.update(id, dto);
+  }
+
+  @Patch('departments/:id/move')
+  @Roles(UserRole.SYSTEM_ADMIN)
+  @ApiOperation({
+    summary: '부서 이동 및 순서 조절 (관리자 전용)',
+    description: '부서의 상위 부서를 변경하거나 동일 부모 내 정렬 순서를 재배치합니다.',
+  })
+  async moveDepartment(
+    @Param('id') id: string,
+    @Body() dto: MoveDepartmentDto,
+  ) {
+    return this.departmentsService.move(id, dto);
   }
 
   @Delete('departments/:id')

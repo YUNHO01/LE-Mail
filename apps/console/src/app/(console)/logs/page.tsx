@@ -300,19 +300,9 @@ export default function AdminLogsPage() {
     <div className="space-y-6">
       {/* Top Header */}
       <PageHeader
-        title="메일 송수신 및 발송 실패 감사 로그"
+        title="수신 및 보안 로그"
         icon={<Layers className="h-6 w-6 text-sky-600" />}
         subtitle="인바운드 수신 보안 인증(SPF/DKIM/DMARC) 및 아웃바운드 발송 실패 내역을 추적하고 재발송(Retry)을 관리합니다. (개인정보 보호를 위해 EML 원본은 오류 메일에 한해 제한적으로 제공됩니다)"
-        action={
-          <button
-            onClick={loadLogs}
-            disabled={loading}
-            className="btn btn-sm btn-secondary inline-flex items-center gap-1.5 text-xs font-semibold print:hidden"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
-            <span>새로고침</span>
-          </button>
-        }
       />
 
       {/* Main Table Container */}
@@ -325,9 +315,37 @@ export default function AdminLogsPage() {
           </div>
         </div>
 
-        {/* 상단 툴바: [구분 필터] -> [상태 필터] -> [검색창] / 버튼군 */}
-        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 bg-white print-toolbar print:hidden">
-          <div className="flex flex-wrap items-center gap-2.5">
+        {/* 1단 카드 헤더 (h-12) */}
+        <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2 print:hidden">
+          <div className="flex items-center gap-2 min-w-0">
+            <Layers className="h-4 w-4 text-sky-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-900">수신 및 보안 로그</span>
+            <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+              {logs.length}
+            </span>
+          </div>
+          <TableUtilityButtons
+            onCopy={handleCopy}
+            onExcel={handleExcelExport}
+            onPrint={handlePrint}
+            copied={copied}
+            extraActions={
+              <button
+                type="button"
+                onClick={loadLogs}
+                disabled={loading}
+                title="새로고침"
+                className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            }
+          />
+        </div>
+
+        {/* 2단 필터/검색 바 (h-11) */}
+        <div className="h-11 px-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-white print-toolbar print:hidden">
+          <div className="flex items-center gap-2">
             {/* 1. 송수신 구분 필터 */}
             <SelectDropdown
               options={[
@@ -358,45 +376,34 @@ export default function AdminLogsPage() {
             />
 
             {/* 3. 검색창 */}
-            <div className="w-64">
+            <div className="w-60">
               <SearchInput
                 value={search}
                 onChange={setSearch}
                 placeholder="발신자, 제목 검색..."
-                size="md"
+                size="sm"
               />
             </div>
           </div>
 
-          {/* 우측: 유틸리티 및 재발송 버튼군 */}
-          <div className="flex items-center gap-2 self-end lg:self-auto flex-wrap">
-            {/* 다중 선택 일괄 뱃지 및 일괄 재발송 버튼 */}
-            {selectedIds.length > 0 && (
-              <div className="flex items-center gap-2 mr-1 pr-2 border-r border-slate-200">
-                <span className="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
-                  {selectedIds.length}개 선택
-                </span>
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                {selectedIds.length}개 선택
+              </span>
 
-                {selectedFailedOutboundMails.length > 0 && (
-                  <button
-                    onClick={handleBulkRetry}
-                    disabled={bulkRetrying}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition shadow-xs disabled:opacity-50"
-                  >
-                    <RotateCw className={`h-3 w-3 ${bulkRetrying ? 'animate-spin' : ''}`} />
-                    <span>실패 메일 일괄 재발송 ({selectedFailedOutboundMails.length}건)</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            <TableUtilityButtons
-              onCopy={handleCopy}
-              onExcel={handleExcelExport}
-              onPrint={handlePrint}
-              copied={copied}
-            />
-          </div>
+              {selectedFailedOutboundMails.length > 0 && (
+                <button
+                  onClick={handleBulkRetry}
+                  disabled={bulkRetrying}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition shadow-xs disabled:opacity-50"
+                >
+                  <RotateCw className={`h-3 w-3 ${bulkRetrying ? 'animate-spin' : ''}`} />
+                  <span>실패 메일 일괄 재발송 ({selectedFailedOutboundMails.length}건)</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 데이터 테이블 */}

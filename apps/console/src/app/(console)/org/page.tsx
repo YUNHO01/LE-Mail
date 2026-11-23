@@ -10,6 +10,8 @@ import {
   UploadCloud,
   ChevronRight,
   ChevronDown,
+  Folder,
+  FolderOpen,
   Users,
   CheckCircle2,
   AlertCircle,
@@ -20,7 +22,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { DepartmentDto } from '@lemail/shared-types';
-import { PageHeader, ToggleSwitch } from '@/components/common';
+import { PageHeader, SelectDropdown, ToggleSwitch } from '@/components/common';
 import { DepartmentTreeNodeDto, orgApi, OrgSyncLogDto } from '@/lib/api';
 
 const SAMPLE_AMS_PAYLOAD = JSON.stringify(
@@ -283,90 +285,30 @@ export default function AdminOrgPage() {
     }
   };
 
-  const renderTreeNodes = (nodes: DepartmentTreeNodeDto[], level = 0): React.ReactNode => {
-    return nodes.map((node) => {
-      const hasChildren = node.children && node.children.length > 0;
+  const flattenVisibleTree = (
+    nodes: DepartmentTreeNodeDto[],
+    level = 0,
+  ): Array<{
+    node: DepartmentTreeNodeDto;
+    level: number;
+    hasChildren: boolean;
+    isExpanded: boolean;
+  }> => {
+    const rows: Array<{
+      node: DepartmentTreeNodeDto;
+      level: number;
+      hasChildren: boolean;
+      isExpanded: boolean;
+    }> = [];
+    for (const node of nodes) {
+      const hasChildren = Boolean(node.children && node.children.length > 0);
       const isExpanded = expandedIds.has(node.id);
-      return (
-        <div key={node.id}>
-          <div
-            className={`flex items-center justify-between px-4 py-2.5 border-b border-slate-100 hover:bg-slate-50/80 transition-colors ${
-              !node.isActive ? 'opacity-60 bg-slate-50' : ''
-            }`}
-            style={{ paddingLeft: `${16 + level * 24}px` }}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              {hasChildren ? (
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(node.id)}
-                  className="p-0.5 rounded hover:bg-slate-200 text-slate-500"
-                >
-                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </button>
-              ) : (
-                <span className="w-5 inline-block" />
-              )}
-              <Building2 className="h-4 w-4 text-sky-600 shrink-0" />
-              <span className="text-sm font-semibold text-slate-900 truncate">{node.name}</span>
-              {node.code && (
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-mono text-slate-600">
-                  {node.code}
-                </span>
-              )}
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  node.source === 'AMS'
-                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                    : 'bg-slate-100 text-slate-600 border border-slate-200'
-                }`}
-              >
-                {node.source}
-              </span>
-              {!node.isActive && (
-                <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-200">
-                  비활성
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                <Users className="h-3.5 w-3.5" />
-                {node.userCount}명
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => openCreateModal(node.id)}
-                  title="하위 부서 추가"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openEditModal(node)}
-                  title="부서 수정"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteDept(node)}
-                  title="부서 삭제"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-          {hasChildren && isExpanded && renderTreeNodes(node.children, level + 1)}
-        </div>
-      );
-    });
+      rows.push({ node, level, hasChildren, isExpanded });
+      if (hasChildren && isExpanded) {
+        rows.push(...flattenVisibleTree(node.children, level + 1));
+      }
+    }
+    return rows;
   };
 
   return (
@@ -380,17 +322,17 @@ export default function AdminOrgPage() {
             <button
               type="button"
               onClick={() => setSyncModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100"
+              className="btn btn-sm btn-secondary inline-flex items-center gap-1.5 text-xs font-semibold"
             >
-              <UploadCloud className="h-4 w-4" />
+              <UploadCloud className="w-3.5 h-3.5" />
               <span>AMS 동기화 실행</span>
             </button>
             <button
               type="button"
               onClick={() => openCreateModal('')}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500"
+              className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>부서 추가</span>
             </button>
           </div>
@@ -422,14 +364,14 @@ export default function AdminOrgPage() {
       {/* AMS 연동 및 자동 동기화 설정 카드 */}
       <form
         onSubmit={handleSaveSyncSettings}
-        className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden"
+        className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden"
       >
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-200 bg-slate-50/70">
-          <div className="flex items-center gap-2">
-            <Settings className="h-4 w-4 text-sky-600" />
-            <span className="text-sm font-bold text-slate-900">AMS 연동 및 자동 동기화 설정</span>
+        <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Settings className="h-4 w-4 text-sky-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-900 truncate">AMS 연동 및 자동 동기화 설정</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0 ${
                 syncSettings.enabled
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : 'bg-slate-100 text-slate-600 border border-slate-200'
@@ -438,7 +380,7 @@ export default function AdminOrgPage() {
               {syncSettings.enabled ? `자동 동기화 활성 (${syncSettings.intervalMinutes}분)` : '단독 운영 (자동 동기화 꺼짐)'}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={handlePullFromAms}
@@ -447,17 +389,17 @@ export default function AdminOrgPage() {
                 (!syncSettings.apiUrl.trim() &&
                   (!syncSettings.departmentsApiUrl.trim() || !syncSettings.usersApiUrl.trim()))
               }
-              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
+              className="btn btn-sm btn-secondary inline-flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50"
             >
-              <DownloadCloud className="h-3.5 w-3.5" />
+              <DownloadCloud className="w-3.5 h-3.5" />
               <span>{pulling ? '가져오는 중...' : '지금 가져오기 (Pull)'}</span>
             </button>
             <button
               type="submit"
               disabled={savingSettings}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50"
             >
-              <Save className="h-3.5 w-3.5" />
+              <Save className="w-3.5 h-3.5" />
               <span>{savingSettings ? '저장 중...' : '설정 저장'}</span>
             </button>
           </div>
@@ -546,35 +488,44 @@ export default function AdminOrgPage() {
               checked={syncSettings.enabled}
               onChange={(val) => setSyncSettings((p) => ({ ...p, enabled: val }))}
               label="AMS 자동 동기화 스케줄러 활성화 (해제 시 LEMail 단독 운영 모드)"
+              showStatusText={false}
               color="indigo"
             />
             <ToggleSwitch
               checked={syncSettings.autoProvisionMailbox}
               onChange={(val) => setSyncSettings((p) => ({ ...p, autoProvisionMailbox: val }))}
               label="신규 입사자 LEMail 계정 및 사서함 자동 생성 (라이선스 정원 내)"
+              showStatusText={false}
               color="indigo"
             />
             <ToggleSwitch
               checked={syncSettings.sendWelcomeMail}
               onChange={(val) => setSyncSettings((p) => ({ ...p, sendWelcomeMail: val }))}
               label="신규 사용자 생성 시 환영 메일 자동 발송"
+              showStatusText={false}
               color="indigo"
             />
           </div>
         </div>
       </form>
 
-      {/* 조직도 트리 카드 */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50/70">
-          <div className="text-sm font-bold text-slate-900">
-            부서 계층 구조 ({flatDepts.length}개)
+      {/* 조직도 트리 카드 (직급 관리 목록 스타일) */}
+      <section className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col">
+        {/* 1단 헤더 (h-12) */}
+        <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Building2 className="h-4 w-4 text-sky-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-900">부서 계층 구조</span>
+            <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+              {flatDepts.length}
+            </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <ToggleSwitch
               checked={includeInactive}
               onChange={setIncludeInactive}
               label="비활성 부서 포함"
+              showStatusText={false}
               size="sm"
               color="indigo"
             />
@@ -582,38 +533,174 @@ export default function AdminOrgPage() {
               type="button"
               onClick={loadData}
               disabled={loading}
-              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200/70"
+              title="새로고침"
+              className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {loading ? (
-          <div className="p-10 text-center text-sm text-slate-400">조직도를 불러오는 중...</div>
-        ) : tree.length === 0 ? (
-          <div className="p-10 text-center text-sm text-slate-500">
-            등록된 부서가 없습니다. <strong>부서 추가</strong> 또는 <strong>AMS 동기화 실행</strong>으로 조직도를 구성해 주세요.
-          </div>
-        ) : (
-          <div>{renderTreeNodes(tree)}</div>
-        )}
-      </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+                <th className="px-4 py-3 whitespace-nowrap">부서명</th>
+                <th className="w-36 px-4 py-3 whitespace-nowrap">부서 코드</th>
+                <th className="w-24 px-4 py-3 text-center whitespace-nowrap">구분</th>
+                <th className="w-24 px-4 py-3 text-center whitespace-nowrap">인원</th>
+                <th className="w-24 px-4 py-3 text-center whitespace-nowrap">상태</th>
+                <th className="w-28 px-4 py-3 text-right whitespace-nowrap">관리</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-16 text-center text-slate-400">
+                    조직도를 불러오는 중입니다...
+                  </td>
+                </tr>
+              ) : tree.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-16 text-center text-slate-400">
+                    등록된 부서가 없습니다. <strong>부서 추가</strong> 또는 <strong>AMS 동기화 실행</strong>으로 조직도를 구성해 주세요.
+                  </td>
+                </tr>
+              ) : (
+                flattenVisibleTree(tree).map(({ node, level, hasChildren, isExpanded }) => (
+                  <tr
+                    key={node.id}
+                    onClick={() => openEditModal(node)}
+                    className={`cursor-pointer hover:bg-slate-50/80 transition-colors ${
+                      !node.isActive ? 'opacity-60 bg-slate-50/50' : 'bg-white'
+                    }`}
+                    title="클릭하여 부서 정보 수정"
+                  >
+                    <td
+                      className="px-4 py-3 whitespace-nowrap"
+                      style={{ paddingLeft: `${16 + level * 20}px` }}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {hasChildren ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleExpand(node.id);
+                            }}
+                            className="p-0.5 rounded hover:bg-slate-200 text-slate-500 shrink-0"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        ) : (
+                          <span className="w-4.5 inline-block shrink-0" />
+                        )}
+                        {node.isRoot ? (
+                          <Building2 className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        ) : hasChildren && isExpanded ? (
+                          <FolderOpen className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+                        ) : (
+                          <Folder className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        )}
+                        <span className="font-semibold text-slate-900">{node.name}</span>
+                        {node.isRoot && (
+                          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
+                            회사
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                      {node.code || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          node.source === 'AMS'
+                            ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                            : 'bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}
+                      >
+                        {node.source}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-[11px] font-semibold text-sky-600 whitespace-nowrap">
+                      {node.userCount}명
+                    </td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      {node.isActive ? (
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                          활성
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-200">
+                          비활성
+                        </span>
+                      )}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-right whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openCreateModal(node.id)}
+                          title="하위 부서 추가"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(node)}
+                          title="부서 수정"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        {!node.isRoot && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDept(node)}
+                            title="부서 삭제"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* AMS 동기화 이력 */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/70 text-sm font-bold text-slate-900">
-          최근 AMS 동기화 이력
+      <section className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center gap-2">
+          <UploadCloud className="h-4 w-4 text-sky-600 shrink-0" />
+          <span className="text-xs font-bold text-slate-900">최근 AMS 동기화 이력</span>
+          <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+            {syncLogs.length}
+          </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="px-4 py-2.5 font-semibold">유형</th>
-                <th className="px-4 py-2.5 font-semibold">상태</th>
-                <th className="px-4 py-2.5 font-semibold">총/생성/수정/비활성/스킵</th>
-                <th className="px-4 py-2.5 font-semibold">시작 시각</th>
-                <th className="px-4 py-2.5 font-semibold">비고(오류/스킵 사유)</th>
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+                <th className="px-4 py-3 whitespace-nowrap">유형</th>
+                <th className="px-4 py-3 whitespace-nowrap">상태</th>
+                <th className="px-4 py-3 whitespace-nowrap">총/생성/수정/비활성/스킵</th>
+                <th className="px-4 py-3 whitespace-nowrap">시작 시각</th>
+                <th className="px-4 py-3 whitespace-nowrap">비고(오류/스킵 사유)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -657,12 +744,12 @@ export default function AdminOrgPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
       {/* 부서 등록/수정 모달 */}
       {deptModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
               <h3 className="text-base font-bold text-slate-900">
                 {editingDept ? '부서 수정' : '새 부서 등록'}
@@ -677,11 +764,17 @@ export default function AdminOrgPage() {
                 <input
                   type="text"
                   required
+                  disabled={Boolean(editingDept?.isRoot)}
                   value={deptForm.name}
                   onChange={(e) => setDeptForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
                   placeholder="예: 플랫폼개발팀"
                 />
+                {editingDept?.isRoot && (
+                  <p className="mt-1 text-[11px] text-amber-600">
+                    최상위 부서명은 라이선스 회사명과 연동되며 직접 변경할 수 없습니다.
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -707,21 +800,22 @@ export default function AdminOrgPage() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">상위 부서</label>
-                <select
+                <SelectDropdown
+                  options={[
+                    { value: '', label: '최상위 부서 (없음)' },
+                    ...flatDepts
+                      .filter((d) => !editingDept || d.id !== editingDept.id)
+                      .map((d) => ({
+                        value: d.id,
+                        label: `${'— '.repeat(d.depth)}${d.name}`,
+                      })),
+                  ]}
                   value={deptForm.parentId}
-                  onChange={(e) => setDeptForm((p) => ({ ...p, parentId: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white"
-                >
-                  <option value="">최상위 부서 (없음)</option>
-                  {flatDepts
-                    .filter((d) => !editingDept || d.id !== editingDept.id)
-                    .map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {'— '.repeat(d.depth)}
-                        {d.name}
-                      </option>
-                    ))}
-                </select>
+                  onChange={(val) => setDeptForm((p) => ({ ...p, parentId: val }))}
+                  headerLabel="상위 부서 선택"
+                  size="md"
+                  fullWidth
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">부서장 사번</label>
@@ -737,6 +831,7 @@ export default function AdminOrgPage() {
                 checked={deptForm.isActive}
                 onChange={(val) => setDeptForm((p) => ({ ...p, isActive: val }))}
                 label="활성 부서로 사용"
+                showStatusText={false}
                 color="indigo"
               />
               <div className="flex justify-end gap-2 pt-2">

@@ -80,3 +80,16 @@ export class UpdateDepartmentDto {
   @IsOptional()
   isActive?: boolean;
 }
+
+export class MoveDepartmentDto {
+  @ApiProperty({ required: false, nullable: true, description: '이동할 상위 부서 ID (생략 시 현재 상위 부서 유지)' })
+  @IsString()
+  @IsOptional()
+  targetParentId?: string | null;
+
+  @ApiProperty({ example: 0, required: false, description: '대상 상위 부서 내 배치할 정렬 위치 (0부터 시작)' })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  targetIndex?: number;
+}

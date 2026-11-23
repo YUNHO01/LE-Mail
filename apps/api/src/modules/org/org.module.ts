@@ -7,6 +7,7 @@ import {
   OrgRank,
   OrgSyncLog,
   OrgTitle,
+  SystemLicense,
   SystemSetting,
   User,
 } from '../database/entities';
@@ -30,6 +31,7 @@ import { OrgController } from './org.controller';
       Mailbox,
       Domain,
       SystemSetting,
+      SystemLicense,
     ]),
     LicenseModule,
     MailFolderModule,

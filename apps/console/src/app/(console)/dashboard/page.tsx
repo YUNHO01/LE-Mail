@@ -56,7 +56,7 @@ export default function AdminDashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">시스템 모니터링 대시보드</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">모니터링 대시보드</h1>
           <p className="text-sm text-slate-500">SMTP 수신 엔진, IMAP 세션, BullMQ 작업 큐 및 리소스 상태를 실시간 감시합니다.</p>
         </div>
         <button

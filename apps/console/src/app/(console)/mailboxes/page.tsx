@@ -276,10 +276,36 @@ export default function MailboxesPage() {
           </div>
         </div>
 
-        {/* 상단 툴바: 상태 필터 -> 검색창 / 버튼군 */}
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
-          {/* 좌측: [상태 필터] -> [검색창] (ams 표준 순서 준수) */}
-          <div className="flex flex-wrap items-center gap-2.5">
+        {/* 1단 카드 헤더 (h-12) */}
+        <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2 print:hidden">
+          <div className="flex items-center gap-2 min-w-0">
+            <Mail className="h-4 w-4 text-sky-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-900">사서함 목록</span>
+            <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+              {mailboxes.length}
+            </span>
+          </div>
+          <TableUtilityButtons
+            onCopy={handleCopy}
+            onExcel={handleExcelExport}
+            onPrint={handlePrint}
+            copied={copied}
+            extraActions={
+              <button
+                type="button"
+                onClick={loadMailboxes}
+                title="새로고침"
+                className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            }
+          />
+        </div>
+
+        {/* 2단 필터/검색 바 (h-11) */}
+        <div className="h-11 px-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-white print-toolbar print:hidden">
+          <div className="flex items-center gap-2">
             <SelectDropdown
               options={[
                 { value: 'all', label: '모든 상태' },
@@ -298,46 +324,25 @@ export default function MailboxesPage() {
                 value={search}
                 onChange={setSearch}
                 placeholder="이메일 또는 도메인 검색..."
-                size="md"
+                size="sm"
               />
             </div>
           </div>
 
-          {/* 우측: 유틸리티 버튼군 */}
-          <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-            {/* 다중 선택 일괄 액션 */}
-            {selectedIds.length > 0 && (
-              <div className="flex items-center gap-1.5 mr-1 pr-2 border-r border-slate-200">
-                <span className="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
-                  {selectedIds.length}개 선택
-                </span>
-                <button
-                  type="button"
-                  onClick={handleBulkDelete}
-                  className="btn btn-sm btn-secondary text-xs font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
-                >
-                  선택 삭제
-                </button>
-              </div>
-            )}
-
-            <TableUtilityButtons
-              onCopy={handleCopy}
-              onExcel={handleExcelExport}
-              onPrint={handlePrint}
-              copied={copied}
-              extraActions={
-                <button
-                  type="button"
-                  onClick={loadMailboxes}
-                  title="새로고침"
-                  className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                </button>
-              }
-            />
-          </div>
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                {selectedIds.length}개 선택
+              </span>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                className="btn btn-sm btn-secondary text-[11px] font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
+              >
+                선택 삭제
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 데이터 테이블 */}

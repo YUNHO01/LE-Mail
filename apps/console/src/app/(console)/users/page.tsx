@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +29,8 @@ import {
   Clock,
   BadgeAlert,
   IdCard,
+  FolderPlus,
+  X,
 } from 'lucide-react';
 import {
   UserDto,
@@ -39,7 +41,8 @@ import {
   OrgRankDto,
   OrgTitleDto,
 } from '@lemail/shared-types';
-import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
+import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown, ToggleSwitch } from '@/components/common';
+import { DepartmentTreePanel, DepartmentTreePanelHandle } from '@/components/org/DepartmentTreePanel';
 import { exportTableToExcel } from '@/lib/excel';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -68,8 +71,12 @@ export default function UsersManagementPage() {
   const [users, setUsers] = useState<UserDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const deptTreeRef = useRef<DepartmentTreePanelHandle | null>(null);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
+  const [selectedDeptName, setSelectedDeptName] = useState<string>('');
+  const [includeSubDepartments, setIncludeSubDepartments] = useState<boolean>(true);
 
   // Selection & Pagination
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -162,7 +169,10 @@ export default function UsersManagementPage() {
       const params = new URLSearchParams();
       params.append('limit', '1000');
       if (search) params.append('search', search);
-      if (roleFilter) params.append('role', roleFilter);
+      if (selectedDeptId) {
+        params.append('departmentId', selectedDeptId);
+        params.append('includeSubDepartments', String(includeSubDepartments));
+      }
 
       const res = await fetch(`${API_BASE_URL}/api/users?${params.toString()}`, {
         headers: {
@@ -225,21 +235,62 @@ export default function UsersManagementPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, [token, roleFilter]);
+  }, [token, selectedDeptId, includeSubDepartments]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchUsers();
   };
 
-  // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
+  const handleDropUsersToDept = async (
+    userIds: string[],
+    targetDept: { id: string; name: string },
+  ) => {
+    if (!userIds || userIds.length === 0) return;
+    setMessage(null);
+    try {
+      await Promise.all(
+        userIds.map((id) =>
+          fetchApi(`/users/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ departmentId: targetDept.id }),
+          }),
+        ),
+      );
+      const firstUser = users.find((u) => u.id === userIds[0]);
+      const summaryName =
+        userIds.length === 1
+          ? `'${firstUser?.name || '사용자'}'을(를)`
+          : `'${firstUser?.name || '사용자'}' 외 ${userIds.length - 1}명을`;
+      setMessage({
+        type: 'success',
+        text: `${summaryName} '${targetDept.name}' 부서로 이동했습니다.`,
+      });
+      setSelectedIds([]);
+      await Promise.all([fetchUsers(), deptTreeRef.current?.reloadTree()]);
+    } catch (err: any) {
+      setMessage({
+        type: 'error',
+        text: err?.message || '사용자 부서 이동에 실패했습니다.',
+      });
+    }
+  };
+
+  // Status filter + Pagination calculation
+  const filteredUsers = useMemo(() => {
+    if (!statusFilter) return users;
+    if (statusFilter === 'active') return users.filter((u) => u.isActive);
+    if (statusFilter === 'inactive') return users.filter((u) => !u.isActive);
+    return users;
+  }, [users, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
-  const paginatedUsers = users.slice(startIndex, startIndex + pageSize);
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
 
-  const displayStart = users.length === 0 ? 0 : startIndex + 1;
-  const displayEnd = Math.min(startIndex + pageSize, users.length);
+  const displayStart = filteredUsers.length === 0 ? 0 : startIndex + 1;
+  const displayEnd = Math.min(startIndex + pageSize, filteredUsers.length);
 
   // Selection handlers
   const allCurrentSelected =
@@ -377,7 +428,7 @@ export default function UsersManagementPage() {
       preferredLanguage: 'ko',
       timezone: 'Asia/Seoul',
       employeeId: '',
-      departmentId: '',
+      departmentId: selectedDeptId && selectedDeptId !== 'unassigned' ? selectedDeptId : '',
       position: '',
       jobTitle: '',
       phone: '',
@@ -631,15 +682,26 @@ export default function UsersManagementPage() {
       <PageHeader
         title="조직 관리"
         icon={<Users className="h-6 w-6 text-sky-600" />}
-        subtitle="메일 시스템 접속 계정과 사서함 할당량, 언어, 사번 등 조직원 프로필을 관리합니다."
+        subtitle="부서 계층 구조를 구성하고 메일 시스템 접속 계정과 사서함 할당량 등 조직원 프로필을 관리합니다."
         action={
-          <button
-            onClick={openCreateModal}
-            className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold print:hidden"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>신규 사용자 등록</span>
-          </button>
+          <div className="flex items-center gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={() => deptTreeRef.current?.openCreateModal()}
+              className="btn btn-sm btn-secondary inline-flex items-center gap-1.5 text-xs font-semibold"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span>부서 추가</span>
+            </button>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>신규 사용자 등록</span>
+            </button>
+          </div>
         }
       />
 
@@ -669,62 +731,60 @@ export default function UsersManagementPage() {
         </div>
       )}
 
-      {/* Main Table Container */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area">
-        {/* 인쇄 전용 헤더 (인쇄 시 상단에만 노출) */}
-        <div className="hidden print:block p-4 border-b-2 border-slate-800">
-          <h2 className="text-base font-bold text-slate-900">[LEMail] 사용자 계정 목록</h2>
-          <div className="text-xs text-slate-600 mt-1">
-            출력일시: {new Date().toLocaleString('ko-KR')} | 목록 {paginatedUsers.length}건
-          </div>
+      {/* 30% 부서 트리 : 70% 사용자 목록 */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-5 items-stretch">
+        <div className="lg:col-span-3 print:hidden">
+          <DepartmentTreePanel
+            ref={deptTreeRef}
+            selectedDeptId={selectedDeptId}
+            onSelectDept={(deptId, deptName) => {
+              setSelectedDeptId(deptId);
+              setSelectedDeptName(deptName || '');
+            }}
+            onDepartmentsChanged={() => {
+              fetchUsers();
+            }}
+            onDropUsersToDept={handleDropUsersToDept}
+            onMessage={setMessage}
+          />
         </div>
 
-        {/* 상단 툴바: 필터 (좌: 역할 -> 검색) / 유틸리티 버튼군 (우) */}
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white print-toolbar print:hidden">
-          {/* 좌측 필터 그룹: [상태/권한] -> [검색창] (ams 표준 순서 준수) */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <SelectDropdown
-              options={[
-                { value: '', label: '모든 권한' },
-                { value: UserRole.USER, label: '일반 사용자' },
-                { value: UserRole.SYSTEM_ADMIN, label: '시스템 관리자' },
-              ]}
-              value={roleFilter}
-              onChange={setRoleFilter}
-              headerLabel="권한 필터"
-              size="sm"
-              menuWidthClass="w-40"
-            />
-
-            <div className="w-60">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="이름, 사번 또는 이메일 검색..."
-                size="md"
-              />
+        {/* Main Table Container (70%) */}
+        <div className="lg:col-span-7 min-w-0 rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition printable-area flex flex-col min-h-[620px]">
+          {/* 인쇄 전용 헤더 (인쇄 시 상단에만 노출) */}
+          <div className="hidden print:block p-4 border-b-2 border-slate-800">
+            <h2 className="text-base font-bold text-slate-900">[LEMail] 사용자 계정 목록</h2>
+            <div className="text-xs text-slate-600 mt-1">
+              출력일시: {new Date().toLocaleString('ko-KR')} | 목록 {paginatedUsers.length}건
             </div>
           </div>
 
-          {/* 우측 액션 및 유틸리티 버튼군 */}
-          <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-            {/* 선택 삭제 버튼 */}
-            {selectedIds.length > 0 && (
-              <div className="flex items-center gap-1.5 mr-1 pr-2 border-r border-slate-200">
-                <span className="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
-                  {selectedIds.length}명 선택
+          {/* 1단 카드 헤더 (좌측 부서 정보 헤더와 동일한 h-12 규격) */}
+          <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2 shrink-0 print:hidden">
+            <div className="flex items-center gap-2 min-w-0">
+              <Users className="h-4 w-4 text-sky-600 shrink-0" />
+              <span className="text-xs font-bold text-slate-900">사용자 목록</span>
+              <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+                {filteredUsers.length}
+              </span>
+              {selectedDeptId && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 border border-sky-200 truncate">
+                  <span className="truncate">{selectedDeptName || '선택 부서'}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDeptId(null);
+                      setSelectedDeptName('');
+                    }}
+                    className="text-sky-500 hover:text-sky-800"
+                    title="부서 필터 해제"
+                  >
+                    ✕
+                  </button>
                 </span>
-                <button
-                  type="button"
-                  onClick={handleBulkDelete}
-                  className="btn btn-sm btn-secondary text-xs font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
-                >
-                  선택 삭제
-                </button>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* 표준 3종 유틸리티 버튼 (Copy, Excel, Print) */}
             <TableUtilityButtons
               onCopy={handleCopy}
               onExcel={handleExportExcel}
@@ -742,10 +802,65 @@ export default function UsersManagementPage() {
               }
             />
           </div>
-        </div>
 
-        {/* 데이터 테이블 */}
-        <div className="overflow-x-auto">
+          {/* 2단 필터/검색 바 (좌측 2단 필터 바와 동일한 h-11 규격) */}
+          <div className="h-11 px-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-white shrink-0 print-toolbar print:hidden">
+            <div className="flex items-center gap-2">
+              <SelectDropdown
+                options={[
+                  { value: '', label: '전체 상태' },
+                  { value: 'active', label: '정상' },
+                  { value: 'inactive', label: '제한' },
+                ]}
+                value={statusFilter}
+                onChange={(val) => {
+                  setStatusFilter(val);
+                  setPage(1);
+                }}
+                headerLabel="상태 필터"
+                size="sm"
+                menuWidthClass="w-32"
+              />
+
+              <form onSubmit={handleSearchSubmit} className="w-56">
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="이름 또는 이메일 검색..."
+                  size="sm"
+                />
+              </form>
+
+              <div className="pl-2 border-l border-slate-200">
+                <ToggleSwitch
+                  checked={includeSubDepartments}
+                  onChange={setIncludeSubDepartments}
+                  label="하위 부서 포함"
+                  showStatusText={false}
+                  size="sm"
+                  color="indigo"
+                />
+              </div>
+            </div>
+
+            {selectedIds.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                  {selectedIds.length}명 선택
+                </span>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  className="btn btn-sm btn-secondary text-[11px] font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
+                >
+                  선택 삭제
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 데이터 테이블 */}
+          <div className="flex-1 overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
@@ -758,21 +873,20 @@ export default function UsersManagementPage() {
                     title="전체 선택"
                   />
                 </th>
-                <th className="w-24 px-4 py-3 whitespace-nowrap">등록일자</th>
-                <th className="px-4 py-3 whitespace-nowrap">사용자 프로필 (이름/사번/계정)</th>
-                <th className="w-48 px-4 py-3 whitespace-nowrap">메일 용량 (사용량 / 사용률)</th>
-                <th className="w-32 px-4 py-3 text-center whitespace-nowrap">언어 / 타임존</th>
-                <th className="w-28 px-4 py-3 text-center whitespace-nowrap">권한</th>
-                <th className="w-24 px-4 py-3 text-center whitespace-nowrap">계정 상태</th>
-                <th className="w-28 px-4 py-3 text-center whitespace-nowrap">최종 로그인</th>
-                <th className="w-24 px-4 py-3 text-right whitespace-nowrap print:hidden">관리</th>
+                <th className="px-4 py-3 whitespace-nowrap">이름</th>
+                <th className="px-4 py-3 whitespace-nowrap">계정</th>
+                <th className="px-4 py-3 whitespace-nowrap">부서</th>
+                <th className="px-4 py-3 whitespace-nowrap">직급</th>
+                <th className="w-44 px-4 py-3 whitespace-nowrap">메일 용량 (사용량 / 사용률)</th>
+                <th className="w-28 px-4 py-3 text-center whitespace-nowrap">언어 / 타임존</th>
+                <th className="w-24 px-4 py-3 text-center whitespace-nowrap">상태</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-400">
+                  <td colSpan={8} className="py-16 text-center text-slate-400">
                     <div className="flex items-center justify-center gap-2">
                       <RefreshCw className="h-5 w-5 animate-spin text-sky-600" />
                       <span className="font-medium">사용자 목록을 불러오는 중...</span>
@@ -781,7 +895,7 @@ export default function UsersManagementPage() {
                 </tr>
               ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-400">
+                  <td colSpan={8} className="py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center">
                       <Users className="h-10 w-10 text-slate-300 mb-2 stroke-1" />
                       <p className="font-semibold text-slate-600 text-sm">등록된 사용자가 없습니다.</p>
@@ -793,16 +907,27 @@ export default function UsersManagementPage() {
                 paginatedUsers.map((item) => {
                   const isSelected = selectedIds.includes(item.id);
                   const isSelf = currentUser?.id === item.id;
-                  const createdDate = new Date(item.createdAt).toISOString().slice(0, 10);
 
                   return (
                     <tr
                       key={item.id}
+                      draggable
+                      onDragStart={(e) => {
+                        const targetIds = selectedIds.includes(item.id)
+                          ? selectedIds
+                          : [item.id];
+                        e.dataTransfer.setData(
+                          'application/lemail-user-ids',
+                          JSON.stringify(targetIds),
+                        );
+                        e.dataTransfer.setData('text/plain', item.name);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
                       onClick={() => openEditModal(item)}
                       className={`transition-colors duration-100 hover:bg-slate-50/80 cursor-pointer ${
                         isSelected ? 'bg-sky-50/40' : 'bg-white'
                       }`}
-                      title="클릭하여 사용자 정보 및 비밀번호 수정"
+                      title="클릭하여 수정하거나 부서 트리로 드래그하여 부서 이동"
                     >
                       {/* 선택 체크박스 */}
                       <td
@@ -817,63 +942,85 @@ export default function UsersManagementPage() {
                         />
                       </td>
 
-                      {/* 등록일자 */}
-                      <td className="px-4 py-3.5 whitespace-nowrap text-slate-600 font-mono">
-                        {createdDate}
-                      </td>
-
-                      {/* 사용자 프로필 */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
-                            {item.name ? item.name.slice(0, 1).toUpperCase() : <User className="h-4 w-4" />}
+                      {/* 이름 */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
+                            {item.name ? item.name.slice(0, 1).toUpperCase() : <User className="h-3.5 w-3.5" />}
                           </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(item)}
-                                className="font-bold text-slate-900 text-sm hover:text-sky-600 transition hover:underline text-left"
-                                title="클릭하여 사용자 정보 수정"
-                              >
-                                {item.name}
-                              </button>
-                              {item.employeeId && (
-                                <span className="inline-flex items-center gap-0.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-600 border border-slate-200">
-                                  <IdCard className="h-2.5 w-2.5 text-slate-400" />
-                                  {item.employeeId}
-                                </span>
-                              )}
-                              {(item.departmentName || item.position) && (
-                                <span className="inline-flex items-center rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 border border-sky-200">
-                                  {[item.departmentName, item.position].filter(Boolean).join(' · ')}
-                                </span>
-                              )}
-                              {item.employmentStatus && item.employmentStatus !== 'ACTIVE' && (
-                                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
-                                  {item.employmentStatus === 'ON_LEAVE' ? '휴직' : '퇴사'}
-                                </span>
-                              )}
-                              {isSelf && (
-                                <span className="rounded bg-sky-100 px-1.5 py-0.2 text-[10px] font-semibold text-sky-700 border border-sky-200">
-                                  본인
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
-                              <Mail className="h-3 w-3 text-slate-400" />
-                              <span>{item.email}</span>
-                            </div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(item)}
+                              className="font-bold text-slate-900 text-xs hover:text-sky-600 transition hover:underline text-left"
+                              title="클릭하여 사용자 정보 수정"
+                            >
+                              {item.name}
+                            </button>
+                            {item.employmentStatus && item.employmentStatus !== 'ACTIVE' && (
+                              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
+                                {item.employmentStatus === 'ON_LEAVE' ? '휴직' : '퇴사'}
+                              </span>
+                            )}
+                            {isSelf && (
+                              <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 border border-sky-200">
+                                본인
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
 
+                      {/* 계정 */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600 font-mono">
+                          <span>{item.email}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyEmail(item, e)}
+                            title={copiedUserId === item.id ? '복사됨' : '이메일 주소 복사'}
+                            aria-label="이메일 주소 복사"
+                            className={`p-1 rounded transition print:hidden ${
+                              copiedUserId === item.id
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : 'text-slate-400 hover:bg-sky-50 hover:text-sky-600'
+                            }`}
+                          >
+                            {copiedUserId === item.id ? (
+                              <Check className="h-3 w-3" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* 부서 */}
+                      <td className="px-4 py-3.5 whitespace-nowrap text-xs text-slate-700">
+                        {item.departmentName ? (
+                          <span className="font-medium text-slate-800">{item.departmentName}</span>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+
+                      {/* 직급 */}
+                      <td className="px-4 py-3.5 whitespace-nowrap text-xs text-slate-700">
+                        {item.position ? (
+                          <span className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                            {item.position}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+
                       {/* 메일 용량 (사용량 & 사용률) */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        <div className="flex flex-col gap-1 min-w-[150px]">
+                        <div className="flex flex-col gap-1.5 min-w-[140px]">
                           <div className="flex items-center justify-between text-[11px] font-mono">
                             <span className="font-semibold text-slate-800">
-                              {item.usedMb ?? 0} MB <span className="text-slate-400 font-normal">/ {item.mailboxQuotaMb ?? 512} MB</span>
+                              {item.usedMb ?? 0} <span className="text-slate-400 font-normal">/ {item.mailboxQuotaMb ?? 512} MB</span>
                             </span>
                             <span
                               className={`text-[10px] font-bold ${
@@ -905,12 +1052,6 @@ export default function UsersManagementPage() {
                               }}
                             />
                           </div>
-                          <div className="text-[10px] text-slate-400 font-mono flex items-center justify-between">
-                            <span>메일 {item.messageCount ?? 0}통</span>
-                            <span className="text-[9px] text-slate-400">
-                              {item.usagePercent ?? 0}% full
-                            </span>
-                          </div>
                         </div>
                       </td>
 
@@ -924,21 +1065,7 @@ export default function UsersManagementPage() {
                         </div>
                       </td>
 
-                      {/* 역할 */}
-                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                        {item.role === UserRole.SYSTEM_ADMIN ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 border border-amber-200">
-                            <Shield className="h-3 w-3" />
-                            <span>관리자</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 border border-sky-200">
-                            <span>사용자</span>
-                          </span>
-                        )}
-                      </td>
-
-                      {/* 계정 상태 */}
+                      {/* 상태 */}
                       <td className="px-4 py-3.5 text-center whitespace-nowrap">
                         <button
                           type="button"
@@ -951,69 +1078,20 @@ export default function UsersManagementPage() {
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
                               : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
                           }`}
-                          title="상태 클릭 시 활성/비활성 토글"
+                          title="상태 클릭 시 정상/제한 토글"
                         >
                           {item.isActive ? (
                             <>
                               <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                              <span>정상 활성</span>
+                              <span>정상</span>
                             </>
                           ) : (
                             <>
                               <XCircle className="h-3 w-3 text-slate-400" />
-                              <span>비활성</span>
+                              <span>제한</span>
                             </>
                           )}
                         </button>
-                      </td>
-
-                      {/* 최종 로그인 */}
-                      <td className="px-4 py-3.5 text-center whitespace-nowrap text-slate-600 font-mono text-[11px]">
-                        {item.lastLoginAt
-                          ? new Date(item.lastLoginAt).toLocaleString('ko-KR')
-                          : '미접속'}
-                      </td>
-
-                      {/* 관리 액션 */}
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap print:hidden">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* 이메일 복사 버튼 */}
-                          <button
-                            type="button"
-                            onClick={(e) => handleCopyEmail(item, e)}
-                            title={copiedUserId === item.id ? '복사됨' : '이메일 주소 복사'}
-                            aria-label="이메일 주소 복사"
-                            className={`p-1.5 rounded-lg transition ${
-                              copiedUserId === item.id
-                                ? 'bg-emerald-50 text-emerald-600'
-                                : 'text-slate-400 hover:bg-sky-50 hover:text-sky-600'
-                            }`}
-                          >
-                            {copiedUserId === item.id ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-
-                          {/* 삭제 버튼 */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteUser(item);
-                            }}
-                            disabled={isSelf}
-                            title={isSelf ? '본인 계정 삭제 불가' : '계정 삭제'}
-                            className={`p-1.5 rounded-lg transition ${
-                              isSelf
-                                ? 'text-slate-200 cursor-not-allowed'
-                                : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'
-                            }`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   );
@@ -1024,9 +1102,9 @@ export default function UsersManagementPage() {
         </div>
 
         {/* 하단 페이징 및 카운트 바 */}
-        <div className="px-5 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 print:hidden">
+        <div className="mt-auto shrink-0 px-5 py-3 border-t border-slate-100 bg-slate-50/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 print:hidden">
           <div>
-            총 <span className="font-semibold text-slate-800">{users.length}</span>명 중{' '}
+            총 <span className="font-semibold text-slate-800">{filteredUsers.length}</span>명 중{' '}
             <span className="font-semibold text-slate-800">
               {displayStart} - {displayEnd}
             </span>
@@ -1076,312 +1154,331 @@ export default function UsersManagementPage() {
             </div>
           )}
         </div>
+        </div>
       </div>
 
-      {/* Modal: 신규 사용자 등록 (메일ID + 도메인 선택 + 상세 정보) */}
+      {/* Modal: 신규 사용자 등록 (주소록 스타일 그룹핑) */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-sky-600" />
-              <span>신규 사용자 등록</span>
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">
-              사용자 계정 및 사서함(Mailbox)이 등록된 활성 도메인 기반으로 자동 생성됩니다.
-            </p>
+        <div className="!mt-0 fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
+          <div className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* 고정 헤더 */}
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-50/80 border-b border-slate-200/80">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                  <UserPlus className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">신규 사용자 등록</h3>
+                  <p className="text-[11px] text-slate-500">
+                    등록된 활성 도메인을 기반으로 사용자 계정 및 사서함을 생성합니다.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
             {availableDomains.length === 0 ? (
-              <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-800 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-amber-900">
-                  <AlertCircle className="h-4 w-4 text-amber-600" />
-                  <span>등록된 활성 도메인이 없습니다</span>
-                </div>
-                <p>
-                  사용자를 등록하려면 먼저 메일 서비스 도메인이 등록되어 있어야 합니다.
-                </p>
-                <div className="pt-2">
-                  <Link
-                    href="/domains"
-                    onClick={() => setIsCreateModalOpen(false)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-700 transition"
-                  >
-                    <Globe className="h-3.5 w-3.5" />
-                    <span>도메인 관리로 이동하여 등록하기</span>
-                  </Link>
+              <div className="p-6">
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 text-xs text-amber-800 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-amber-900">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <span>등록된 활성 도메인이 없습니다</span>
+                  </div>
+                  <p>사용자를 등록하려면 먼저 메일 서비스 도메인이 등록되어 있어야 합니다.</p>
+                  <div className="pt-2 flex items-center gap-2">
+                    <Link
+                      href="/domains"
+                      onClick={() => setIsCreateModalOpen(false)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 transition"
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                      <span>도메인 관리로 이동하여 등록하기</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateModalOpen(false)}
+                      className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                    >
+                      닫기
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleCreateUser} className="mt-5 space-y-4">
-                {/* 메일 계정: ID + 도메인 선택 */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    메일 계정 (이메일 주소) <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="메일 ID (예: dh.kim)"
-                      value={createForm.localPart}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, localPart: e.target.value })
-                      }
-                      className="h-10 flex-1 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
-                    />
-                    <span className="text-slate-400 font-bold select-none">@</span>
-                    <SelectDropdown
-                      options={availableDomains.map((dom) => ({
-                        value: dom.name,
-                        label: `${dom.name}${dom.isDefault ? ' (기본)' : ''}`,
-                      }))}
-                      value={createForm.selectedDomain}
-                      onChange={(val) =>
-                        setCreateForm({ ...createForm, selectedDomain: val })
-                      }
-                      size="md"
-                      className="min-w-[150px]"
-                    />
-                  </div>
-                  {createForm.localPart && createForm.selectedDomain && (
-                    <div className="mt-1 text-[11px] text-slate-500 font-mono">
-                      완성 주소: <strong className="text-sky-700">{createForm.localPart.trim().toLowerCase()}@{createForm.selectedDomain}</strong>
+              <form onSubmit={handleCreateUser} className="max-h-[calc(88vh-4.5rem)] flex flex-col">
+                <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                  {/* 상단 프로필 헤더 (아바타 + 이름) */}
+                  <div className="flex items-center gap-4 pb-4 border-b border-slate-200/80">
+                    <div className="w-12 h-12 rounded-full bg-sky-50 text-sky-600 text-base font-bold flex items-center justify-center shrink-0 ring-1 ring-sky-200/70">
+                      {createForm.name.trim() ? createForm.name.trim().slice(0, 1).toUpperCase() : <User className="h-5 w-5" />}
                     </div>
-                  )}
-                </div>
+                    <div className="flex-1 max-w-sm">
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        이름 <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="예: 김동현"
+                        value={createForm.name}
+                        onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                        className="h-9 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+                  </div>
 
-                {/* Display Name (이름) */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Display Name (이름) <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="예: 김동현"
-                    value={createForm.name}
-                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                    className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                  />
-                </div>
+                  {/* 2-Column Grouped Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    {/* 카드 1: 계정 및 보안 */}
+                    <div className="rounded-2xl bg-white border border-slate-200">
+                      <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/80 rounded-t-2xl text-[11px] font-semibold text-slate-600">
+                        계정 및 보안
+                      </div>
+                      <div className="divide-y divide-slate-100 text-xs">
+                        <div className="px-4 py-3 flex items-start gap-3">
+                          <span className="text-slate-500 w-20 shrink-0 pt-2 font-medium">
+                            메일 계정 <span className="text-rose-500">*</span>
+                          </span>
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                required
+                                placeholder="예: dh.kim"
+                                value={createForm.localPart}
+                                onChange={(e) =>
+                                  setCreateForm({ ...createForm, localPart: e.target.value })
+                                }
+                                className="h-9 flex-1 min-w-[130px] rounded-xl border border-slate-300 px-2.5 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 font-mono"
+                              />
+                              <span className="text-slate-400 font-bold select-none">@</span>
+                              <SelectDropdown
+                                options={availableDomains.map((dom) => ({
+                                  value: dom.name,
+                                  label: `${dom.name}${dom.isDefault ? ' (기본)' : ''}`,
+                                }))}
+                                value={createForm.selectedDomain}
+                                onChange={(val) =>
+                                  setCreateForm({ ...createForm, selectedDomain: val })
+                                }
+                                size="sm"
+                                className="w-40 shrink-0"
+                              />
+                            </div>
+                            {createForm.localPart && createForm.selectedDomain && (
+                              <div className="text-[11px] text-slate-500 font-mono truncate">
+                                <strong className="text-sky-700">
+                                  {createForm.localPart.trim().toLowerCase()}@{createForm.selectedDomain}
+                                </strong>
+                              </div>
+                            )}
+                          </div>
+                        </div>
 
-                {/* Mailbox Quota (사서함 용량) */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Mailbox Quota (메일 용량)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      required
-                      min={10}
-                      step={10}
-                      value={createForm.mailboxQuotaMb}
-                      onChange={(e) =>
-                        setCreateForm({
-                          ...createForm,
-                          mailboxQuotaMb: Number(e.target.value),
-                        })
-                      }
-                      className="h-10 w-32 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
-                    />
-                    <span className="text-xs font-semibold text-slate-700">MB</span>
-                    <span className="text-[11px] text-slate-400">
-                      (기본 512 MB 권장, 1024 MB = 1 GB)
-                    </span>
+                        <div className="px-4 py-3 flex items-center gap-3">
+                          <span className="text-slate-500 w-20 shrink-0 font-medium">
+                            비밀번호 <span className="text-rose-500">*</span>
+                          </span>
+                          <input
+                            type="password"
+                            required
+                            minLength={6}
+                            value={createForm.password}
+                            onChange={(e) =>
+                              setCreateForm({ ...createForm, password: e.target.value })
+                            }
+                            placeholder="최소 6자 이상"
+                            className="h-9 flex-1 min-w-0 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                          />
+                        </div>
+
+                        <div className="px-4 py-3 flex items-center gap-3">
+                          <span className="text-slate-500 w-20 shrink-0 font-medium">환영 메일</span>
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={createForm.sendWelcomeMail}
+                              onChange={(e) =>
+                                setCreateForm({
+                                  ...createForm,
+                                  sendWelcomeMail: e.target.checked,
+                                })
+                              }
+                              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                            />
+                            <span className="text-xs text-slate-700">가입 안내 메일 자동 발송</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 카드 2: 소속 및 인사 정보 */}
+                    <div className="rounded-2xl bg-white border border-slate-200">
+                      <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/80 rounded-t-2xl text-[11px] font-semibold text-slate-600">
+                        소속 및 인사 정보
+                      </div>
+                      <div className="divide-y divide-slate-100 text-xs">
+                        <div className="px-4 py-2.5 flex items-center gap-3">
+                          <span className="text-slate-500 w-20 shrink-0 font-medium">소속 부서</span>
+                          <div className="flex-1 min-w-0">
+                            <SelectDropdown
+                              options={[
+                                { value: '', label: '미지정' },
+                                ...departments.map((d) => ({
+                                  value: d.id,
+                                  label: `${'— '.repeat(d.depth)}${d.name}`,
+                                })),
+                              ]}
+                              value={createForm.departmentId}
+                              onChange={(val) =>
+                                setCreateForm({ ...createForm, departmentId: val })
+                              }
+                              size="sm"
+                              fullWidth
+                            />
+                          </div>
+                        </div>
+
+                        <div className="px-4 py-2.5 flex items-center gap-3">
+                          <span className="text-slate-500 w-20 shrink-0 font-medium">직위 (직급)</span>
+                          <div className="flex-1 min-w-0">
+                            <SelectDropdown
+                              options={[
+                                { value: '', label: '선택 안함' },
+                                ...orgRanks.map((r) => ({
+                                  value: r.name,
+                                  label: r.name,
+                                })),
+                              ]}
+                              value={createForm.position}
+                              onChange={(val) =>
+                                setCreateForm({ ...createForm, position: val })
+                              }
+                              size="sm"
+                              fullWidth
+                            />
+                          </div>
+                        </div>
+
+                        <div className="px-4 py-2.5 flex items-center gap-3">
+                          <span className="text-slate-500 w-20 shrink-0 font-medium">직책</span>
+                          <div className="flex-1 min-w-0">
+                            <SelectDropdown
+                              options={[
+                                { value: '', label: '선택 안함' },
+                                ...orgTitles.map((t) => ({
+                                  value: t.name,
+                                  label: t.name,
+                                })),
+                              ]}
+                              value={createForm.jobTitle}
+                              onChange={(val) =>
+                                setCreateForm({ ...createForm, jobTitle: val })
+                              }
+                              size="sm"
+                              fullWidth
+                            />
+                          </div>
+                        </div>
+
+                        <div className="px-4 py-2.5 flex items-center gap-3">
+                          <span className="text-slate-500 w-20 shrink-0 font-medium">사번</span>
+                          <input
+                            type="text"
+                            placeholder="예: EMP0123"
+                            value={createForm.employeeId}
+                            onChange={(e) =>
+                              setCreateForm({ ...createForm, employeeId: e.target.value })
+                            }
+                            className="h-9 flex-1 min-w-0 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 font-mono"
+                          />
+                        </div>
+
+                        <div className="px-4 py-2.5 flex items-center gap-3">
+                          <span className="text-slate-500 w-20 shrink-0 font-medium">사내 전화</span>
+                          <input
+                            type="text"
+                            placeholder="예: 02-1234-5678"
+                            value={createForm.phone}
+                            onChange={(e) =>
+                              setCreateForm({ ...createForm, phone: e.target.value })
+                            }
+                            className="h-9 flex-1 min-w-0 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 카드 3: 사서함 및 환경 설정 */}
+                  <div className="rounded-2xl bg-white border border-slate-200">
+                    <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/80 rounded-t-2xl text-[11px] font-semibold text-slate-600">
+                      사서함 및 환경 설정
+                    </div>
+                    <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                      <div>
+                        <label className="block text-slate-500 font-medium mb-1.5">
+                          메일 용량 (MB)
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            required
+                            min={10}
+                            step={10}
+                            value={createForm.mailboxQuotaMb}
+                            onChange={(e) =>
+                              setCreateForm({
+                                ...createForm,
+                                mailboxQuotaMb: Number(e.target.value),
+                              })
+                            }
+                            className="h-9 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 font-mono"
+                          />
+                          <span className="text-slate-500 font-semibold shrink-0">MB</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-500 font-medium mb-1.5">사용 언어</label>
+                        <SelectDropdown
+                          options={LANGUAGE_OPTIONS}
+                          value={createForm.preferredLanguage}
+                          onChange={(val) =>
+                            setCreateForm({
+                              ...createForm,
+                              preferredLanguage: val,
+                            })
+                          }
+                          size="sm"
+                          fullWidth
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-500 font-medium mb-1.5">타임존</label>
+                        <SelectDropdown
+                          options={TIMEZONE_OPTIONS}
+                          value={createForm.timezone}
+                          onChange={(val) =>
+                            setCreateForm({ ...createForm, timezone: val })
+                          }
+                          size="sm"
+                          fullWidth
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Preferred language & Time zone (2단 그리드) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Preferred language (사용 언어)
-                    </label>
-                    <SelectDropdown
-                      options={LANGUAGE_OPTIONS}
-                      value={createForm.preferredLanguage}
-                      onChange={(val) =>
-                        setCreateForm({
-                          ...createForm,
-                          preferredLanguage: val,
-                        })
-                      }
-                      size="md"
-                      fullWidth
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Time zone (타임존)
-                    </label>
-                    <SelectDropdown
-                      options={TIMEZONE_OPTIONS}
-                      value={createForm.timezone}
-                      onChange={(val) =>
-                        setCreateForm({ ...createForm, timezone: val })
-                      }
-                      size="md"
-                      fullWidth
-                    />
-                  </div>
-                </div>
-
-                {/* User/Employee ID (사번) & 소속 부서 */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      User/Employee ID (사번)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="예: 20261101 또는 EMP0123"
-                      value={createForm.employeeId}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, employeeId: e.target.value })
-                      }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      소속 부서
-                    </label>
-                    <SelectDropdown
-                      options={[
-                        { value: '', label: '미지정' },
-                        ...departments.map((d) => ({
-                          value: d.id,
-                          label: `${'— '.repeat(d.depth)}${d.name}`,
-                        })),
-                      ]}
-                      value={createForm.departmentId}
-                      onChange={(val) =>
-                        setCreateForm({ ...createForm, departmentId: val })
-                      }
-                      size="md"
-                      fullWidth
-                    />
-                  </div>
-                </div>
-
-                {/* 직위 & 직책 & 내선전화 */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      직위 (직급)
-                    </label>
-                    <SelectDropdown
-                      options={[
-                        { value: '', label: '선택 안함' },
-                        ...orgRanks.map((r) => ({
-                          value: r.name,
-                          label: r.name,
-                        })),
-                      ]}
-                      value={createForm.position}
-                      onChange={(val) =>
-                        setCreateForm({ ...createForm, position: val })
-                      }
-                      size="md"
-                      fullWidth
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      직책
-                    </label>
-                    <SelectDropdown
-                      options={[
-                        { value: '', label: '선택 안함' },
-                        ...orgTitles.map((t) => ({
-                          value: t.name,
-                          label: t.name,
-                        })),
-                      ]}
-                      value={createForm.jobTitle}
-                      onChange={(val) =>
-                        setCreateForm({ ...createForm, jobTitle: val })
-                      }
-                      size="md"
-                      fullWidth
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      사내 전화
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="예: 02-1234-5678"
-                      value={createForm.phone}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, phone: e.target.value })
-                      }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    />
-                  </div>
-                </div>
-
-                {/* 초기 비밀번호 & 권한 (2단 그리드) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      초기 비밀번호 <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={createForm.password}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, password: e.target.value })
-                      }
-                      placeholder="최소 6자 이상"
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      계정 권한
-                    </label>
-                    <SelectDropdown
-                      options={[
-                        { value: UserRole.USER, label: '일반 사용자 (USER)' },
-                        { value: UserRole.SYSTEM_ADMIN, label: '시스템 관리자 (SYSTEM_ADMIN)' },
-                      ]}
-                      value={createForm.role}
-                      onChange={(val) =>
-                        setCreateForm({
-                          ...createForm,
-                          role: val as UserRole,
-                        })
-                      }
-                      size="md"
-                      fullWidth
-                    />
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={createForm.sendWelcomeMail}
-                    onChange={(e) =>
-                      setCreateForm({
-                        ...createForm,
-                        sendWelcomeMail: e.target.checked,
-                      })
-                    }
-                    className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                  />
-                  <span className="text-xs font-medium text-slate-700">
-                    등록 완료 시 신규 사용자 메일함으로 환영 메일 자동 발송
-                  </span>
-                </label>
-
-                <div className="mt-6 flex justify-end gap-2 pt-2 border-t border-slate-100">
+                {/* 고정 푸터 */}
+                <div className="px-6 py-3.5 bg-slate-50/80 border-t border-slate-200/80 flex justify-end gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsCreateModalOpen(false)}
@@ -1402,309 +1499,327 @@ export default function UsersManagementPage() {
         </div>
       )}
 
-      {/* Modal: 사용자 정보 수정 (메일ID / 도메인 제외 수정) */}
+      {/* Modal: 사용자 정보 수정 (주소록 스타일 그룹핑) */}
       {isEditModalOpen && targetUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Pencil className="h-5 w-5 text-sky-600" />
-              <span>사용자 정보 수정</span>
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">
-              사용자 프로필, 메일 용량 및 시스템 설정 정보를 수정합니다.
-            </p>
-
-            <form onSubmit={handleUpdateUser} className="mt-5 space-y-4">
-              {/* 메일 계정: 읽기 전용 (수정 불가 안내) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  메일 계정 (이메일 주소)
-                </label>
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-mono text-slate-600 select-none">
-                  <Mail className="h-4 w-4 text-slate-400" />
-                  <span className="font-semibold text-slate-800">{targetUser.email}</span>
-                  <span className="ml-auto text-[10px] text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
-                    변경 불가 (고유 식별자)
-                  </span>
-                </div>
-              </div>
-
-              {/* Display Name (이름) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Display Name (이름) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* Mailbox Quota (사서함 용량) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Mailbox Quota (메일 용량)
-                </label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <input
-                    type="number"
-                    required
-                    min={10}
-                    step={10}
-                    value={editForm.mailboxQuotaMb}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        mailboxQuotaMb: Number(e.target.value),
-                      })
-                    }
-                    className="h-10 w-32 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
-                  />
-                  <span className="text-xs font-semibold text-slate-700">MB</span>
-                  <span className="text-xs text-slate-700 font-medium bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
-                    ({targetUser.usagePercent ?? 0}% full, {targetUser.messageCount ?? 0} messages, {targetUser.usedMb ?? 0} MB.)
-                  </span>
-                </div>
-              </div>
-
-              {/* Preferred language & Time zone (2단 그리드) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Preferred language (사용 언어)
-                  </label>
-                  <SelectDropdown
-                    options={LANGUAGE_OPTIONS}
-                    value={editForm.preferredLanguage}
-                    onChange={(val) =>
-                      setEditForm({
-                        ...editForm,
-                        preferredLanguage: val,
-                      })
-                    }
-                    size="md"
-                    fullWidth
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Time zone (타임존)
-                  </label>
-                  <SelectDropdown
-                    options={TIMEZONE_OPTIONS}
-                    value={editForm.timezone}
-                    onChange={(val) =>
-                      setEditForm({ ...editForm, timezone: val })
-                    }
-                    size="md"
-                    fullWidth
-                  />
-                </div>
-              </div>
-
-              {/* User/Employee ID (사번) & 소속 부서 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    User/Employee ID (사번)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="예: 20261101 또는 EMP0123"
-                    value={editForm.employeeId}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, employeeId: e.target.value })
-                    }
-                    className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono"
-                  />
+        <div className="!mt-0 fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
+          <div className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* 고정 헤더 */}
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-50/80 border-b border-slate-200/80">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                  <Pencil className="h-4 w-4" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    소속 부서
-                  </label>
-                  <SelectDropdown
-                    options={[
-                      { value: '', label: '미지정' },
-                      ...departments.map((d) => ({
-                        value: d.id,
-                        label: `${'— '.repeat(d.depth)}${d.name}`,
-                      })),
-                    ]}
-                    value={editForm.departmentId}
-                    onChange={(val) =>
-                      setEditForm({ ...editForm, departmentId: val })
-                    }
-                    size="md"
-                    fullWidth
-                  />
+                  <h3 className="text-sm font-bold text-slate-900">사용자 정보 수정</h3>
+                  <p className="text-[11px] text-slate-500">
+                    사용자 프로필, 소속 및 사서함 환경 설정 정보를 수정합니다.
+                  </p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-              {/* 직위 & 직책 & 내선전화 & 재직 상태 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    직위 / 직책
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <SelectDropdown
-                      options={[
-                        { value: '', label: '직위 선택 안함' },
-                        ...(editForm.position &&
-                        !orgRanks.some((r) => r.name === editForm.position)
-                          ? [{ value: editForm.position, label: `${editForm.position} (기존 값)` }]
-                          : []),
-                        ...orgRanks.map((r) => ({
-                          value: r.name,
-                          label: r.name,
-                        })),
-                      ]}
-                      value={editForm.position}
-                      onChange={(val) =>
-                        setEditForm({ ...editForm, position: val })
-                      }
-                      size="md"
-                      fullWidth
-                    />
-                    <SelectDropdown
-                      options={[
-                        { value: '', label: '직책 선택 안함' },
-                        ...(editForm.jobTitle &&
-                        !orgTitles.some((t) => t.name === editForm.jobTitle)
-                          ? [{ value: editForm.jobTitle, label: `${editForm.jobTitle} (기존 값)` }]
-                          : []),
-                        ...orgTitles.map((t) => ({
-                          value: t.name,
-                          label: t.name,
-                        })),
-                      ]}
-                      value={editForm.jobTitle}
-                      onChange={(val) =>
-                        setEditForm({ ...editForm, jobTitle: val })
-                      }
-                      size="md"
-                      fullWidth
-                    />
+            <form onSubmit={handleUpdateUser} className="max-h-[calc(88vh-4.5rem)] flex flex-col">
+              <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                {/* 상단 프로필 헤더 (아바타 + 이름 + 계정 배지) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-12 h-12 rounded-full bg-sky-50 text-sky-600 text-base font-bold flex items-center justify-center shrink-0 ring-1 ring-sky-200/70">
+                      {editForm.name.trim() ? editForm.name.trim().slice(0, 1).toUpperCase() : <User className="h-5 w-5" />}
+                    </div>
+                    <div className="flex-1 max-w-sm">
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        이름 <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className="h-9 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-mono text-slate-600 self-start sm:self-end">
+                    <Mail className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{targetUser.email}</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      사내 전화
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="02-1234-5678"
-                      value={editForm.phone}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, phone: e.target.value })
-                      }
-                      className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                    />
+
+                {/* 2-Column Grouped Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                  {/* 카드 1: 계정 및 보안 */}
+                  <div className="rounded-2xl bg-white border border-slate-200">
+                    <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/80 rounded-t-2xl text-[11px] font-semibold text-slate-600">
+                      계정 및 보안
+                    </div>
+                    <div className="divide-y divide-slate-100 text-xs">
+                      <div className="px-4 py-3 flex items-center gap-3">
+                        <span className="text-slate-500 w-20 shrink-0 font-medium">메일 계정</span>
+                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-600">
+                          <span className="truncate">{targetUser.email}</span>
+                          <span className="shrink-0 text-[10px] text-slate-400">고정</span>
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-3 flex items-start gap-3">
+                        <span className="text-slate-500 w-20 shrink-0 pt-2 font-medium">비밀번호</span>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <input
+                            type="password"
+                            minLength={6}
+                            placeholder="변경 시에만 입력 (최소 6자)"
+                            value={editForm.password || ''}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, password: e.target.value })
+                            }
+                            className="h-9 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                          />
+                          <span className="text-[10px] text-slate-400 block">
+                            기존 비밀번호 유지 시 빈칸으로 두세요.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      재직 상태
-                    </label>
-                    <SelectDropdown
-                      options={[
-                        { value: 'ACTIVE', label: '재직 (ACTIVE)' },
-                        { value: 'ON_LEAVE', label: '휴직 (ON_LEAVE)' },
-                        { value: 'RESIGNED', label: '퇴사 (RESIGNED)' },
-                      ]}
-                      value={editForm.employmentStatus}
-                      onChange={(val) =>
-                        setEditForm({ ...editForm, employmentStatus: val as EmploymentStatus })
-                      }
-                      size="md"
-                      fullWidth
-                    />
+
+                  {/* 카드 2: 소속 및 인사 정보 */}
+                  <div className="rounded-2xl bg-white border border-slate-200">
+                    <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/80 rounded-t-2xl text-[11px] font-semibold text-slate-600">
+                      소속 및 인사 정보
+                    </div>
+                    <div className="divide-y divide-slate-100 text-xs">
+                      <div className="px-4 py-2.5 flex items-center gap-3">
+                        <span className="text-slate-500 w-20 shrink-0 font-medium">소속 부서</span>
+                        <div className="flex-1 min-w-0">
+                          <SelectDropdown
+                            options={[
+                              { value: '', label: '미지정' },
+                              ...departments.map((d) => ({
+                                value: d.id,
+                                label: `${'— '.repeat(d.depth)}${d.name}`,
+                              })),
+                            ]}
+                            value={editForm.departmentId}
+                            onChange={(val) =>
+                              setEditForm({ ...editForm, departmentId: val })
+                            }
+                            size="sm"
+                            fullWidth
+                          />
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-2.5 flex items-center gap-3">
+                        <span className="text-slate-500 w-20 shrink-0 font-medium">직위 (직급)</span>
+                        <div className="flex-1 min-w-0">
+                          <SelectDropdown
+                            options={[
+                              { value: '', label: '선택 안함' },
+                              ...(editForm.position &&
+                              !orgRanks.some((r) => r.name === editForm.position)
+                                ? [{ value: editForm.position, label: `${editForm.position} (기존 값)` }]
+                                : []),
+                              ...orgRanks.map((r) => ({
+                                value: r.name,
+                                label: r.name,
+                              })),
+                            ]}
+                            value={editForm.position}
+                            onChange={(val) =>
+                              setEditForm({ ...editForm, position: val })
+                            }
+                            size="sm"
+                            fullWidth
+                          />
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-2.5 flex items-center gap-3">
+                        <span className="text-slate-500 w-20 shrink-0 font-medium">직책</span>
+                        <div className="flex-1 min-w-0">
+                          <SelectDropdown
+                            options={[
+                              { value: '', label: '선택 안함' },
+                              ...(editForm.jobTitle &&
+                              !orgTitles.some((t) => t.name === editForm.jobTitle)
+                                ? [{ value: editForm.jobTitle, label: `${editForm.jobTitle} (기존 값)` }]
+                                : []),
+                              ...orgTitles.map((t) => ({
+                                value: t.name,
+                                label: t.name,
+                              })),
+                            ]}
+                            value={editForm.jobTitle}
+                            onChange={(val) =>
+                              setEditForm({ ...editForm, jobTitle: val })
+                            }
+                            size="sm"
+                            fullWidth
+                          />
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-2.5 flex items-center gap-3">
+                        <span className="text-slate-500 w-20 shrink-0 font-medium">사번</span>
+                        <input
+                          type="text"
+                          placeholder="예: EMP0123"
+                          value={editForm.employeeId}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, employeeId: e.target.value })
+                          }
+                          className="h-9 flex-1 min-w-0 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 font-mono"
+                        />
+                      </div>
+
+                      <div className="px-4 py-2.5 flex items-center gap-3">
+                        <span className="text-slate-500 w-20 shrink-0 font-medium">사내 전화</span>
+                        <input
+                          type="text"
+                          placeholder="예: 02-1234-5678"
+                          value={editForm.phone}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, phone: e.target.value })
+                          }
+                          className="h-9 flex-1 min-w-0 rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                        />
+                      </div>
+
+                      <div className="px-4 py-2.5 flex items-center gap-3">
+                        <span className="text-slate-500 w-20 shrink-0 font-medium">재직 상태</span>
+                        <div className="flex-1 min-w-0">
+                          <SelectDropdown
+                            options={[
+                              { value: 'ACTIVE', label: '재직 (ACTIVE)' },
+                              { value: 'ON_LEAVE', label: '휴직 (ON_LEAVE)' },
+                              { value: 'RESIGNED', label: '퇴사 (RESIGNED)' },
+                            ]}
+                            value={editForm.employmentStatus}
+                            onChange={(val) =>
+                              setEditForm({ ...editForm, employmentStatus: val as EmploymentStatus })
+                            }
+                            size="sm"
+                            fullWidth
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 카드 3: 사서함 및 환경 설정 */}
+                <div className="rounded-2xl bg-white border border-slate-200">
+                  {(() => {
+                    const usedMb = targetUser.usedMb ?? 0;
+                    const quotaMb = Math.max(1, Number(editForm.mailboxQuotaMb) || targetUser.mailboxQuotaMb || 512);
+                    const livePercent = Math.round((usedMb / quotaMb) * 100);
+                    const isExceeded = usedMb > quotaMb;
+                    const barColor =
+                      isExceeded || livePercent >= 90
+                        ? 'bg-rose-500'
+                        : livePercent >= 70
+                        ? 'bg-amber-500'
+                        : 'bg-sky-500';
+                    return (
+                      <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/80 rounded-t-2xl text-[11px] font-semibold text-slate-600 flex flex-wrap items-center justify-between gap-3">
+                        <span>사서함 및 환경 설정</span>
+                        <div className="flex items-center gap-2 font-mono">
+                          <span className={isExceeded ? 'text-rose-600 font-bold' : 'font-normal text-slate-600'}>
+                            현재 사용량: {usedMb} MB
+                          </span>
+                          <div className="w-24 h-1.5 bg-slate-200/80 rounded-full overflow-hidden border border-slate-200/60">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                              style={{
+                                width: `${Math.min(100, Math.max(usedMb > 0 ? 2 : 0, livePercent))}%`,
+                              }}
+                            />
+                          </div>
+                          <span
+                            className={
+                              isExceeded
+                                ? 'text-rose-600 font-bold'
+                                : livePercent >= 90
+                                ? 'text-rose-600 font-semibold'
+                                : livePercent >= 70
+                                ? 'text-amber-600 font-semibold'
+                                : 'text-sky-600 font-semibold'
+                            }
+                          >
+                            {livePercent}%
+                          </span>
+                          <span className="font-normal text-slate-500">
+                            / {quotaMb} MB, {targetUser.messageCount ?? 0}통
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                    <div>
+                      <label className="block text-slate-500 font-medium mb-1.5">
+                        메일 용량 (MB)
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          required
+                          min={10}
+                          step={10}
+                          value={editForm.mailboxQuotaMb}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              mailboxQuotaMb: Number(e.target.value),
+                            })
+                          }
+                          className="h-9 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 font-mono"
+                        />
+                        <span className="text-slate-500 font-semibold shrink-0">MB</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-500 font-medium mb-1.5">사용 언어</label>
+                      <SelectDropdown
+                        options={LANGUAGE_OPTIONS}
+                        value={editForm.preferredLanguage}
+                        onChange={(val) =>
+                          setEditForm({
+                            ...editForm,
+                            preferredLanguage: val,
+                          })
+                        }
+                        size="sm"
+                        fullWidth
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-500 font-medium mb-1.5">타임존</label>
+                      <SelectDropdown
+                        options={TIMEZONE_OPTIONS}
+                        value={editForm.timezone}
+                        onChange={(val) =>
+                          setEditForm({ ...editForm, timezone: val })
+                        }
+                        size="sm"
+                        fullWidth
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* 비밀번호 변경 (선택) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  비밀번호 재설정 (선택)
-                </label>
-                <input
-                  type="password"
-                  minLength={6}
-                  placeholder="변경할 새 비밀번호 입력 (기존 비밀번호 유지 시 빈칸)"
-                  value={editForm.password || ''}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, password: e.target.value })
-                  }
-                  className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  * 기존 비밀번호를 유지하려면 빈칸으로 두세요 (변경 시 최소 6자 이상).
-                </span>
-              </div>
-
-              {/* 권한 & 계정 상태 (2단 그리드) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    계정 권한
-                  </label>
-                  <SelectDropdown
-                    options={[
-                      { value: UserRole.USER, label: '일반 사용자 (USER)' },
-                      { value: UserRole.SYSTEM_ADMIN, label: '시스템 관리자 (SYSTEM_ADMIN)' },
-                    ]}
-                    value={editForm.role}
-                    disabled={currentUser?.id === targetUser.id}
-                    onChange={(val) =>
-                      setEditForm({
-                        ...editForm,
-                        role: val as UserRole,
-                      })
-                    }
-                    size="md"
-                    fullWidth
-                  />
-                  {currentUser?.id === targetUser.id && (
-                    <span className="text-[10px] text-amber-600 mt-0.5 block">
-                      본인 계정의 권한은 변경할 수 없습니다.
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    계정 활성 상태
-                  </label>
-                  <SelectDropdown
-                    options={[
-                      { value: 'true', label: '정상 활성 (Active)' },
-                      { value: 'false', label: '계정 비활성 (Inactive)' },
-                    ]}
-                    value={editForm.isActive ? 'true' : 'false'}
-                    disabled={currentUser?.id === targetUser.id}
-                    onChange={(val) =>
-                      setEditForm({
-                        ...editForm,
-                        isActive: val === 'true',
-                      })
-                    }
-                    size="md"
-                    fullWidth
-                  />
-                  {currentUser?.id === targetUser.id && (
-                    <span className="text-[10px] text-amber-600 mt-0.5 block">
-                      본인 계정은 비활성화할 수 없습니다.
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end gap-2 pt-2 border-t border-slate-100">
+              {/* 고정 푸터 */}
+              <div className="px-6 py-3.5 bg-slate-50/80 border-t border-slate-200/80 flex justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}

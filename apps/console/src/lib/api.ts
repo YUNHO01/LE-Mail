@@ -185,6 +185,15 @@ export const orgApi = {
       method: 'DELETE',
     }),
 
+  moveDepartment: (
+    id: string,
+    dto: { targetParentId?: string | null; targetIndex?: number },
+  ) =>
+    fetchApi<DepartmentDto>(`/org/departments/${id}/move`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
+
   getRanks: () => fetchApi<OrgRankDto[]>('/org/ranks'),
 
   createRank: (dto: CreateOrgRankDto) =>

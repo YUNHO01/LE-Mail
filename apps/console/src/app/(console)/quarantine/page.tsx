@@ -121,7 +121,7 @@ export default function AdminQuarantinePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="스팸 격리함 관리 (Quarantine)"
+        title="스팸 격리함 관리"
         icon={<ShieldAlert className="h-6 w-6 text-rose-500" />}
         subtitle="스팸 점수 10점 이상의 고위험 메일 및 피싱 의심 메일이 사용자에게 전달되지 않고 안전하게 격리 보관되는 공간입니다."
       />

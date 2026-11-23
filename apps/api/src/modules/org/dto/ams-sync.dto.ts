@@ -86,10 +86,25 @@ export class AmsEmployeePayloadDto {
   @IsOptional()
   position?: string | null;
 
+  @ApiProperty({ example: 'GEN_40', required: false, description: '직위 코드 (미등록 직위 자동 생성 시 활용)' })
+  @IsString()
+  @IsOptional()
+  positionCode?: string | null;
+
+  @ApiProperty({ example: 40, required: false, description: '직위 레벨/서열 (미등록 직위 자동 생성 시 활용)' })
+  @IsInt()
+  @IsOptional()
+  positionLevel?: number | null;
+
   @ApiProperty({ example: '팀장', required: false, description: '직책' })
   @IsString()
   @IsOptional()
   jobTitle?: string | null;
+
+  @ApiProperty({ example: 10, required: false, description: '직책 정렬 순서 (미등록 직책 자동 생성 시 활용)' })
+  @IsInt()
+  @IsOptional()
+  jobTitleSortOrder?: number | null;
 
   @ApiProperty({ example: '02-1234-5678', required: false, description: '사내 전화/내선' })
   @IsString()

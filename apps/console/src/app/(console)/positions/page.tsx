@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Award, Plus, Trash2, RefreshCw, X, Sparkles } from 'lucide-react';
+import { Award, Plus, RefreshCw, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { OrgRankDto, OrgTitleDto, RankPresetType } from '@lemail/shared-types';
-import { PageHeader } from '@/components/common';
+import { PageHeader, SelectDropdown } from '@/components/common';
 import { orgApi } from '@/lib/api';
 
 interface RankFormState {
@@ -303,116 +303,142 @@ export default function PositionsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="직급/직책 관리"
-        icon={<Award className="h-6 w-6 text-[#0071e3]" />}
-        subtitle="조직원의 직급(직위)과 직책 마스터를 관리합니다. 등록된 항목은 사용자 등록 및 수정 시 선택 항목으로 제공됩니다."
+        icon={<Award className="h-6 w-6 text-sky-600" />}
+        subtitle="조직원들의 직급(직위)과 직책 마스터를 관리합니다. 등록된 항목은 사용자 등록 및 수정 시 선택 항목으로 제공됩니다."
         action={
-          <button
-            type="button"
-            onClick={fetchData}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.1] bg-white px-3 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] transition disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>새로고침</span>
-          </button>
+          <div className="flex items-center gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={openCreateRankModal}
+              className="btn btn-sm btn-secondary inline-flex items-center gap-1.5 text-xs font-semibold"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>직급 추가</span>
+            </button>
+            <button
+              type="button"
+              onClick={openCreateTitleModal}
+              className="btn btn-sm btn-primary inline-flex items-center gap-1.5 text-xs font-semibold"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>직책 추가</span>
+            </button>
+          </div>
         }
       />
 
       {errorMsg && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700 flex items-center justify-between">
-          <span>{errorMsg}</span>
-          <button type="button" onClick={() => setErrorMsg(null)} className="text-red-500 hover:text-red-700">
-            <X className="h-3.5 w-3.5" />
+        <div className="flex items-center justify-between rounded-xl p-4 text-xs font-medium border bg-rose-50 text-rose-800 border-rose-200 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            className="text-slate-400 hover:text-slate-600 font-bold ml-4"
+          >
+            ✕
           </button>
         </div>
       )}
 
       {statusMsg && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-700 flex items-center justify-between">
-          <span>{statusMsg}</span>
-          <button type="button" onClick={() => setStatusMsg(null)} className="text-blue-500 hover:text-blue-700">
-            <X className="h-3.5 w-3.5" />
+        <div className="flex items-center justify-between rounded-xl p-4 text-xs font-medium border bg-emerald-50 text-emerald-800 border-emerald-200 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{statusMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusMsg(null)}
+            className="text-slate-400 hover:text-slate-600 font-bold ml-4"
+          >
+            ✕
           </button>
         </div>
       )}
 
       {/* 좌우 반 분할 컨텐츠 영역 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
         {/* 좌측: 직급 관리 */}
-        <section className="rounded-xl border border-black/[0.08] bg-white shadow-sm overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] px-4 py-3 bg-[#fafafa]">
-            <div>
-              <h2 className="text-sm font-semibold text-[#1d1d1f]">
-                직급 (직위) 관리
-                <span className="ml-1.5 text-xs font-normal text-[#86868b]">({ranks.length})</span>
-              </h2>
-              <p className="text-[11px] text-[#86868b]">레벨 오름차순으로 정렬됩니다.</p>
+        <section className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col min-h-[620px]">
+          {/* 1단 헤더 (h-12) */}
+          <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Award className="h-4 w-4 text-sky-600 shrink-0" />
+              <span className="text-xs font-bold text-slate-900">직급 (직위) 관리</span>
+              <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+                {ranks.length}
+              </span>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative inline-flex items-center">
-                <Sparkles className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[#0071e3]" />
-                <select
-                  aria-label="직급 업종 템플릿 선택"
-                  value={presetValue}
-                  disabled={applyingPreset}
-                  onChange={(e) => handlePresetChange(e.target.value)}
-                  className="rounded-lg border border-black/[0.1] bg-white pl-7 pr-6 py-1.5 text-xs font-medium text-[#1d1d1f] focus:border-[#0071e3] focus:outline-none disabled:opacity-50"
-                >
-                  <option value="">{applyingPreset ? '적용 중...' : '업종 템플릿 추가'}</option>
-                  <option value="GENERAL">일반기업</option>
-                  <option value="PUBLIC_RESEARCH">공공연구</option>
-                  <option value="MANUFACTURING">제조생산</option>
-                </select>
-              </div>
-
+            <div className="flex items-center gap-2 shrink-0">
+              {selectedRankIds.size > 0 && (
+                <div className="flex items-center gap-1.5 pr-2 border-r border-slate-200">
+                  <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                    {selectedRankIds.size}건 선택
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleBulkDeleteRanks}
+                    className="btn btn-sm btn-secondary text-[11px] font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
+                  >
+                    선택 삭제
+                  </button>
+                </div>
+              )}
+              <SelectDropdown
+                options={[
+                  { value: 'GENERAL', label: '일반기업 템플릿' },
+                  { value: 'PUBLIC_RESEARCH', label: '공공연구 템플릿' },
+                  { value: 'MANUFACTURING', label: '제조생산 템플릿' },
+                ]}
+                value={presetValue}
+                disabled={applyingPreset}
+                onChange={handlePresetChange}
+                placeholder={applyingPreset ? '적용 중...' : '업종 템플릿 추가'}
+                headerLabel="직급 업종 템플릿"
+                size="sm"
+                menuWidthClass="w-44"
+              />
               <button
                 type="button"
-                onClick={handleBulkDeleteRanks}
-                disabled={selectedRankIds.size === 0}
-                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={fetchData}
+                disabled={loading}
+                title="새로고침"
+                className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>선택 삭제{selectedRankIds.size > 0 ? ` (${selectedRankIds.size})` : ''}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={openCreateRankModal}
-                className="inline-flex items-center gap-1 rounded-lg bg-[#0071e3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0077ed] transition shadow-xs"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>직급 추가</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-black/[0.06] bg-slate-50/70 text-[11px] font-semibold text-[#6e6e73]">
-                  <th className="w-10 px-3 py-2.5 text-center">
+                <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+                  <th className="w-10 px-4 py-3 text-center">
                     <input
                       type="checkbox"
                       checked={allRanksSelected}
                       onChange={toggleAllRanks}
                       aria-label="직급 전체 선택"
-                      className="h-3.5 w-3.5 rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3]"
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
                     />
                   </th>
-                  <th className="w-16 px-3 py-2.5">레벨</th>
-                  <th className="px-3 py-2.5">직위명</th>
-                  <th className="px-3 py-2.5">직위코드</th>
-                  <th className="px-3 py-2.5">설명</th>
+                  <th className="w-16 px-4 py-3 whitespace-nowrap">레벨</th>
+                  <th className="px-4 py-3 whitespace-nowrap">직위명</th>
+                  <th className="px-4 py-3 whitespace-nowrap">직위코드</th>
+                  <th className="px-4 py-3 whitespace-nowrap">설명</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.05] text-xs">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {ranks.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-[#86868b]">
+                    <td colSpan={5} className="px-4 py-16 text-center text-slate-400">
                       {loading
                         ? '불러오는 중입니다...'
                         : '등록된 직급이 없습니다. 상단에서 업종 템플릿을 선택하거나 직접 추가해 주세요.'}
@@ -424,11 +450,12 @@ export default function PositionsPage() {
                       key={rank.id}
                       onClick={() => openEditRankModal(rank)}
                       className={`cursor-pointer hover:bg-slate-50/80 transition-colors ${
-                        selectedRankIds.has(rank.id) ? 'bg-blue-50/40' : ''
+                        selectedRankIds.has(rank.id) ? 'bg-sky-50/40' : 'bg-white'
                       }`}
+                      title="클릭하여 직급 정보 수정"
                     >
                       <td
-                        className="px-3 py-2.5 text-center"
+                        className="px-4 py-3 text-center"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
@@ -436,15 +463,15 @@ export default function PositionsPage() {
                           checked={selectedRankIds.has(rank.id)}
                           onChange={() => toggleRankSelection(rank.id)}
                           aria-label={`${rank.name} 선택`}
-                          className="h-3.5 w-3.5 rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3]"
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
                         />
                       </td>
-                      <td className="px-3 py-2.5 font-mono text-[11px] font-semibold text-[#0071e3]">
+                      <td className="px-4 py-3 font-mono text-[11px] font-semibold text-sky-600">
                         {rank.level}
                       </td>
-                      <td className="px-3 py-2.5 font-medium text-[#1d1d1f]">{rank.name}</td>
-                      <td className="px-3 py-2.5 font-mono text-[11px] text-[#6e6e73]">{rank.code}</td>
-                      <td className="px-3 py-2.5 text-[#6e6e73] max-w-[180px] truncate" title={rank.description || ''}>
+                      <td className="px-4 py-3 font-semibold text-slate-900">{rank.name}</td>
+                      <td className="px-4 py-3 font-mono text-[11px] text-slate-500">{rank.code}</td>
+                      <td className="px-4 py-3 text-slate-500 max-w-[180px] truncate" title={rank.description || ''}>
                         {rank.description || '-'}
                       </td>
                     </tr>
@@ -456,61 +483,66 @@ export default function PositionsPage() {
         </section>
 
         {/* 우측: 직책 관리 */}
-        <section className="rounded-xl border border-black/[0.08] bg-white shadow-sm overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] px-4 py-3 bg-[#fafafa]">
-            <div>
-              <h2 className="text-sm font-semibold text-[#1d1d1f]">
-                직책 관리
-                <span className="ml-1.5 text-xs font-normal text-[#86868b]">({titles.length})</span>
-              </h2>
-              <p className="text-[11px] text-[#86868b]">순서 오름차순으로 정렬됩니다.</p>
+        <section className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col min-h-[620px]">
+          {/* 1단 헤더 (h-12) */}
+          <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Award className="h-4 w-4 text-sky-600 shrink-0" />
+              <span className="text-xs font-bold text-slate-900">직책 관리</span>
+              <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+                {titles.length}
+              </span>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              {selectedTitleIds.size > 0 && (
+                <div className="flex items-center gap-1.5 pr-2 border-r border-slate-200">
+                  <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                    {selectedTitleIds.size}건 선택
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleBulkDeleteTitles}
+                    className="btn btn-sm btn-secondary text-[11px] font-medium text-rose-600 hover:text-rose-700 border-rose-200 hover:border-rose-300 bg-rose-50/50"
+                  >
+                    선택 삭제
+                  </button>
+                </div>
+              )}
               <button
                 type="button"
-                onClick={handleBulkDeleteTitles}
-                disabled={selectedTitleIds.size === 0}
-                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={fetchData}
+                disabled={loading}
+                title="새로고침"
+                className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>선택 삭제{selectedTitleIds.size > 0 ? ` (${selectedTitleIds.size})` : ''}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={openCreateTitleModal}
-                className="inline-flex items-center gap-1 rounded-lg bg-[#0071e3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0077ed] transition shadow-xs"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>직책 추가</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-black/[0.06] bg-slate-50/70 text-[11px] font-semibold text-[#6e6e73]">
-                  <th className="w-10 px-3 py-2.5 text-center">
+                <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+                  <th className="w-10 px-4 py-3 text-center">
                     <input
                       type="checkbox"
                       checked={allTitlesSelected}
                       onChange={toggleAllTitles}
                       aria-label="직책 전체 선택"
-                      className="h-3.5 w-3.5 rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3]"
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
                     />
                   </th>
-                  <th className="w-16 px-3 py-2.5">순서</th>
-                  <th className="px-3 py-2.5">직책명</th>
-                  <th className="px-3 py-2.5">설명</th>
+                  <th className="w-16 px-4 py-3 whitespace-nowrap">순서</th>
+                  <th className="px-4 py-3 whitespace-nowrap">직책명</th>
+                  <th className="px-4 py-3 whitespace-nowrap">설명</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/[0.05] text-xs">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {titles.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-[#86868b]">
-                      {loading ? '불러오는 중입니다...' : '등록된 직책이 없습니다. 직책을 추가해 주세요.'}
+                    <td colSpan={4} className="px-4 py-16 text-center text-slate-400">
+                      {loading ? '불러오는 중입니다...' : '등록된 직책이 없습니다. 상단의 직책 추가 버튼으로 등록해 주세요.'}
                     </td>
                   </tr>
                 ) : (
@@ -519,11 +551,12 @@ export default function PositionsPage() {
                       key={title.id}
                       onClick={() => openEditTitleModal(title)}
                       className={`cursor-pointer hover:bg-slate-50/80 transition-colors ${
-                        selectedTitleIds.has(title.id) ? 'bg-blue-50/40' : ''
+                        selectedTitleIds.has(title.id) ? 'bg-sky-50/40' : 'bg-white'
                       }`}
+                      title="클릭하여 직책 정보 수정"
                     >
                       <td
-                        className="px-3 py-2.5 text-center"
+                        className="px-4 py-3 text-center"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
@@ -531,14 +564,14 @@ export default function PositionsPage() {
                           checked={selectedTitleIds.has(title.id)}
                           onChange={() => toggleTitleSelection(title.id)}
                           aria-label={`${title.name} 선택`}
-                          className="h-3.5 w-3.5 rounded border-slate-300 text-[#0071e3] focus:ring-[#0071e3]"
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer"
                         />
                       </td>
-                      <td className="px-3 py-2.5 font-mono text-[11px] font-semibold text-[#0071e3]">
+                      <td className="px-4 py-3 font-mono text-[11px] font-semibold text-sky-600">
                         {title.sortOrder}
                       </td>
-                      <td className="px-3 py-2.5 font-medium text-[#1d1d1f]">{title.name}</td>
-                      <td className="px-3 py-2.5 text-[#6e6e73] max-w-[220px] truncate" title={title.description || ''}>
+                      <td className="px-4 py-3 font-semibold text-slate-900">{title.name}</td>
+                      <td className="px-4 py-3 text-slate-500 max-w-[220px] truncate" title={title.description || ''}>
                         {title.description || '-'}
                       </td>
                     </tr>
@@ -552,26 +585,26 @@ export default function PositionsPage() {
 
       {/* 직급 등록/수정 모달 */}
       {rankModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-black/[0.08] overflow-hidden">
-            <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-3.5">
-              <h3 className="text-sm font-semibold text-[#1d1d1f]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h3 className="text-base font-bold text-slate-900">
                 {editingRank ? '직급 수정' : '직급 추가'}
               </h3>
               <button
                 type="button"
                 onClick={() => setRankModalOpen(false)}
-                className="rounded-lg p-1 text-[#86868b] hover:bg-black/[0.05]"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveRank} className="p-5 space-y-3.5">
+            <form onSubmit={handleSaveRank} className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#1d1d1f] mb-1">
-                    레벨 (서열) <span className="text-red-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    레벨 (서열) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -579,13 +612,13 @@ export default function PositionsPage() {
                     required
                     value={rankForm.level}
                     onChange={(e) => setRankForm({ ...rankForm, level: e.target.value })}
-                    className="w-full rounded-lg border border-black/[0.12] px-3 py-2 text-xs focus:border-[#0071e3] focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
                     placeholder="예: 10"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#1d1d1f] mb-1">
-                    직위코드 <span className="text-red-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    직위코드 <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -593,15 +626,15 @@ export default function PositionsPage() {
                     maxLength={50}
                     value={rankForm.code}
                     onChange={(e) => setRankForm({ ...rankForm, code: e.target.value })}
-                    className="w-full rounded-lg border border-black/[0.12] px-3 py-2 text-xs focus:border-[#0071e3] focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
                     placeholder="예: GEN_10"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#1d1d1f] mb-1">
-                  직위명 <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  직위명 <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -609,19 +642,19 @@ export default function PositionsPage() {
                   maxLength={100}
                   value={rankForm.name}
                   onChange={(e) => setRankForm({ ...rankForm, name: e.target.value })}
-                  className="w-full rounded-lg border border-black/[0.12] px-3 py-2 text-xs focus:border-[#0071e3] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
                   placeholder="예: 과장"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#1d1d1f] mb-1">설명</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">설명</label>
                 <input
                   type="text"
                   maxLength={255}
                   value={rankForm.description}
                   onChange={(e) => setRankForm({ ...rankForm, description: e.target.value })}
-                  className="w-full rounded-lg border border-black/[0.12] px-3 py-2 text-xs focus:border-[#0071e3] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
                   placeholder="직급에 대한 설명을 입력하세요."
                 />
               </div>
@@ -630,14 +663,14 @@ export default function PositionsPage() {
                 <button
                   type="button"
                   onClick={() => setRankModalOpen(false)}
-                  className="rounded-lg border border-black/[0.1] px-3.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03]"
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={rankSaving}
-                  className="rounded-lg bg-[#0071e3] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#0077ed] disabled:opacity-50"
+                  className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
                 >
                   {rankSaving ? '저장 중...' : '저장'}
                 </button>
@@ -649,26 +682,26 @@ export default function PositionsPage() {
 
       {/* 직책 등록/수정 모달 */}
       {titleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-black/[0.08] overflow-hidden">
-            <div className="flex items-center justify-between border-b border-black/[0.06] px-5 py-3.5">
-              <h3 className="text-sm font-semibold text-[#1d1d1f]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h3 className="text-base font-bold text-slate-900">
                 {editingTitle ? '직책 수정' : '직책 추가'}
               </h3>
               <button
                 type="button"
                 onClick={() => setTitleModalOpen(false)}
-                className="rounded-lg p-1 text-[#86868b] hover:bg-black/[0.05]"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveTitle} className="p-5 space-y-3.5">
+            <form onSubmit={handleSaveTitle} className="p-5 space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#1d1d1f] mb-1">
-                    순서 (서열) <span className="text-red-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    순서 (서열) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -676,13 +709,13 @@ export default function PositionsPage() {
                     required
                     value={titleForm.sortOrder}
                     onChange={(e) => setTitleForm({ ...titleForm, sortOrder: e.target.value })}
-                    className="w-full rounded-lg border border-black/[0.12] px-3 py-2 text-xs focus:border-[#0071e3] focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
                     placeholder="예: 10"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-[#1d1d1f] mb-1">
-                    직책명 <span className="text-red-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    직책명 <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -690,20 +723,20 @@ export default function PositionsPage() {
                     maxLength={100}
                     value={titleForm.name}
                     onChange={(e) => setTitleForm({ ...titleForm, name: e.target.value })}
-                    className="w-full rounded-lg border border-black/[0.12] px-3 py-2 text-xs focus:border-[#0071e3] focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
                     placeholder="예: 팀장"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#1d1d1f] mb-1">설명</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">설명</label>
                 <input
                   type="text"
                   maxLength={255}
                   value={titleForm.description}
                   onChange={(e) => setTitleForm({ ...titleForm, description: e.target.value })}
-                  className="w-full rounded-lg border border-black/[0.12] px-3 py-2 text-xs focus:border-[#0071e3] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
                   placeholder="직책에 대한 설명을 입력하세요."
                 />
               </div>
@@ -712,14 +745,14 @@ export default function PositionsPage() {
                 <button
                   type="button"
                   onClick={() => setTitleModalOpen(false)}
-                  className="rounded-lg border border-black/[0.1] px-3.5 py-1.5 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03]"
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={titleSaving}
-                  className="rounded-lg bg-[#0071e3] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#0077ed] disabled:opacity-50"
+                  className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
                 >
                   {titleSaving ? '저장 중...' : '저장'}
                 </button>

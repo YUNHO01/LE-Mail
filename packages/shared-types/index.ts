@@ -108,6 +108,7 @@ export interface DepartmentDto {
   managerEmployeeId: string | null;
   source: OrgSyncSource;
   isActive: boolean;
+  isRoot?: boolean;
   lastSyncedAt: string | null;
   createdAt: string;
   updatedAt: string;

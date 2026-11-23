@@ -51,6 +51,9 @@ export class Department {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ name: 'is_root', type: 'boolean', default: false })
+  isRoot: boolean;
+
   @Column({ name: 'last_synced_at', type: 'timestamp', nullable: true })
   lastSyncedAt: Date | null;
 

@@ -50,6 +50,7 @@ const schemaStatements = [
     \`manager_employee_id\` VARCHAR(50) NULL,
     \`source\` ENUM('LOCAL', 'AMS') NOT NULL DEFAULT 'LOCAL',
     \`is_active\` BOOLEAN NOT NULL DEFAULT TRUE,
+    \`is_root\` BOOLEAN NOT NULL DEFAULT FALSE,
     \`last_synced_at\` TIMESTAMP NULL,
     \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -504,6 +505,24 @@ export async function syncDatabaseSchema(
         // Duplicate column name, already exists
       } else {
         console.warn(`Column migration note for ${col.name}: ${err.message}`);
+      }
+    }
+  }
+
+  // Migrate department table columns if missing
+  const alterDeptColumns = [
+    { name: 'is_root', ddl: 'ALTER TABLE `department` ADD COLUMN `is_root` BOOLEAN NOT NULL DEFAULT FALSE AFTER `is_active`;' },
+  ];
+
+  for (const col of alterDeptColumns) {
+    try {
+      await query(col.ddl);
+      logger.log(`Added column ${col.name} to department table.`);
+    } catch (err: any) {
+      if (getMysqlErrno(err) === 1060) {
+        // Duplicate column name, already exists
+      } else {
+        logger.warn(`Column migration note for department.${col.name}: ${err.message}`);
       }
     }
   }

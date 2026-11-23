@@ -27,7 +27,7 @@ import {
   Server,
   Zap,
 } from 'lucide-react';
-import { PageHeader, SelectDropdown, ToggleSwitch } from '@/components/common';
+import { PageHeader, SearchInput, SelectDropdown, ToggleSwitch } from '@/components/common';
 
 export default function AdminSpamRulesPage() {
   const [rules, setRules] = useState<SpamRuleDto[]>([]);
@@ -44,7 +44,8 @@ export default function AdminSpamRulesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ClamAV 연동 설정 상태
-  const [clamavEnabled, setClamavEnabled] = useState(true);
+  const [clamavEnabled, setClamavEnabled] = useState(false);
+  const [clamavOnline, setClamavOnline] = useState<boolean | null>(null);
   const [clamavHost, setClamavHost] = useState('127.0.0.1');
   const [clamavPort, setClamavPort] = useState(3310);
   const [clamavTimeoutMs, setClamavTimeoutMs] = useState(3000);
@@ -58,15 +59,21 @@ export default function AdminSpamRulesPage() {
   const loadSpamConfig = async () => {
     try {
       setConfigLoading(true);
-      const conf = await fetchApi<SpamPolicyConfigDto>('/spam/config');
+      const conf = await fetchApi<
+        SpamPolicyConfigDto & { clamavHealth?: ClamavHealthStatusDto }
+      >('/spam/config');
       if (conf) {
-        setClamavEnabled(conf.clamavEnabled !== false);
+        const isOnline = Boolean(conf.clamavHealth?.isHealthy);
+        setClamavOnline(isOnline);
+        setClamavEnabled(isOnline && Boolean(conf.clamavEnabled));
         if (conf.clamavHost) setClamavHost(conf.clamavHost);
         if (conf.clamavPort) setClamavPort(conf.clamavPort);
         if (conf.clamavTimeoutMs) setClamavTimeoutMs(conf.clamavTimeoutMs);
       }
     } catch (err: any) {
       console.error('스팸 정책 조회 실패:', err);
+      setClamavOnline(false);
+      setClamavEnabled(false);
     } finally {
       setConfigLoading(false);
     }
@@ -85,9 +92,16 @@ export default function AdminSpamRulesPage() {
         }),
       });
       setTestResult(res);
+      const isOnline = Boolean(res?.isHealthy);
+      setClamavOnline(isOnline);
+      if (!isOnline) {
+        setClamavEnabled(false);
+      }
     } catch (err: any) {
+      setClamavOnline(false);
+      setClamavEnabled(false);
       setTestResult({
-        enabled: true,
+        enabled: false,
         isHealthy: false,
         host: clamavHost,
         port: clamavPort,
@@ -190,7 +204,7 @@ export default function AdminSpamRulesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="스팸 필터 및 차단 정책 (Whitelist & Blacklist)"
+        title="스팸 차단 및 필터 정책"
         icon={<Filter className="h-6 w-6 text-sky-500" />}
         subtitle="전사 또는 도메인 단위의 이메일 수신 허용(화이트리스트) 및 차단(블랙리스트) 규칙을 관리합니다."
       />
@@ -203,12 +217,31 @@ export default function AdminSpamRulesPage() {
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-900 flex flex-wrap items-center gap-2">
                 <span>ClamAV 안티바이러스 연동 설정</span>
-                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                  clamavEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {clamavEnabled ? '실시간 검사 ON' : '검사 OFF'}
+                <span
+                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                    clamavOnline === null
+                      ? 'bg-slate-100 text-slate-500'
+                      : clamavOnline
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  }`}
+                >
+                  {clamavOnline === null
+                    ? '상태 확인 중'
+                    : clamavOnline
+                    ? '데몬 온라인'
+                    : '데몬 오프라인'}
+                </span>
+                <span
+                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                    clamavOnline && clamavEnabled
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {clamavOnline && clamavEnabled ? '실시간 검사 ON' : '검사 OFF'}
                 </span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -217,12 +250,24 @@ export default function AdminSpamRulesPage() {
             </div>
           </div>
 
-          <ToggleSwitch
-            checked={clamavEnabled}
-            onChange={setClamavEnabled}
-            label="백신 검사 활성화"
-            color="indigo"
-          />
+          <div className="flex flex-col items-end gap-1">
+            <ToggleSwitch
+              checked={Boolean(clamavOnline) && clamavEnabled}
+              onChange={(val) => {
+                if (!clamavOnline) return;
+                setClamavEnabled(val);
+              }}
+              disabled={!clamavOnline || configLoading}
+              label="백신 검사 활성화"
+              showStatusText={false}
+              color="indigo"
+            />
+            {clamavOnline === false && (
+              <span className="text-[10px] text-rose-600 font-medium">
+                ClamAV 데몬이 오프라인 상태여서 활성화할 수 없습니다.
+              </span>
+            )}
+          </div>
         </div>
 
         {/* 연결 파라미터 입력 필드 */}
@@ -235,9 +280,8 @@ export default function AdminSpamRulesPage() {
               type="text"
               value={clamavHost}
               onChange={(e) => setClamavHost(e.target.value)}
-              disabled={!clamavEnabled}
               placeholder="예: 127.0.0.1 또는 clamav"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none disabled:opacity-50"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none"
             />
           </div>
 
@@ -249,9 +293,8 @@ export default function AdminSpamRulesPage() {
               type="number"
               value={clamavPort}
               onChange={(e) => setClamavPort(Number(e.target.value))}
-              disabled={!clamavEnabled}
               placeholder="기본값: 3310"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none disabled:opacity-50"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none"
             />
           </div>
 
@@ -263,9 +306,8 @@ export default function AdminSpamRulesPage() {
               type="number"
               value={clamavTimeoutMs}
               onChange={(e) => setClamavTimeoutMs(Number(e.target.value))}
-              disabled={!clamavEnabled}
               placeholder="기본값: 3000"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none disabled:opacity-50"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 px-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none"
             />
           </div>
         </div>
@@ -413,39 +455,49 @@ export default function AdminSpamRulesPage() {
       </div>
 
       {/* Rules Table */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
-          <div className="relative w-72">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="패턴 또는 사유 검색..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs focus:border-sky-500 focus:bg-white focus:outline-none"
-            />
+      <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        {/* 1단 카드 헤더 (h-12) */}
+        <div className="h-12 px-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Filter className="h-4 w-4 text-sky-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-900">차단 및 필터 규칙 목록</span>
+            <span className="rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 font-mono">
+              {filteredRules.length}
+            </span>
           </div>
-
           <button
+            type="button"
             onClick={loadRules}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition"
+            title="새로고침"
+            className="btn btn-sm btn-secondary p-1.5 text-slate-500 hover:text-slate-800"
           >
-            <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
-            <span>새로고침</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
+        {/* 2단 검색 바 (h-11) */}
+        <div className="h-11 px-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-white">
+          <div className="w-64">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="패턴 또는 사유 검색..."
+              size="sm"
+            />
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-4">구분</th>
-                <th className="py-3 px-4">대상 유형</th>
-                <th className="py-3 px-4">패턴</th>
-                <th className="py-3 px-4">적용 범위</th>
-                <th className="py-3 px-4">등록 사유</th>
-                <th className="py-3 px-4">등록 일시</th>
-                <th className="py-3 px-4 text-right">삭제</th>
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-600 font-medium select-none">
+                <th className="py-3 px-4 whitespace-nowrap">구분</th>
+                <th className="py-3 px-4 whitespace-nowrap">대상 유형</th>
+                <th className="py-3 px-4 whitespace-nowrap">패턴</th>
+                <th className="py-3 px-4 whitespace-nowrap">적용 범위</th>
+                <th className="py-3 px-4 whitespace-nowrap">등록 사유</th>
+                <th className="py-3 px-4 whitespace-nowrap">등록 일시</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">삭제</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

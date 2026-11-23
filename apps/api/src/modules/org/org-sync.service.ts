@@ -29,6 +29,7 @@ import { LicenseService } from '../license/license.service';
 import { MailFolderService } from '../mail-folder/mail-folder.service';
 import { MailboxCacheService } from '../smtp-ingestion/mailbox-cache.service';
 import { MailService } from '../mail/mail.service';
+import { OrgPositionsService } from './org-positions.service';
 import {
   AmsDepartmentPayloadDto,
   AmsEmployeePayloadDto,
@@ -80,6 +81,7 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     private readonly licenseService: LicenseService,
     private readonly mailFolderService: MailFolderService,
     private readonly mailboxCacheService: MailboxCacheService,
+    private readonly orgPositionsService: OrgPositionsService,
     @Inject(forwardRef(() => MailService))
     private readonly mailService: MailService,
     @InjectDataSource()
@@ -405,6 +407,11 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
       return 'ACTIVE';
     };
 
+    const parseOptionalInt = (val: unknown): number | null => {
+      if (typeof val === 'number' && Number.isFinite(val)) return Math.trunc(val);
+      return null;
+    };
+
     const employees: AmsEmployeePayloadDto[] = (Array.isArray(rawUsers) ? rawUsers : [])
       .filter((u) => u && u.employeeNumber && u.name)
       .map((u) => ({
@@ -419,7 +426,15 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
           : null,
         departmentCode: u.departmentEntity?.code ? String(u.departmentEntity.code) : null,
         position: u.jobRank?.name ? String(u.jobRank.name) : u.position ? String(u.position) : null,
-        jobTitle: u.jobTitle?.name ? String(u.jobTitle.name) : null,
+        positionCode: u.jobRank?.code ? String(u.jobRank.code) : null,
+        positionLevel: parseOptionalInt(u.jobRank?.level ?? u.jobRank?.order),
+        jobTitle:
+          typeof u.jobTitle === 'string'
+            ? u.jobTitle
+            : u.jobTitle?.name
+            ? String(u.jobTitle.name)
+            : null,
+        jobTitleSortOrder: parseOptionalInt(u.jobTitle?.sortOrder ?? u.jobTitle?.order),
         phone: null,
         mobile: u.phoneNumber ? String(u.phoneNumber) : null,
         employmentStatus: normalizeStatus(u.employmentStatus),
@@ -475,8 +490,13 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
         await this.syncDepartments(departments, now, deptMapByAmsId, deptMapByCode);
       }
 
-      // 2단계: 임직원 동기화 (employeeNumber 유니크 키 기반)
+      // 2단계: 직급/직책 마스터 자동 등록 (SKIPPED 대상 포함 전체 임직원 기준)
       const employees = dto.employees || [];
+      if (employees.length > 0) {
+        await this.syncPositionsFromEmployees(employees);
+      }
+
+      // 3단계: 임직원 동기화 (employeeNumber 유니크 키 기반)
       const autoProvision = dto.autoProvisionMailbox ?? true;
       const licenseStatus = await this.licenseService.getLicenseStatus();
       let remainingSeats =
@@ -556,10 +576,17 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     byAmsId: Map<string, Department>,
     byCode: Map<string, Department>,
   ): Promise<void> {
+    const rootDept = await this.departmentRepo.findOne({ where: { isRoot: true } });
+
     // 1차: 노드 생성/속성 갱신
     for (const p of payloads) {
       const normalizedCode = p.code?.trim() || null;
       let dept = byAmsId.get(p.amsDeptId) || (normalizedCode ? byCode.get(normalizedCode) : undefined);
+
+      // 최상위 루트 부서는 AMS 동기화로 덮어쓰지 않고 보호
+      if (dept?.isRoot) {
+        continue;
+      }
 
       if (!dept) {
         dept = this.departmentRepo.create({
@@ -593,16 +620,20 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     // 2차: parentId 연결 및 depth/path 계산
     for (const p of payloads) {
       const dept = byAmsId.get(p.amsDeptId);
-      if (!dept) continue;
+      if (!dept || dept.isRoot) continue;
 
       const parent = p.parentAmsDeptId ? byAmsId.get(p.parentAmsDeptId) : null;
-      dept.parentId = parent ? parent.id : null;
+      dept.parentId = parent ? parent.id : rootDept ? rootDept.id : null;
       await this.departmentRepo.save(dept);
     }
 
     const computeDepthAndPath = (dept: Department, visited = new Set<string>()): { depth: number; path: string } => {
       if (!dept.parentId || visited.has(dept.id)) {
         return { depth: 0, path: `/${dept.id}` };
+      }
+      if (rootDept && dept.parentId === rootDept.id) {
+        const rootPath = rootDept.path || `/${rootDept.id}`;
+        return { depth: rootDept.depth + 1, path: `${rootPath}/${dept.id}` };
       }
       visited.add(dept.id);
       const parent = Array.from(byAmsId.values()).find((d) => d.id === dept.parentId);
@@ -623,6 +654,62 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
         await this.departmentRepo.save(dept);
       }
     }
+  }
+
+  private normalizeOptionalText(value?: string | null): string | null {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private async syncPositionsFromEmployees(employees: AmsEmployeePayloadDto[]): Promise<void> {
+    const rankInputs = employees
+      .filter((emp) => emp.position?.trim())
+      .map((emp) => ({
+        name: emp.position!.trim(),
+        code: emp.positionCode,
+        level: emp.positionLevel,
+      }));
+
+    const titleInputs = employees
+      .filter((emp) => emp.jobTitle?.trim())
+      .map((emp) => ({
+        name: emp.jobTitle!.trim(),
+        sortOrder: emp.jobTitleSortOrder,
+      }));
+
+    const [rankRes, titleRes] = await Promise.all([
+      this.orgPositionsService.ensureRanks(rankInputs),
+      this.orgPositionsService.ensureTitles(titleInputs),
+    ]);
+
+    if (rankRes.createdCount > 0 || titleRes.createdCount > 0) {
+      this.logger.log(
+        `Auto-registered missing org positions from sync: ${rankRes.createdCount} ranks, ${titleRes.createdCount} titles`,
+      );
+    }
+  }
+
+  private async deactivateUserAndMailbox(
+    user: User,
+    now: Date,
+  ): Promise<{ action: 'DEACTIVATED' | 'UPDATED'; mailboxChanged: boolean }> {
+    const wasActive = user.isActive;
+    user.isActive = false;
+    if (!user.resignedAt) user.resignedAt = now;
+
+    let mailboxChanged = false;
+    const mailbox = await this.mailboxRepo.findOne({ where: { email: user.email } });
+    if (mailbox && mailbox.isActive) {
+      mailbox.isActive = false;
+      await this.mailboxRepo.save(mailbox);
+      mailboxChanged = true;
+    }
+
+    await this.userRepo.save(user);
+    return {
+      action: wasActive ? 'DEACTIVATED' : 'UPDATED',
+      mailboxChanged,
+    };
   }
 
   private async syncSingleEmployee(
@@ -646,6 +733,10 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
     }
 
     const nextStatus = emp.employmentStatus || 'ACTIVE';
+    const position = this.normalizeOptionalText(emp.position);
+    const jobTitle = this.normalizeOptionalText(emp.jobTitle);
+    const phone = this.normalizeOptionalText(emp.phone);
+    const mobile = this.normalizeOptionalText(emp.mobile);
 
     // 기존 사용자 업데이트
     if (user) {
@@ -653,37 +744,22 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
       if (emp.amsUserId) user.amsUserId = emp.amsUserId;
       user.name = emp.name.trim();
       user.departmentId = targetDept ? targetDept.id : user.departmentId;
-      if (emp.position !== undefined) user.position = emp.position?.trim() || null;
-      if (emp.jobTitle !== undefined) user.jobTitle = emp.jobTitle?.trim() || null;
-      if (emp.phone !== undefined) user.phone = emp.phone?.trim() || null;
-      if (emp.mobile !== undefined) user.mobile = emp.mobile?.trim() || null;
+      if (emp.position !== undefined) user.position = position;
+      if (emp.jobTitle !== undefined) user.jobTitle = jobTitle;
+      if (emp.phone !== undefined) user.phone = phone;
+      if (emp.mobile !== undefined) user.mobile = mobile;
       user.syncSource = 'AMS';
       user.employmentStatus = nextStatus;
       user.lastSyncedAt = now;
 
-      let mailboxChanged = false;
       if (nextStatus === 'RESIGNED' || nextStatus === 'ON_LEAVE') {
-        const wasActive = user.isActive;
-        user.isActive = false;
-        if (!user.resignedAt) user.resignedAt = now;
-
-        const mailbox = await this.mailboxRepo.findOne({ where: { email: user.email } });
-        if (mailbox && mailbox.isActive) {
-          mailbox.isActive = false;
-          await this.mailboxRepo.save(mailbox);
-          mailboxChanged = true;
-        }
-        await this.userRepo.save(user);
-        return {
-          action: wasActive ? 'DEACTIVATED' : 'UPDATED',
-          mailboxChanged,
-        };
+        return this.deactivateUserAndMailbox(user, now);
       }
 
       // 복직/재직 상태
       user.resignedAt = null;
       await this.userRepo.save(user);
-      return { action: 'UPDATED', mailboxChanged };
+      return { action: 'UPDATED', mailboxChanged: false };
     }
 
     // 신규 사용자 생성 조건 확인
@@ -733,10 +809,10 @@ export class OrgSyncService implements OnModuleInit, OnModuleDestroy {
         employeeId: empNo,
         amsUserId: emp.amsUserId || null,
         departmentId: targetDept ? targetDept.id : null,
-        position: emp.position?.trim() || null,
-        jobTitle: emp.jobTitle?.trim() || null,
-        phone: emp.phone?.trim() || null,
-        mobile: emp.mobile?.trim() || null,
+        position,
+        jobTitle,
+        phone,
+        mobile,
         syncSource: 'AMS',
         employmentStatus: 'ACTIVE',
         lastSyncedAt: now,

@@ -9,7 +9,7 @@ import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { SystemLicense, User } from '../database/entities';
+import { Department, SystemLicense, User } from '../database/entities';
 import {
   LicenseFileContent,
   LicensePayload,
@@ -37,6 +37,8 @@ export class LicenseService implements OnModuleInit {
     private readonly licenseRepository: Repository<SystemLicense>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Department)
+    private readonly departmentRepository: Repository<Department>,
   ) {
     // 라이선스 파일 보관 경로 (환경변수 지정 또는 기본 license/lemail-license.lic)
     if (process.env.LICENSE_FILE_PATH) {
@@ -80,11 +82,53 @@ export class LicenseService implements OnModuleInit {
 
     const status = await this.getLicenseStatus();
     if (status.isValid) {
+      if (status.organizationName) {
+        await this.syncRootDepartmentName(status.organizationName);
+      }
       this.logger.log(
         `✅ [LEMail] 라이선스 인증 정상: [${status.organizationName}] 정원 ${status.maxUsers}명 (현재 활성 사용자: ${status.currentUsers}명) - 기한: ${status.isUnlimited ? '무제한' : status.expiresAt}`,
       );
     } else {
       this.logger.warn(`⚠️ [LEMail] 라이선스 주의/제한 상태: ${status.message}`);
+    }
+  }
+
+  /**
+   * 라이선스 회사명으로 최상위 루트 부서명 동기화
+   */
+  private async syncRootDepartmentName(organizationName: string): Promise<void> {
+    const targetName = organizationName?.trim();
+    if (!targetName) return;
+
+    try {
+      const rootDept = await this.departmentRepository.findOne({
+        where: { isRoot: true },
+      });
+
+      if (rootDept) {
+        if (rootDept.name !== targetName) {
+          rootDept.name = targetName;
+          await this.departmentRepository.save(rootDept);
+          this.logger.log(`🏢 최상위 부서명을 라이선스 회사명으로 동기화했습니다: ${targetName}`);
+        }
+      } else {
+        const created = this.departmentRepository.create({
+          code: 'ROOT',
+          parentId: null,
+          name: targetName,
+          depth: 0,
+          sortOrder: 0,
+          source: 'LOCAL',
+          isActive: true,
+          isRoot: true,
+        });
+        const saved = await this.departmentRepository.save(created);
+        saved.path = `/${saved.id}`;
+        await this.departmentRepository.save(saved);
+        this.logger.log(`🏢 최상위 부서를 라이선스 회사명으로 생성했습니다: ${targetName}`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`최상위 부서명 동기화 중 참고사항: ${err.message}`);
     }
   }
 
@@ -542,6 +586,8 @@ export class LicenseService implements OnModuleInit {
       });
       await this.licenseRepository.save(newLicense);
     }
+
+    await this.syncRootDepartmentName(payload.organizationName);
 
     this.logger.log(
       `🎉 신규 라이선스 등록 및 파일-DB 동기화 완료: ${payload.organizationName} (${payload.licenseId})`,
