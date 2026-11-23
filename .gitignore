@@ -3,6 +3,7 @@ dist/
 bin/
 .next/
 .next-dev/
+next-env.d.ts
 out/
 build/
 .turbo/

@@ -177,23 +177,33 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
     >
       {/* 상단 툴바 */}
       <div
-        className="flex items-center justify-between gap-3 px-4 py-3 text-white bg-gradient-to-b from-black/60 to-transparent shrink-0"
+        className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 py-3 text-white bg-gradient-to-b from-black/60 to-transparent shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 justify-self-start max-w-full">
           {hasMultiple && (
-            <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium tabular-nums">
+            <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium tabular-nums shrink-0">
               {currentIndex + 1} / {images.length}
             </span>
           )}
           {currentImage.alt && (
-            <span className="truncate text-xs text-white/80 max-w-[40vw]">
+            <span className="truncate text-xs text-white/80">
               {currentImage.alt}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          title="닫기 (ESC)"
+          className="justify-self-center inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 transition shrink-0"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="flex items-center gap-1.5 justify-self-end shrink-0">
           <div className="flex items-center rounded-full bg-white/15 p-1 backdrop-blur-md">
             <button
               type="button"
@@ -236,16 +246,6 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
               </button>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="닫기"
-            title="닫기 (ESC)"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 transition"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
       </div>
 
