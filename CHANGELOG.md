@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.7](https://github.com/YUNHO01/LE-Mail/compare/v1.5.6...v1.5.7) (2026-11-23)
+
+
+### 📦 Maintenance (유지보수 및 설정)
+
+* add Next.js TypeScript declaration files to mobile and web apps ([4816dec](https://github.com/YUNHO01/LE-Mail/commit/4816dec177560381cbcd2af68ecd6ab45280ac0a))
+
+
+### ✨ Features (기능 추가)
+
+* 조직도 직급 직책 관리 기능 추가 ([2c888eb](https://github.com/YUNHO01/LE-Mail/commit/2c888eb84c7ae4f33452174f953387d094cebad7))
+* imap 서버 Rust 로 변경 및 기타 오류, UI 수정 ([d0e5c52](https://github.com/YUNHO01/LE-Mail/commit/d0e5c527602affee82dc3beb8d0a1824e9bc684c))
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 관리자 UI 및 오류 수정 ([8689da4](https://github.com/YUNHO01/LE-Mail/commit/8689da4a4dd5c2b22dab1df6e6032c0211865ab4))
+* 관리자 UI 수정 ([f0c75b6](https://github.com/YUNHO01/LE-Mail/commit/f0c75b6d0eb22d72b772949dbf7948bd72d983c5))
+* 런타임 소스 이력 제외 ([dc851e7](https://github.com/YUNHO01/LE-Mail/commit/dc851e7a0643fb26fb91b5c023dcddc0a4421f2a))
+* 런타임 소스 이력 제외 ([ae64962](https://github.com/YUNHO01/LE-Mail/commit/ae649620bea7eca2220b6135618ab7bd3ec3d008))
+* 설치 가이드 수정 ([fc24b40](https://github.com/YUNHO01/LE-Mail/commit/fc24b4028789ee5cfee7eda662854a488282e151))
+* 설치가이드 수정 ([1825ce5](https://github.com/YUNHO01/LE-Mail/commit/1825ce55082f151fa565d317c6faf9230921adf5))
+* 설치가이드 수정 및 오류 수정 ([9748ea3](https://github.com/YUNHO01/LE-Mail/commit/9748ea3778fb3b2cbdd77931f2331db6fd60674d))
+* 알림 메일 열람 오류 수정 ([0ba47fc](https://github.com/YUNHO01/LE-Mail/commit/0ba47fc7739422de670781fcee894a3a817094d9))
+* 직급 직책 오류 수정 ([ae04790](https://github.com/YUNHO01/LE-Mail/commit/ae047900321cb34f4cd43a29a5219996fbd1a4ae))
+* 편집기 아이콘 크기 수정 및 아이콘 타이틀 추가 ([8ba6597](https://github.com/YUNHO01/LE-Mail/commit/8ba659722e31189a06c771f92e82b1ad74bd228f))
+* lemail-imap 실행 권한 추가 ([72539d2](https://github.com/YUNHO01/LE-Mail/commit/72539d2502fb5d25dba52740908c57ab68134ee3))
+* ui 수정 및 캘린더 음력 추가 ([a8abe2f](https://github.com/YUNHO01/LE-Mail/commit/a8abe2f7065e21d68eaca80f18dd308c6b42d09c))
+
 ### [1.5.6](https://github.com/YUNHO01/LE-Mail/compare/v1.5.5...v1.5.6) (2026-11-19)
 
 
