@@ -76,7 +76,7 @@ LEMail은 **사전 빌드/난독화된 배포 패키지 파일(`lemail_vX.Y.Z_*.
      ```
    * **systemd / NSSM 사용 시**: 가이드에 따라 개별 서비스 등록 및 활성화 (`systemctl` / `nssm`).
 6. **관리자 웹 콘솔 접속 & 검증**:
-   * 분리된 관리자 콘솔(`https://admin.yourdomain.com` 또는 포트 `9100`) 접속 후 `SYSTEM_ADMIN` 계정 로그인.
+   * 분리된 관리자 콘솔(`https://console.yourdomain.com` 또는 포트 `9100`) 접속 후 `SYSTEM_ADMIN` 계정 로그인.
    * **스팸 & 보안 관리 (`/spam-rules`)**에서 ClamAV 연결 테스트 실행 (정상 확인).
    * **도메인 관리 (`/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
    * 사서함 계정 생성 후 외부 메일 송수신 테스트.

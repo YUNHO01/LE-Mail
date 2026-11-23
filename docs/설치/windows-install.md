@@ -245,7 +245,7 @@ http {
     # 1. HTTP -> HTTPS 리다이렉트
     server {
         listen 80;
-        server_name mail.yourdomain.com admin.yourdomain.com m.yourdomain.com;
+        server_name mail.yourdomain.com console.yourdomain.com m.yourdomain.com;
         return 301 https://$host$request_uri;
     }
 
@@ -282,10 +282,10 @@ http {
         }
     }
 
-    # 2-2. Admin Console HTTPS (예: admin.yourdomain.com, 시스템 관리자 전용)
+    # 2-2. Admin Console HTTPS (예: console.yourdomain.com, 시스템 관리자 전용)
     server {
         listen 443 ssl http2;
-        server_name admin.yourdomain.com;
+        server_name console.yourdomain.com;
 
         ssl_certificate C:/LEMail/ssl/fullchain.pem;
         ssl_certificate_key C:/LEMail/ssl/privkey.pem;
@@ -668,7 +668,7 @@ netsh interface portproxy add v4tov4 listenport=25 listenaddress=0.0.0.0 connect
 
 ## 10. 설치 후 최종 검증
 
-1. 웹 브라우저에서 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://admin.yourdomain.com`) 접속.
+1. 웹 브라우저에서 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://console.yourdomain.com`) 접속.
 2. 관리자 콘솔에서 초기 관리자 계정(`admin@yourdomain.com`, `SYSTEM_ADMIN` 권한)으로 로그인.
 3. 관리자 메뉴 ➔ **스팸 & 보안 관리 (`/spam-rules`)**에서 ClamAV 연결 테스트 (`127.0.0.1:3310` 성공 확인).
 4. 관리자 메뉴 ➔ **도메인 관리 (`/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.

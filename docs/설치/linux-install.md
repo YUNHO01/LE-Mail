@@ -341,7 +341,7 @@ node apps/api/dist/modules/database/scripts/init-schema.js
 sudo systemctl stop nginx 2>/dev/null || true
 
 # 2. Let's Encrypt 멀티도메인(SAN) 통합 인증서 발급 (웹메일 + 관리자 콘솔 + 모바일 도메인, RSA 호환 체인)
-sudo certbot certonly --standalone --key-type rsa -d mail.yourdomain.com -d admin.yourdomain.com -d m.yourdomain.com
+sudo certbot certonly --standalone --key-type rsa -d mail.yourdomain.com -d console.yourdomain.com -d m.yourdomain.com
 # (기존 mail.yourdomain.com 인증서에 도메인을 추가 확장할 경우 --expand 옵션 함께 사용)
 ```
 * 발급 원본 경로:
@@ -422,7 +422,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/lemail-cert-sync.sh
 # HTTP -> HTTPS 리다이렉트
 server {
     listen 80;
-    server_name mail.yourdomain.com admin.yourdomain.com m.yourdomain.com;
+    server_name mail.yourdomain.com console.yourdomain.com m.yourdomain.com;
     return 301 https://$host$request_uri;
 }
 
@@ -466,10 +466,10 @@ server {
     }
 }
 
-# 2-2. Admin Console HTTPS (예: admin.yourdomain.com, 시스템 관리자 전용)
+# 2-2. Admin Console HTTPS (예: console.yourdomain.com, 시스템 관리자 전용)
 server {
     listen 443 ssl http2;
-    server_name admin.yourdomain.com;
+    server_name console.yourdomain.com;
 
     ssl_certificate /opt/lemail/certs/fullchain.pem;
     ssl_certificate_key /opt/lemail/certs/privkey.pem;
@@ -927,7 +927,7 @@ sudo firewall-cmd --reload
 
 ## 10. 설치 후 최종 검증
 
-1. **웹 브라우저 접속**: 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://admin.yourdomain.com`) 접속 확인.
+1. **웹 브라우저 접속**: 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://console.yourdomain.com`) 접속 확인.
 2. **관리자 로그인**: 관리자 콘솔에서 `admin@yourdomain.com` 및 설정한 비밀번호로 로그인 (`SYSTEM_ADMIN` 권한 전용).
 3. **보안 및 연동 점검**:
    * 관리자 콘솔 ➔ **스팸 & 보안 관리 (`/spam-rules`)** 접속.

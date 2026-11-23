@@ -385,7 +385,7 @@ http {
 
     server {
         listen 80;
-        server_name mail.yourdomain.com admin.yourdomain.com m.yourdomain.com;
+        server_name mail.yourdomain.com console.yourdomain.com m.yourdomain.com;
         return 301 https://$host$request_uri;
     }
 
@@ -421,10 +421,10 @@ http {
         }
     }
 
-    # Admin Console 프록시 (예: admin.yourdomain.com, 시스템 관리자 전용)
+    # Admin Console 프록시 (예: console.yourdomain.com, 시스템 관리자 전용)
     server {
         listen 443 ssl http2;
-        server_name admin.yourdomain.com;
+        server_name console.yourdomain.com;
 
         ssl_certificate /etc/ssl/certs/fullchain.pem;
         ssl_certificate_key /etc/ssl/certs/privkey.pem;
@@ -509,7 +509,7 @@ docker compose exec api node dist/modules/database/scripts/init-schema.js
 
 ## 8. 최종 동작 확인
 
-1. 브라우저에서 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://admin.yourdomain.com`) 접속 후 `SYSTEM_ADMIN` 계정으로 로그인.
+1. 브라우저에서 웹메일(`https://mail.yourdomain.com`) 및 관리자 콘솔(`https://console.yourdomain.com`) 접속 후 `SYSTEM_ADMIN` 계정으로 로그인.
 2. 관리자 메뉴 ➔ **스팸 & 보안 설정 (`/spam-rules`)**에서 ClamAV 연결 테스트 실행 (`clamav:3310` 연결 정상 확인).
 3. 관리자 메뉴 ➔ **도메인 관리 (`/domains`)**에서 도메인 등록 후 **도메인 헬스체크**를 실행하여 SPF/DKIM/DMARC 및 **Spamhaus RBL 평판(미등재)** 상태 확인.
 4. 외부 메일 발송 및 IMAP 수신 검증.
