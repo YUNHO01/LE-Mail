@@ -15,7 +15,7 @@ import {
   Filter,
   Tag,
 } from 'lucide-react';
-import { contactsApi } from '@/lib/api';
+import { contactsApi, orgApi, DepartmentTreeNodeDto } from '@/lib/api';
 import { ContactDto, ContactGroupDto, UserDto } from '@lemail/shared-types';
 import { SelectDropdown } from '@/components/common';
 import { extractPureEmail } from './RecipientInput';
@@ -52,6 +52,8 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('all');
+  const [departmentTree, setDepartmentTree] = useState<DepartmentTreeNodeDto[]>([]);
 
   // 개인 주소록 상태
   const [groups, setGroups] = useState<ContactGroupDto[]>([]);
@@ -174,14 +176,18 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
     }
   }, [activeTab, loadPersonalContacts]);
 
-  // 사내 임직원 로드
+  // 사내 임직원 및 부서 트리 로드
   const loadCompanyUsers = useCallback(async () => {
     try {
       setErrorMsg(null);
       setLoadingCompany(true);
-      const res = await contactsApi.getCompanyUsers();
+      const [res, treeRes] = await Promise.all([
+        contactsApi.getCompanyUsers(),
+        orgApi.getDepartmentTree().catch(() => []),
+      ]);
       const list = Array.isArray(res) ? res : (res as any)?.items || [];
       setCompanyUsers(list);
+      setDepartmentTree(Array.isArray(treeRes) ? treeRes : []);
       setCompanyLoaded(true);
     } catch (err: any) {
       setErrorMsg(err?.message || '사내 임직원 목록을 불러오지 못했습니다.');
@@ -212,19 +218,86 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
     }
   };
 
+  // 부서 트리 평탄화 및 하위 부서 ID 맵 생성
+  const { departmentFilterOptions, deptDescendantsMap } = useMemo(() => {
+    const options: Array<{
+      value: string;
+      label: string;
+      icon?: React.ReactNode;
+      indent?: number;
+      treePrefix?: string;
+    }> = [
+      {
+        value: 'all',
+        label: '전체 부서',
+        icon: <Building2 className="h-3.5 w-3.5 text-sky-600" />,
+      },
+    ];
+    const descMap = new Map<string, Set<string>>();
+
+    const collectDescendants = (node: DepartmentTreeNodeDto): Set<string> => {
+      const ids = new Set<string>([node.id]);
+      for (const child of node.children || []) {
+        const childIds = collectDescendants(child);
+        childIds.forEach((id) => ids.add(id));
+      }
+      descMap.set(node.id, ids);
+      return ids;
+    };
+
+    const walk = (nodes: DepartmentTreeNodeDto[], depth = 0) => {
+      nodes.forEach((node, idx) => {
+        const isLast = idx === nodes.length - 1;
+        options.push({
+          value: node.id,
+          label: node.name,
+          indent: depth > 0 ? depth - 1 : 0,
+          treePrefix: depth > 0 ? (isLast ? '└' : '├') : undefined,
+        });
+        if (node.children?.length) {
+          walk(node.children, depth + 1);
+        }
+      });
+    };
+
+    for (const root of departmentTree) {
+      collectDescendants(root);
+    }
+    walk(departmentTree);
+
+    if (companyUsers.some((u) => !u.departmentId)) {
+      options.push({ value: 'unassigned', label: '소속 미지정' });
+    }
+
+    return { departmentFilterOptions: options, deptDescendantsMap: descMap };
+  }, [departmentTree, companyUsers]);
+
   // 사내 임직원 클라이언트 필터링
   const filteredCompanyUsers = useMemo(() => {
     const q = searchInput.trim().toLowerCase();
-    if (!q) return companyUsers;
-    return companyUsers.filter(
-      (u) =>
+    return companyUsers.filter((u) => {
+      if (selectedDeptId === 'unassigned') {
+        if (u.departmentId) return false;
+      } else if (selectedDeptId !== 'all') {
+        const allowedIds = deptDescendantsMap.get(selectedDeptId);
+        if (allowedIds) {
+          if (!u.departmentId || !allowedIds.has(u.departmentId)) return false;
+        } else if (u.departmentId !== selectedDeptId) {
+          return false;
+        }
+      }
+
+      if (!q) return true;
+      return (
         u.name?.toLowerCase().includes(q) ||
         u.email?.toLowerCase().includes(q) ||
         u.employeeId?.toLowerCase().includes(q) ||
         u.departmentName?.toLowerCase().includes(q) ||
-        u.position?.toLowerCase().includes(q),
-    );
-  }, [companyUsers, searchInput]);
+        u.position?.toLowerCase().includes(q) ||
+        u.jobTitle?.toLowerCase().includes(q)
+      );
+    });
+  }, [companyUsers, selectedDeptId, deptDescendantsMap, searchInput]);
 
   // 표시용 통합 아이템 리스트
   const visibleItems = useMemo(() => {
@@ -233,6 +306,7 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
         key: `personal:${c.id}`,
         name: c.name,
         email: c.email || '',
+        departmentLabel: '',
         subText: [c.company, c.department, c.position].filter(Boolean).join(' · ') || c.groupName || '',
         isStarred: c.isStarred,
       }));
@@ -241,6 +315,7 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
       key: `company:${u.id}`,
       name: u.name,
       email: u.email || '',
+      departmentLabel: u.departmentName || '소속 미지정',
       subText:
         [
           u.departmentName || '소속 미지정',
@@ -358,7 +433,7 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
           )}
         </div>
 
-        {activeTab === 'personal' && (
+        {activeTab === 'personal' ? (
           <SelectDropdown
             options={groupFilterOptions}
             value={selectedGroupId}
@@ -370,6 +445,19 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
             size="sm"
             fullWidth
             title="주소록 필터 선택"
+          />
+        ) : (
+          <SelectDropdown
+            options={departmentFilterOptions}
+            value={selectedDeptId}
+            onChange={(val) => {
+              setSelectedDeptId(val);
+              setSelectedKeys([]);
+            }}
+            headerLabel="부서 필터"
+            size="sm"
+            fullWidth
+            title="부서 필터 선택"
           />
         )}
       </div>
@@ -407,6 +495,118 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
             <User className="h-7 w-7 text-slate-300" />
             <p>표시할 연락처가 없습니다.</p>
           </div>
+        ) : activeTab === 'company' ? (
+          <>
+            {(() => {
+              const deptGroups = new Map<string, typeof visibleItems>();
+              for (const item of visibleItems) {
+                const key = item.departmentLabel || '소속 미지정';
+                const list = deptGroups.get(key) || [];
+                list.push(item);
+                deptGroups.set(key, list);
+              }
+              return Array.from(deptGroups.entries()).map(([deptLabel, deptItems]) => (
+                <div key={deptLabel}>
+                  <div className="sticky top-0 z-10 px-3 py-1.5 bg-slate-50/95 backdrop-blur-sm border-b border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-600">
+                    <span className="inline-flex items-center gap-1.5 truncate">
+                      <Building2 className="h-3 w-3 text-sky-600 shrink-0" />
+                      <span className="truncate">{deptLabel}</span>
+                    </span>
+                    <span className="tabular-nums text-slate-400 shrink-0">{deptItems.length}명</span>
+                  </div>
+                  {deptItems.map((item) => {
+                    const hasEmail = Boolean(item.email);
+                    const pureLower = item.email.toLowerCase();
+                    const isInTo = hasEmail && toEmailSet.has(pureLower);
+                    const isInCc = hasEmail && ccEmailSet.has(pureLower);
+                    const isInBcc = hasEmail && bccEmailSet.has(pureLower);
+                    const isChecked = selectedKeys.includes(item.key);
+
+                    return (
+                      <div
+                        key={item.key}
+                        className={`px-3 py-2 flex items-center gap-2 border-b border-slate-100/80 hover:bg-slate-50/80 transition ${
+                          isChecked ? 'bg-sky-50/60' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!hasEmail}
+                          checked={isChecked}
+                          onChange={() => toggleSelectKey(item.key)}
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 disabled:opacity-40 cursor-pointer shrink-0"
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="text-xs font-semibold text-slate-900 truncate">
+                              {item.name || '-'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate">
+                            {item.email || <span className="text-slate-300">이메일 없음</span>}
+                          </div>
+                          {item.subText && (
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {item.subText}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={!hasEmail}
+                            onClick={() =>
+                              onToggleRecipient('to', { name: item.name, email: item.email })
+                            }
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition disabled:opacity-40 ${
+                              isInTo
+                                ? 'bg-sky-600 text-white border-sky-600'
+                                : 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50'
+                            }`}
+                            title="받는사람에 추가/해제"
+                          >
+                            수신
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!hasEmail}
+                            onClick={() =>
+                              onToggleRecipient('cc', { name: item.name, email: item.email })
+                            }
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition disabled:opacity-40 ${
+                              isInCc
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'
+                            }`}
+                            title="참조에 추가/해제"
+                          >
+                            참조
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!hasEmail}
+                            onClick={() =>
+                              onToggleRecipient('bcc', { name: item.name, email: item.email })
+                            }
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition disabled:opacity-40 ${
+                              isInBcc
+                                ? 'bg-emerald-600 text-white border-emerald-600'
+                                : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                            }`}
+                            title="숨은참조에 추가/해제"
+                          >
+                            숨은
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ));
+            })()}
+          </>
         ) : (
           <>
             {visibleItems.map((item) => {

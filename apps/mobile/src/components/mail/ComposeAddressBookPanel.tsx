@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, X, Check } from 'lucide-react';
-import { contactsApi } from '@/lib/api';
+import { Search, X, Check, Building2 } from 'lucide-react';
+import { contactsApi, orgApi, DepartmentTreeNodeDto } from '@/lib/api';
 import { ContactDto, UserDto } from '@lemail/shared-types';
 import { extractPureEmail } from './RecipientInput';
 
@@ -53,17 +53,21 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
   const [searchInput, setSearchInput] = useState('');
   const [contacts, setContacts] = useState<ContactDto[]>([]);
   const [companyUsers, setCompanyUsers] = useState<UserDto[]>([]);
+  const [departmentTree, setDepartmentTree] = useState<DepartmentTreeNodeDto[]>([]);
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [cRes, uRes] = await Promise.all([
+      const [cRes, uRes, treeRes] = await Promise.all([
         contactsApi.getContacts({ limit: 100 }).catch(() => ({ items: [] })),
         contactsApi.getCompanyUsers().catch(() => []),
+        orgApi.getDepartmentTree().catch(() => []),
       ]);
       setContacts(cRes?.items || []);
       setCompanyUsers(Array.isArray(uRes) ? uRes : (uRes as any)?.items || []);
+      setDepartmentTree(Array.isArray(treeRes) ? treeRes : []);
     } finally {
       setLoading(false);
     }
@@ -83,19 +87,80 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
     return new Set(currentList.map((raw) => extractPureEmail(raw).toLowerCase()));
   }, [currentList]);
 
+  const { departmentFilterOptions, deptDescendantsMap } = useMemo(() => {
+    const options: { value: string; label: string }[] = [{ value: 'all', label: '전체 부서' }];
+    const descMap = new Map<string, Set<string>>();
+
+    const collectDescendants = (node: DepartmentTreeNodeDto): Set<string> => {
+      const ids = new Set<string>([node.id]);
+      for (const child of node.children || []) {
+        const childIds = collectDescendants(child);
+        childIds.forEach((id) => ids.add(id));
+      }
+      descMap.set(node.id, ids);
+      return ids;
+    };
+
+    const walk = (nodes: DepartmentTreeNodeDto[], depth = 0) => {
+      for (const node of nodes) {
+        options.push({
+          value: node.id,
+          label: depth > 0 ? `${'·'.repeat(depth)} ${node.name}` : node.name,
+        });
+        if (node.children?.length) walk(node.children, depth + 1);
+      }
+    };
+
+    for (const root of departmentTree) collectDescendants(root);
+    walk(departmentTree);
+
+    if (companyUsers.some((u) => !u.departmentId)) {
+      options.push({ value: 'unassigned', label: '소속 미지정' });
+    }
+    return { departmentFilterOptions: options, deptDescendantsMap: descMap };
+  }, [departmentTree, companyUsers]);
+
   const combinedItems = useMemo(() => {
     const q = searchInput.trim().toLowerCase();
 
     const companyMapped = companyUsers
       .filter((u) => u.email)
-      .map((u) => ({
-        id: `company-${u.id}`,
-        source: 'company' as const,
-        name: u.name || u.email.split('@')[0],
-        email: u.email,
-        subtitle: [u.departmentName, u.position || u.jobTitle].filter(Boolean).join(' · ') || u.email,
-        isStarred: false,
-      }));
+      .filter((u) => {
+        if (filterTab !== 'company') return true;
+        if (selectedDeptId === 'unassigned') return !u.departmentId;
+        if (selectedDeptId !== 'all') {
+          const allowedIds = deptDescendantsMap.get(selectedDeptId);
+          if (allowedIds) return Boolean(u.departmentId && allowedIds.has(u.departmentId));
+          return u.departmentId === selectedDeptId;
+        }
+        return true;
+      })
+      .map((u) => {
+        const deptLabel = u.departmentName || '소속 미지정';
+        const posLabel = [u.position, u.jobTitle].filter(Boolean).join(' / ');
+        return {
+          id: `company-${u.id}`,
+          source: 'company' as const,
+          name: u.name || u.email.split('@')[0],
+          posLabel,
+          roleLabel: u.role === 'SYSTEM_ADMIN' ? '관리자' : '사내',
+          email: u.email,
+          departmentLabel: deptLabel,
+          subtitle: [deptLabel, u.email].join(' · '),
+          searchText: [
+            u.name,
+            u.email,
+            u.departmentName,
+            u.position,
+            u.jobTitle,
+            u.employeeId,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase(),
+          isStarred: false,
+        };
+      });
 
     const personalMapped = contacts
       .filter((c) => c.email)
@@ -103,8 +168,15 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
         id: `personal-${c.id}`,
         source: 'personal' as const,
         name: c.name || c.email!.split('@')[0],
+        posLabel: c.position || '',
+        roleLabel: c.groupName || '',
         email: c.email!,
+        departmentLabel: '',
         subtitle: [c.company, c.department, c.email].filter(Boolean).join(' · '),
+        searchText: [c.name, c.email, c.company, c.department, c.position, c.groupName]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase(),
         isStarred: Boolean(c.isStarred),
       }));
 
@@ -118,15 +190,22 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
         : [...companyMapped, ...personalMapped];
 
     if (q) {
-      base = base.filter(
-        (item) =>
-          item.name.toLowerCase().includes(q) ||
-          item.email.toLowerCase().includes(q) ||
-          item.subtitle.toLowerCase().includes(q),
-      );
+      base = base.filter((item) => item.searchText.includes(q));
     }
     return base;
-  }, [companyUsers, contacts, filterTab, searchInput]);
+  }, [companyUsers, contacts, filterTab, searchInput, selectedDeptId, deptDescendantsMap]);
+
+  const groupedCompanySections = useMemo(() => {
+    if (filterTab !== 'company') return [{ label: '', items: combinedItems }];
+    const map = new Map<string, typeof combinedItems>();
+    for (const item of combinedItems) {
+      const key = item.departmentLabel || '소속 미지정';
+      const arr = map.get(key) || [];
+      arr.push(item);
+      map.set(key, arr);
+    }
+    return Array.from(map.entries()).map(([label, items]) => ({ label, items }));
+  }, [combinedItems, filterTab]);
 
   return (
     <div className="flex h-[86dvh] w-full flex-col rounded-t-3xl bg-white shadow-2xl">
@@ -228,49 +307,98 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
             </button>
           ))}
         </div>
+
+        {filterTab === 'company' && departmentFilterOptions.length > 1 && (
+          <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pt-0.5">
+            {departmentFilterOptions.map((opt) => {
+              const active = selectedDeptId === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSelectedDeptId(opt.value)}
+                  className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                    active
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 연락처 리스트 */}
-      <div className="flex-1 overflow-y-auto px-4 divide-y divide-slate-100">
+      <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400">주소록을 불러오는 중...</div>
+          <div className="py-12 px-4 text-center text-xs text-slate-400">주소록을 불러오는 중...</div>
         ) : combinedItems.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-400">일치하는 연락처가 없습니다.</div>
+          <div className="py-12 px-4 text-center text-xs text-slate-400">일치하는 연락처가 없습니다.</div>
         ) : (
-          combinedItems.map((item) => {
-            const isSelected = selectedEmailSet.has(item.email.toLowerCase());
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onToggleRecipient(target, { name: item.name, email: item.email })}
-                className="flex w-full items-center gap-3 py-3 text-left active:bg-slate-50"
-              >
-                <span
-                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border transition ${
-                    isSelected
-                      ? 'border-[#007AFF] bg-[#007AFF] text-white'
-                      : 'border-slate-300 bg-white'
-                  }`}
-                >
-                  {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
-                </span>
-
-                <span
-                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${getAvatarColor(
-                    item.name,
-                  )}`}
-                >
-                  {item.name.charAt(0).toUpperCase()}
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-900">{item.name}</p>
-                  <p className="truncate text-xs text-slate-500">{item.subtitle}</p>
+          groupedCompanySections.map((section) => (
+            <div key={section.label || 'default'}>
+              {section.label && (
+                <div className="sticky top-0 z-10 flex items-center justify-between bg-slate-50/95 backdrop-blur-sm px-4 py-1.5 border-y border-slate-100 text-[11px] font-semibold text-slate-500">
+                  <span className="inline-flex items-center gap-1.5 truncate">
+                    <Building2 className="h-3 w-3 text-[#007AFF] shrink-0" />
+                    <span className="truncate">{section.label}</span>
+                  </span>
+                  <span className="tabular-nums text-slate-400 shrink-0">{section.items.length}명</span>
                 </div>
-              </button>
-            );
-          })
+              )}
+              <div className="px-4 divide-y divide-slate-100">
+                {section.items.map((item) => {
+                  const isSelected = selectedEmailSet.has(item.email.toLowerCase());
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onToggleRecipient(target, { name: item.name, email: item.email })}
+                      className="flex w-full items-center gap-3 py-3 text-left active:bg-slate-50"
+                    >
+                      <span
+                        className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border transition ${
+                          isSelected
+                            ? 'border-[#007AFF] bg-[#007AFF] text-white'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                      </span>
+
+                      <span
+                        className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${getAvatarColor(
+                          item.name,
+                        )}`}
+                      >
+                        {item.name.charAt(0).toUpperCase()}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">{item.name}</p>
+                          {item.posLabel && (
+                            <span className="truncate text-[11px] font-medium text-slate-500 shrink-0">
+                              {item.posLabel}
+                            </span>
+                          )}
+                          {item.source === 'company' && (
+                            <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#007AFF] shrink-0">
+                              {item.roleLabel}
+                            </span>
+                          )}
+                        </div>
+                        <p className="truncate text-xs text-slate-500">{item.subtitle}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
 
