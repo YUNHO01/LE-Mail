@@ -95,6 +95,34 @@ export default function UsersManagementPage() {
 
   // 등록 폼 상태
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
+  const departmentTreeOptions = useMemo(() => {
+    const opts: { value: string; label: string; indent?: number; treePrefix?: string }[] = [
+      { value: '', label: '미지정' },
+    ];
+    const childrenByParent = new Map<string, DepartmentDto[]>();
+    const idSet = new Set(departments.map((d) => d.id));
+    for (const d of departments) {
+      const pid = d.parentId && idSet.has(d.parentId) ? d.parentId : '__root__';
+      const arr = childrenByParent.get(pid) || [];
+      arr.push(d);
+      childrenByParent.set(pid, arr);
+    }
+    const walk = (parentId: string, depth = 0) => {
+      const list = childrenByParent.get(parentId) || [];
+      list.forEach((d, idx) => {
+        const isLast = idx === list.length - 1;
+        opts.push({
+          value: d.id,
+          label: d.name,
+          indent: depth > 0 ? depth - 1 : 0,
+          treePrefix: depth > 0 ? (isLast ? '└' : '├') : undefined,
+        });
+        walk(d.id, depth + 1);
+      });
+    };
+    walk('__root__', 0);
+    return opts;
+  }, [departments]);
   const [orgRanks, setOrgRanks] = useState<OrgRankDto[]>([]);
   const [orgTitles, setOrgTitles] = useState<OrgTitleDto[]>([]);
   const [createForm, setCreateForm] = useState<{
@@ -103,7 +131,7 @@ export default function UsersManagementPage() {
     name: string;
     password: string;
     role: UserRole;
-    mailboxQuotaMb: number;
+    mailboxQuotaMb: number | '';
     preferredLanguage: string;
     timezone: string;
     employeeId: string;
@@ -134,7 +162,7 @@ export default function UsersManagementPage() {
     name: string;
     role: UserRole;
     isActive: boolean;
-    mailboxQuotaMb: number;
+    mailboxQuotaMb: number | '';
     preferredLanguage: string;
     timezone: string;
     employeeId: string;
@@ -467,6 +495,7 @@ export default function UsersManagementPage() {
           password: createForm.password,
           role: createForm.role,
           mailboxQuotaMb:
+            createForm.mailboxQuotaMb !== '' &&
             createForm.mailboxQuotaMb !== undefined &&
             createForm.mailboxQuotaMb !== null &&
             Number.isFinite(Number(createForm.mailboxQuotaMb))
@@ -549,6 +578,7 @@ export default function UsersManagementPage() {
         role: editForm.role,
         isActive: editForm.isActive,
         mailboxQuotaMb:
+          editForm.mailboxQuotaMb !== '' &&
           editForm.mailboxQuotaMb !== undefined &&
           editForm.mailboxQuotaMb !== null &&
           Number.isFinite(Number(editForm.mailboxQuotaMb))
@@ -831,7 +861,7 @@ export default function UsersManagementPage() {
                 />
               </form>
 
-              <div className="pl-2 border-l border-slate-200">
+              <div className="pl-2 border-l border-slate-200 flex items-center gap-2">
                 <ToggleSwitch
                   checked={includeSubDepartments}
                   onChange={setIncludeSubDepartments}
@@ -840,6 +870,39 @@ export default function UsersManagementPage() {
                   size="sm"
                   color="indigo"
                 />
+
+                <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDeptId(null);
+                      setSelectedDeptName('');
+                      setPage(1);
+                    }}
+                    className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                      selectedDeptId === null
+                        ? 'bg-white text-sky-700 shadow-2xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    전체
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDeptId('unassigned');
+                      setSelectedDeptName('부서 미지정');
+                      setPage(1);
+                    }}
+                    className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                      selectedDeptId === 'unassigned'
+                        ? 'bg-white text-sky-700 shadow-2xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    미지정
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1328,13 +1391,7 @@ export default function UsersManagementPage() {
                           <span className="text-slate-500 w-20 shrink-0 font-medium">소속 부서</span>
                           <div className="flex-1 min-w-0">
                             <SelectDropdown
-                              options={[
-                                { value: '', label: '미지정' },
-                                ...departments.map((d) => ({
-                                  value: d.id,
-                                  label: `${'— '.repeat(d.depth)}${d.name}`,
-                                })),
-                              ]}
+                              options={departmentTreeOptions}
                               value={createForm.departmentId}
                               onChange={(val) =>
                                 setCreateForm({ ...createForm, departmentId: val })
@@ -1433,12 +1490,13 @@ export default function UsersManagementPage() {
                             min={10}
                             step={10}
                             value={createForm.mailboxQuotaMb}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const raw = e.target.value;
                               setCreateForm({
                                 ...createForm,
-                                mailboxQuotaMb: Number(e.target.value),
-                              })
-                            }
+                                mailboxQuotaMb: raw === '' ? '' : Number(raw),
+                              });
+                            }}
                             className="h-9 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 font-mono"
                           />
                           <span className="text-slate-500 font-semibold shrink-0">MB</span>
@@ -1599,13 +1657,7 @@ export default function UsersManagementPage() {
                         <span className="text-slate-500 w-20 shrink-0 font-medium">소속 부서</span>
                         <div className="flex-1 min-w-0">
                           <SelectDropdown
-                            options={[
-                              { value: '', label: '미지정' },
-                              ...departments.map((d) => ({
-                                value: d.id,
-                                label: `${'— '.repeat(d.depth)}${d.name}`,
-                              })),
-                            ]}
+                            options={departmentTreeOptions}
                             value={editForm.departmentId}
                             onChange={(val) =>
                               setEditForm({ ...editForm, departmentId: val })
@@ -1774,12 +1826,13 @@ export default function UsersManagementPage() {
                           min={10}
                           step={10}
                           value={editForm.mailboxQuotaMb}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const raw = e.target.value;
                             setEditForm({
                               ...editForm,
-                              mailboxQuotaMb: Number(e.target.value),
-                            })
-                          }
+                              mailboxQuotaMb: raw === '' ? '' : Number(raw),
+                            });
+                          }}
                           className="h-9 w-full rounded-xl border border-slate-300 px-3 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 font-mono"
                         />
                         <span className="text-slate-500 font-semibold shrink-0">MB</span>

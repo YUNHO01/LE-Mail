@@ -24,7 +24,7 @@ import {
   Phone,
   FileSpreadsheet,
 } from 'lucide-react';
-import { contactsApi, fetchApi } from '@/lib/api';
+import { contactsApi, orgApi, DepartmentTreeNodeDto, fetchApi } from '@/lib/api';
 import { ContactDto, ContactGroupDto, UserDto } from '@lemail/shared-types';
 import { PageHeader, SearchInput, TableUtilityButtons, SelectDropdown } from '@/components/common';
 import { exportTableToExcel } from '@/lib/excel';
@@ -39,6 +39,9 @@ export default function ContactsPage() {
 
   const [contacts, setContacts] = useState<ContactDto[]>([]);
   const [companyUsers, setCompanyUsers] = useState<UserDto[]>([]);
+  const [departmentTree, setDepartmentTree] = useState<DepartmentTreeNodeDto[]>([]);
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('all');
+  const [groupByDept, setGroupByDept] = useState<boolean>(true);
   const [groups, setGroups] = useState<ContactGroupDto[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -91,9 +94,13 @@ export default function ContactsPage() {
       setSelectedIds([]);
 
       if (currentGroupId === 'company') {
-        const res = await contactsApi.getCompanyUsers();
+        const [res, treeRes] = await Promise.all([
+          contactsApi.getCompanyUsers(),
+          orgApi.getDepartmentTree().catch(() => []),
+        ]);
         const usersList = Array.isArray(res) ? res : (res as any)?.items || [];
         setCompanyUsers(usersList);
+        setDepartmentTree(Array.isArray(treeRes) ? treeRes : []);
         setTotal(usersList.length);
       } else {
         const res = await contactsApi.getContacts({
@@ -139,19 +146,78 @@ export default function ContactsPage() {
     });
   }, [contacts, statusFilter]);
 
-  // 사내 임직원 검색 필터링
+  // 부서 트리 평탄화 및 하위 부서 ID 맵 생성
+  const { departmentFilterOptions, deptDescendantsMap } = useMemo(() => {
+    const options: { value: string; label: string; indent?: number; treePrefix?: string }[] = [
+      { value: 'all', label: '전체 부서' },
+    ];
+    const descMap = new Map<string, Set<string>>();
+
+    const collectDescendants = (node: DepartmentTreeNodeDto): Set<string> => {
+      const ids = new Set<string>([node.id]);
+      for (const child of node.children || []) {
+        const childIds = collectDescendants(child);
+        childIds.forEach((id) => ids.add(id));
+      }
+      descMap.set(node.id, ids);
+      return ids;
+    };
+
+    const walk = (nodes: DepartmentTreeNodeDto[], depth = 0) => {
+      nodes.forEach((node, idx) => {
+        const isLast = idx === nodes.length - 1;
+        options.push({
+          value: node.id,
+          label: node.name,
+          indent: depth > 0 ? depth - 1 : 0,
+          treePrefix: depth > 0 ? (isLast ? '└' : '├') : undefined,
+        });
+        if (node.children?.length) {
+          walk(node.children, depth + 1);
+        }
+      });
+    };
+
+    for (const root of departmentTree) {
+      collectDescendants(root);
+    }
+    walk(departmentTree);
+
+    if (companyUsers.some((u) => !u.departmentId)) {
+      options.push({ value: 'unassigned', label: '소속 미지정' });
+    }
+
+    return { departmentFilterOptions: options, deptDescendantsMap: descMap };
+  }, [departmentTree, companyUsers]);
+
+  // 사내 임직원 검색 및 부서 필터링
   const filteredCompanyUsers = useMemo(() => {
-    if (!searchTerm) return companyUsers;
-    const s = searchTerm.toLowerCase();
-    return companyUsers.filter(
-      (u) =>
+    const s = searchTerm.trim().toLowerCase();
+    return companyUsers.filter((u) => {
+      if (selectedDeptId === 'unassigned') {
+        if (u.departmentId) return false;
+      } else if (selectedDeptId !== 'all') {
+        const allowedIds = deptDescendantsMap.get(selectedDeptId);
+        if (allowedIds) {
+          if (!u.departmentId || !allowedIds.has(u.departmentId)) return false;
+        } else if (u.departmentId !== selectedDeptId) {
+          return false;
+        }
+      }
+
+      if (!s) return true;
+      return (
         u.name.toLowerCase().includes(s) ||
         u.email.toLowerCase().includes(s) ||
         (u.employeeId && u.employeeId.toLowerCase().includes(s)) ||
         (u.departmentName && u.departmentName.toLowerCase().includes(s)) ||
-        (u.position && u.position.toLowerCase().includes(s)),
-    );
-  }, [companyUsers, searchTerm]);
+        (u.position && u.position.toLowerCase().includes(s)) ||
+        (u.jobTitle && u.jobTitle.toLowerCase().includes(s)) ||
+        (u.phone && u.phone.toLowerCase().includes(s)) ||
+        (u.mobile && u.mobile.toLowerCase().includes(s))
+      );
+    });
+  }, [companyUsers, selectedDeptId, deptDescendantsMap, searchTerm]);
 
   const activeItemsCount =
     currentGroupId === 'company' ? filteredCompanyUsers.length : filteredContacts.length;
@@ -451,7 +517,33 @@ export default function ContactsPage() {
                 size="sm"
               />
             </div>
-            {currentGroupId !== 'company' && (
+            {currentGroupId === 'company' ? (
+              <div className="shrink-0 flex items-center gap-1.5">
+                <SelectDropdown
+                  options={departmentFilterOptions}
+                  value={selectedDeptId}
+                  onChange={(val) => {
+                    setSelectedDeptId(val);
+                    setPage(1);
+                  }}
+                  headerLabel="부서 필터"
+                  size="sm"
+                  menuWidthClass="w-60"
+                />
+                <button
+                  type="button"
+                  onClick={() => setGroupByDept((prev) => !prev)}
+                  className={`px-2 py-1.5 rounded-lg text-[11px] font-medium border transition whitespace-nowrap ${
+                    groupByDept
+                      ? 'bg-[#0071e3]/10 border-[#0071e3]/30 text-[#0071e3]'
+                      : 'bg-white border-black/[0.08] text-[#6e6e73] hover:bg-black/[0.03]'
+                  }`}
+                  title="부서별 묶음 보기"
+                >
+                  부서별
+                </button>
+              </div>
+            ) : (
               <div className="shrink-0">
                 <SelectDropdown
                   options={filterOptions}
@@ -577,9 +669,68 @@ export default function ContactsPage() {
                 <Users className="h-10 w-10 text-[#d2d2d7] mx-auto mb-2 stroke-[1.5]" />
                 <p className="font-medium text-[#1d1d1f] text-sm">등록된 사내 임직원이 없습니다.</p>
               </div>
+            ) : groupByDept ? (
+              (() => {
+                const deptGroups = new Map<string, UserDto[]>();
+                for (const u of paginatedCompanyUsers) {
+                  const deptLabel = u.departmentName || '소속 미지정';
+                  const list = deptGroups.get(deptLabel) || [];
+                  list.push(u);
+                  deptGroups.set(deptLabel, list);
+                }
+                return Array.from(deptGroups.entries()).map(([deptLabel, deptUsers]) => (
+                  <div key={deptLabel} className="pb-1">
+                    <div className="sticky top-0 z-10 px-4 py-1.5 bg-[#f5f5f7]/95 backdrop-blur-sm border-y border-black/[0.05] flex items-center justify-between text-[11px] font-semibold text-[#6e6e73]">
+                      <span className="inline-flex items-center gap-1.5 truncate">
+                        <Building2 className="h-3 w-3 text-[#0071e3] shrink-0" />
+                        <span className="truncate">{deptLabel}</span>
+                      </span>
+                      <span className="tabular-nums text-[#86868b] shrink-0">{deptUsers.length}명</span>
+                    </div>
+                    {deptUsers.map((u) => {
+                      const isActive = activeDetailId === u.id;
+                      const posText = [u.position, u.jobTitle].filter(Boolean).join(' / ');
+                      return (
+                        <div
+                          key={u.id}
+                          onClick={() => setActiveDetailId(u.id)}
+                          className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition flex items-center gap-3 ${
+                            isActive ? 'bg-[#007aff]/12' : 'hover:bg-black/[0.03]'
+                          }`}
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-indigo-500/12 text-indigo-600">
+                            {u.name ? u.name.slice(0, 1).toUpperCase() : 'U'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-[13.5px] font-semibold text-[#1d1d1f] truncate">
+                                  {u.name}
+                                </span>
+                                {posText && (
+                                  <span className="text-[11px] text-[#6e6e73] truncate shrink-0">
+                                    {posText}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 font-medium shrink-0">
+                                {u.role === 'SYSTEM_ADMIN' ? '관리자' : '사내'}
+                              </span>
+                            </div>
+                            <div className="text-[12px] text-[#86868b] truncate mt-0.5">
+                              {[u.departmentName || '소속 미지정', u.email].join(' · ')}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ));
+              })()
             ) : (
               paginatedCompanyUsers.map((u) => {
                 const isActive = activeDetailId === u.id;
+                const posText = [u.position, u.jobTitle].filter(Boolean).join(' / ');
                 return (
                   <div
                     key={u.id}
@@ -593,14 +744,23 @@ export default function ContactsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[13.5px] font-semibold text-[#1d1d1f] truncate">
-                          {u.name}
-                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[13.5px] font-semibold text-[#1d1d1f] truncate">
+                            {u.name}
+                          </span>
+                          {posText && (
+                            <span className="text-[11px] text-[#6e6e73] truncate shrink-0">
+                              {posText}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 font-medium shrink-0">
-                          {u.role === 'SYSTEM_ADMIN' ? '관리자' : '임직원'}
+                          {u.role === 'SYSTEM_ADMIN' ? '관리자' : '사내'}
                         </span>
                       </div>
-                      <div className="text-[12px] text-[#86868b] truncate mt-0.5">{u.email}</div>
+                      <div className="text-[12px] text-[#86868b] truncate mt-0.5">
+                        {[u.departmentName || '소속 미지정', u.email].join(' · ')}
+                      </div>
                     </div>
                   </div>
                 );
@@ -660,6 +820,11 @@ export default function ContactsPage() {
                         </span>
                         {c.company && (
                           <span className="text-[11px] text-[#86868b] truncate">· {c.company}</span>
+                        )}
+                        {c.groupName && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#f5f5f7] text-[#6e6e73] font-medium shrink-0">
+                            {c.groupName}
+                          </span>
                         )}
                       </div>
                       <button
@@ -963,38 +1128,134 @@ export default function ContactsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-8 py-8">
-              <div className="max-w-2xl space-y-6">
+              <div className="max-w-4xl space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-full bg-indigo-500/12 text-indigo-600 text-xl font-bold flex items-center justify-center shrink-0">
                     {activeCompanyUser.name ? activeCompanyUser.name.slice(0, 1).toUpperCase() : 'U'}
                   </div>
                   <div>
-                    <h2 className="text-[22px] font-bold tracking-tight text-[#1d1d1f]">
-                      {activeCompanyUser.name}
-                    </h2>
-                    <p className="text-[13px] text-[#6e6e73] mt-0.5">
-                      {activeCompanyUser.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원'}
-                      {activeCompanyUser.employeeId ? ` · 사번 ${activeCompanyUser.employeeId}` : ''}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-[22px] font-bold tracking-tight text-[#1d1d1f]">
+                        {activeCompanyUser.name}
+                      </h2>
+                      <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-600">
+                        {activeCompanyUser.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '사내 임직원'}
+                      </span>
+                      {activeCompanyUser.employmentStatus && (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                            activeCompanyUser.employmentStatus === 'ACTIVE'
+                              ? 'bg-emerald-500/10 text-emerald-700'
+                              : activeCompanyUser.employmentStatus === 'ON_LEAVE'
+                              ? 'bg-amber-500/10 text-amber-700'
+                              : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {activeCompanyUser.employmentStatus === 'ACTIVE'
+                            ? '재직'
+                            : activeCompanyUser.employmentStatus === 'ON_LEAVE'
+                            ? '휴직'
+                            : '퇴직'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[13px] text-[#6e6e73] mt-1">
+                      {[
+                        activeCompanyUser.departmentName || '소속 미지정',
+                        activeCompanyUser.position,
+                        activeCompanyUser.jobTitle,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] divide-y divide-black/[0.06] text-[13px]">
-                  <div className="px-5 py-3.5 flex items-center justify-between gap-4">
-                    <span className="text-[#86868b] w-24 shrink-0">이메일</span>
-                    <button
-                      type="button"
-                      onClick={(e) => handleComposeMail(activeCompanyUser.email, e)}
-                      className="text-[#0071e3] hover:underline font-medium"
-                    >
-                      {activeCompanyUser.email}
-                    </button>
+                {/* 2-Column Grouped Cards */}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {/* Card 1: 연락처 정보 */}
+                  <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] overflow-hidden">
+                    <div className="px-5 py-2.5 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                      연락처 정보
+                    </div>
+                    <div className="divide-y divide-black/[0.06] text-[13px]">
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">이메일</span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleComposeMail(activeCompanyUser.email, e)}
+                          className="text-[#0071e3] hover:underline font-medium text-right break-all"
+                        >
+                          {activeCompanyUser.email}
+                        </button>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">휴대전화</span>
+                        <span className="text-[#1d1d1f] tabular-nums text-right">
+                          {activeCompanyUser.mobile || '-'}
+                        </span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">회사/내선전화</span>
+                        <span className="text-[#1d1d1f] tabular-nums text-right">
+                          {activeCompanyUser.phone || '-'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="px-5 py-3.5 flex items-center justify-between gap-4">
-                    <span className="text-[#86868b] w-24 shrink-0">등록일시</span>
-                    <span className="text-[#6e6e73] text-xs tabular-nums">
-                      {formatDateParts(activeCompanyUser.createdAt).dateStr}
-                    </span>
+
+                  {/* Card 2: 소속 및 직무 정보 */}
+                  <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] overflow-hidden">
+                    <div className="px-5 py-2.5 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                      소속 및 직무 정보
+                    </div>
+                    <div className="divide-y divide-black/[0.06] text-[13px]">
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">소속 부서</span>
+                        <span className="text-[#1d1d1f] text-right">
+                          {activeCompanyUser.departmentName || '소속 미지정'}
+                        </span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">직급</span>
+                        <span className="text-[#1d1d1f] text-right">
+                          {activeCompanyUser.position || '-'}
+                        </span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">직책</span>
+                        <span className="text-[#1d1d1f] text-right">
+                          {activeCompanyUser.jobTitle || '-'}
+                        </span>
+                      </div>
+                      <div className="px-5 py-3 flex items-center justify-between gap-4">
+                        <span className="text-[#86868b] w-24 shrink-0">사번</span>
+                        <span className="text-[#1d1d1f] tabular-nums text-right">
+                          {activeCompanyUser.employeeId || '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: 계정 및 기록 */}
+                <div className="rounded-2xl bg-[#f5f5f7] border border-black/[0.06] overflow-hidden">
+                  <div className="px-5 py-2.5 border-b border-black/[0.06] text-[11px] font-semibold text-[#86868b]">
+                    계정 및 기록
+                  </div>
+                  <div className="divide-y divide-black/[0.06] text-[13px]">
+                    <div className="px-5 py-3 flex items-center justify-between gap-4">
+                      <span className="text-[#86868b] w-24 shrink-0">권한</span>
+                      <span className="text-[#1d1d1f] text-right">
+                        {activeCompanyUser.role === 'SYSTEM_ADMIN' ? '시스템 관리자' : '일반 사원'}
+                      </span>
+                    </div>
+                    <div className="px-5 py-3 flex items-center justify-between gap-4">
+                      <span className="text-[#86868b] w-24 shrink-0">등록일시</span>
+                      <span className="text-[#6e6e73] text-xs tabular-nums">
+                        {formatDateParts(activeCompanyUser.createdAt).dateStr}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -9,6 +9,10 @@ export interface SelectDropdownOption<T extends string = string> {
   label: string;
   icon?: React.ReactNode;
   disabled?: boolean;
+  /** 트리형 계층 표현용 들여쓰기 단계 (0 이상) */
+  indent?: number;
+  /** 트리형 계층 표현용 접두 기호 (예: '├', '└') - 드롭다운 목록에서만 표시 */
+  treePrefix?: string;
 }
 
 export interface SelectDropdownProps<T extends string = string> {
@@ -210,7 +214,15 @@ export function SelectDropdown<T extends string = string>({
                           : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900 cursor-pointer'
                     }`}
                   >
-                    <span className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="flex items-center gap-1.5 min-w-0"
+                      style={opt.indent ? { paddingLeft: `${opt.indent * 14}px` } : undefined}
+                    >
+                      {opt.treePrefix && (
+                        <span className="text-slate-400 font-mono text-[11px] shrink-0 select-none">
+                          {opt.treePrefix}
+                        </span>
+                      )}
                       {opt.icon && (
                         <span className="flex items-center justify-center w-4 h-4 shrink-0">
                           {opt.icon}

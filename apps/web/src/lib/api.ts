@@ -1,4 +1,5 @@
 import type {
+  DepartmentDto,
   PushSettingsResponse,
   PushSubscriptionItem,
   RegisterPushSubscriptionDto,
@@ -225,6 +226,23 @@ export const calendarApi = {
     }
     return res.blob();
   },
+};
+
+export interface DepartmentTreeNodeDto extends DepartmentDto {
+  userCount: number;
+  children: DepartmentTreeNodeDto[];
+}
+
+export const orgApi = {
+  getDepartments: (includeInactive = false) =>
+    fetchApi<DepartmentDto[]>(
+      `/org/departments${includeInactive ? '?includeInactive=true' : ''}`,
+    ),
+
+  getDepartmentTree: (includeInactive = false) =>
+    fetchApi<DepartmentTreeNodeDto[]>(
+      `/org/departments/tree${includeInactive ? '?includeInactive=true' : ''}`,
+    ),
 };
 
 export const pushApi = {

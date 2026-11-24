@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { UserSidebar } from './UserSidebar';
 
 interface SidebarProps {
@@ -13,9 +13,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setSidebarOpen,
 }) => {
   return (
-    <UserSidebar
-      sidebarOpen={sidebarOpen}
-      setSidebarOpen={setSidebarOpen}
-    />
+    <Suspense fallback={null}>
+      <UserSidebar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+      />
+    </Suspense>
   );
 };

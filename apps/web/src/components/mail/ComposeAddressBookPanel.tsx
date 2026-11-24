@@ -242,9 +242,13 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
       name: u.name,
       email: u.email || '',
       subText:
-        [u.departmentName, u.position || u.jobTitle, u.employeeId ? `사번 ${u.employeeId}` : null]
+        [
+          u.departmentName || '소속 미지정',
+          [u.position, u.jobTitle].filter(Boolean).join('/'),
+          u.employeeId ? `사번 ${u.employeeId}` : null,
+        ]
           .filter(Boolean)
-          .join(' · ') || '사내 임직원',
+          .join(' · '),
       isStarred: false,
     }));
   }, [activeTab, contacts, filteredCompanyUsers]);

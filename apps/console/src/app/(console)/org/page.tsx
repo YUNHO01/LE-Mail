@@ -801,15 +801,35 @@ export default function AdminOrgPage() {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">상위 부서</label>
                 <SelectDropdown
-                  options={[
-                    { value: '', label: '최상위 부서 (없음)' },
-                    ...flatDepts
-                      .filter((d) => !editingDept || d.id !== editingDept.id)
-                      .map((d) => ({
-                        value: d.id,
-                        label: `${'— '.repeat(d.depth)}${d.name}`,
-                      })),
-                  ]}
+                  options={(() => {
+                    const opts: { value: string; label: string; indent?: number; treePrefix?: string }[] = [
+                      { value: '', label: '최상위 부서 (없음)' },
+                    ];
+                    const childrenByParent = new Map<string, DepartmentDto[]>();
+                    const idSet = new Set(flatDepts.map((d) => d.id));
+                    for (const d of flatDepts) {
+                      if (editingDept && d.id === editingDept.id) continue;
+                      const pid = d.parentId && idSet.has(d.parentId) ? d.parentId : '__root__';
+                      const arr = childrenByParent.get(pid) || [];
+                      arr.push(d);
+                      childrenByParent.set(pid, arr);
+                    }
+                    const walk = (parentId: string, depth = 0) => {
+                      const list = childrenByParent.get(parentId) || [];
+                      list.forEach((d, idx) => {
+                        const isLast = idx === list.length - 1;
+                        opts.push({
+                          value: d.id,
+                          label: d.name,
+                          indent: depth > 0 ? depth - 1 : 0,
+                          treePrefix: depth > 0 ? (isLast ? '└' : '├') : undefined,
+                        });
+                        walk(d.id, depth + 1);
+                      });
+                    };
+                    walk('__root__', 0);
+                    return opts;
+                  })()}
                   value={deptForm.parentId}
                   onChange={(val) => setDeptForm((p) => ({ ...p, parentId: val }))}
                   headerLabel="상위 부서 선택"

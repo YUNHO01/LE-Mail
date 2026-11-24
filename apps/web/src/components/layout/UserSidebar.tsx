@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { MailFolderTree } from '../mail/MailFolderTree';
@@ -37,12 +37,16 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAdmin, refreshStorageUsage, licenseStatus } = useAuth();
   const brandName = formatBrandName(licenseStatus);
   const { startNavigation } = useNavigation();
   const isCompose = pathname === '/mail/compose';
   const isContacts = pathname?.startsWith('/mail/contacts');
   const isCalendar = pathname?.startsWith('/mail/calendar');
+  const activeContactGroupId = isContacts ? (searchParams.get('groupId') || 'all') : null;
+  const activeCalendarView = isCalendar ? searchParams.get('view') : null;
+  const activeCalendarId = isCalendar ? searchParams.get('calendarId') : null;
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   // 상위 메뉴 펼침/접힘 상태 (초기값: 현재 경로에 따라 한쪽만 활성화)
@@ -274,7 +278,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                     startNavigation('/mail/contacts');
                   }}
                   className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
-                    pathname === '/mail/contacts'
+                    isContacts && activeContactGroupId === 'all'
                       ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                       : 'text-[#1d1d1f] hover:bg-black/[0.04]'
                   }`}
@@ -292,7 +296,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                     setSidebarOpen(false);
                     startNavigation('/mail/contacts?groupId=starred');
                   }}
-                  className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-[#1d1d1f] hover:bg-black/[0.04]"
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
+                    isContacts && activeContactGroupId === 'starred'
+                      ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                      : 'text-[#1d1d1f] hover:bg-black/[0.04]'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <Star className="h-3.5 w-3.5 text-[#ff9500] fill-[#ff9500]/20" />
@@ -307,7 +315,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                     setSidebarOpen(false);
                     startNavigation('/mail/contacts?groupId=company');
                   }}
-                  className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-[#1d1d1f] hover:bg-black/[0.04]"
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
+                    isContacts && activeContactGroupId === 'company'
+                      ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                      : 'text-[#1d1d1f] hover:bg-black/[0.04]'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <Building2 className="h-3.5 w-3.5 text-[#0071e3]" />
@@ -322,7 +334,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                     setSidebarOpen(false);
                     startNavigation('/mail/contacts?groupId=ungrouped');
                   }}
-                  className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-[#1d1d1f] hover:bg-black/[0.04]"
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
+                    isContacts && activeContactGroupId === 'ungrouped'
+                      ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                      : 'text-[#1d1d1f] hover:bg-black/[0.04]'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <UserCheck className="h-3.5 w-3.5 text-[#6e6e73]" />
@@ -344,7 +360,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                           setSidebarOpen(false);
                           startNavigation(`/mail/contacts?groupId=${g.id}`);
                         }}
-                        className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-[#1d1d1f] hover:bg-black/[0.04]"
+                        className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
+                          isContacts && activeContactGroupId === g.id
+                            ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                            : 'text-[#1d1d1f] hover:bg-black/[0.04]'
+                        }`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <span
@@ -393,7 +413,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                     startNavigation('/mail/calendar');
                   }}
                   className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
-                    pathname === '/mail/calendar'
+                    isCalendar && !activeCalendarView && !activeCalendarId
                       ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
                       : 'text-[#1d1d1f] hover:bg-black/[0.04]'
                   }`}
@@ -410,7 +430,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                     setSidebarOpen(false);
                     startNavigation('/mail/calendar?view=day');
                   }}
-                  className="flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition text-[#1d1d1f] hover:bg-black/[0.04]"
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-medium transition ${
+                    isCalendar && activeCalendarView === 'day'
+                      ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                      : 'text-[#1d1d1f] hover:bg-black/[0.04]'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <CalendarClock className="h-3.5 w-3.5 text-[#0071e3]" />
@@ -443,7 +467,11 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
                               ? `${cal.name} (${cal.ownerName})`
                               : cal.name
                           }
-                          className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg font-medium transition text-[#1d1d1f] hover:bg-black/[0.04]"
+                          className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg font-medium transition ${
+                            isCalendar && activeCalendarId === cal.id
+                              ? 'bg-[#007aff]/12 text-[#0071e3] font-semibold'
+                              : 'text-[#1d1d1f] hover:bg-black/[0.04]'
+                          }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span

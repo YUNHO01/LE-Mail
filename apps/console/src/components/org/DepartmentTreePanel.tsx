@@ -262,15 +262,47 @@ export const DepartmentTreePanel = forwardRef<DepartmentTreePanelHandle, Departm
     }
   };
 
-  // 수정 모달에서 선택 가능한 상위 부서 (자기 자신 및 하위 부서 제외)
-  const selectableParents = useMemo(() => {
-    if (!editingDept) return flatDepts;
-    return flatDepts.filter((d) => {
-      if (d.id === editingDept.id) return false;
-      if (editingDept.path && d.path && d.path.startsWith(`${editingDept.path}/`)) return false;
-      return true;
-    });
-  }, [flatDepts, editingDept]);
+  // 수정 모달에서 선택 가능한 상위 부서 (자기 자신 및 하위 부서 제외, 트리 순서대로 정렬)
+  const selectableParentOptions = useMemo(() => {
+    const result: { value: string; label: string; indent?: number; treePrefix?: string }[] = [];
+
+    const walk = (nodes: DepartmentTreeNodeDto[], depth = 0) => {
+      const visible = nodes.filter((n) => !editingDept || n.id !== editingDept.id);
+      visible.forEach((node, idx) => {
+        const isLast = idx === visible.length - 1;
+        result.push({
+          value: node.id,
+          label: `${node.name}${node.isRoot ? ' (최상위)' : ''}`,
+          indent: depth > 0 ? depth - 1 : 0,
+          treePrefix: depth > 0 ? (isLast ? '└' : '├') : undefined,
+        });
+        if (node.children?.length) {
+          walk(node.children, depth + 1);
+        }
+      });
+    };
+
+    if (tree.length > 0) {
+      walk(tree);
+    } else {
+      const fallback = flatDepts.filter((d) => {
+        if (!editingDept) return true;
+        if (d.id === editingDept.id) return false;
+        if (editingDept.path && d.path && d.path.startsWith(`${editingDept.path}/`)) return false;
+        return true;
+      });
+      for (const d of fallback) {
+        result.push({
+          value: d.id,
+          label: `${d.name}${d.isRoot ? ' (최상위)' : ''}`,
+          indent: d.depth > 0 ? d.depth - 1 : 0,
+          treePrefix: d.depth > 0 ? '└' : undefined,
+        });
+      }
+    }
+
+    return result;
+  }, [tree, flatDepts, editingDept]);
 
   const renderNodes = (nodes: DepartmentTreeNodeDto[], level = 0): React.ReactNode => {
     return nodes.map((node, index) => {
@@ -461,31 +493,7 @@ export const DepartmentTreePanel = forwardRef<DepartmentTreePanelHandle, Departm
       </div>
 
       {/* 2단 필터 바 (우측 툴바와 동일한 h-11 규격) */}
-      <div className="h-11 px-3 border-b border-slate-100 bg-white flex items-center justify-between gap-2 text-[11px] shrink-0">
-        <div className="inline-flex rounded-lg bg-slate-100 p-0.5">
-          <button
-            type="button"
-            onClick={() => onSelectDept(null)}
-            className={`px-2 py-1 rounded-md font-medium transition-colors ${
-              selectedDeptId === null
-                ? 'bg-white text-sky-700 shadow-2xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            전체
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectDept('unassigned', '부서 미지정')}
-            className={`px-2 py-1 rounded-md font-medium transition-colors ${
-              selectedDeptId === 'unassigned'
-                ? 'bg-white text-sky-700 shadow-2xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            미지정
-          </button>
-        </div>
+      <div className="h-11 px-3 border-b border-slate-100 bg-white flex items-center justify-end gap-2 text-[11px] shrink-0">
         <div className="flex items-center text-slate-600">
           <ToggleSwitch
             checked={includeInactive}
@@ -570,10 +578,7 @@ export const DepartmentTreePanel = forwardRef<DepartmentTreePanelHandle, Departm
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">상위 부서 (부서 이동)</label>
                   <SelectDropdown
-                    options={selectableParents.map((d) => ({
-                      value: d.id,
-                      label: `${'— '.repeat(d.depth)}${d.name}${d.isRoot ? ' (최상위)' : ''}`,
-                    }))}
+                    options={selectableParentOptions}
                     value={deptForm.parentId}
                     onChange={(val) => setDeptForm((p) => ({ ...p, parentId: val }))}
                     headerLabel="상위 부서 선택"
