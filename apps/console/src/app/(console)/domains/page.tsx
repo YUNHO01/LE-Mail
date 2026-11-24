@@ -89,6 +89,67 @@ export default function DomainsPage() {
     }
   };
 
+  const [copiedDnsKey, setCopiedDnsKey] = useState<string | null>(null);
+
+  const handleCopyDnsValue = async (key: string, text: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedDnsKey(key);
+      setTimeout(() => {
+        setCopiedDnsKey((prev) => (prev === key ? null : prev));
+      }, 2000);
+    } catch {
+      alert('클립보드 복사에 실패했습니다.');
+    }
+  };
+
+  const splitDnsTxtChunks = (value: string, maxLen = 255): string[] => {
+    const chunks: string[] = [];
+    for (let i = 0; i < value.length; i += maxLen) {
+      chunks.push(value.slice(i, i + maxLen));
+    }
+    return chunks;
+  };
+
+  const renderDnsCopyButton = (key: string, text: string, label = '복사') => {
+    const isCopied = copiedDnsKey === key;
+    return (
+      <button
+        type="button"
+        onClick={() => handleCopyDnsValue(key, text)}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-sans font-semibold transition shrink-0 ${
+          isCopied
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        }`}
+        title={`${label} (${text.length}자)`}
+      >
+        {isCopied ? (
+          <>
+            <Check className="h-3 w-3 text-emerald-600" />
+            <span>복사됨</span>
+          </>
+        ) : (
+          <>
+            <Copy className="h-3 w-3" />
+            <span>{label}</span>
+          </>
+        )}
+      </button>
+    );
+  };
+
   // 도메인 보안 진단 모달
   const [selectedDomainForHealth, setSelectedDomainForHealth] = useState<DomainDto | null>(null);
   const [healthReport, setHealthReport] = useState<any>(null);
@@ -312,7 +373,8 @@ export default function DomainsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {/* Top Header */}
       <PageHeader
         title="도메인 관리"
@@ -641,10 +703,11 @@ export default function DomainsPage() {
           )}
         </div>
       </div>
+      </div>
 
       {/* Modal: 신규 도메인 등록 */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
               <Globe className="h-5 w-5 text-sky-600" />
@@ -714,7 +777,7 @@ export default function DomainsPage() {
 
       {/* Modal: DNS 설정 가이드 */}
       {selectedDomainForDns && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -741,11 +804,20 @@ export default function DomainsPage() {
                   <span className="h-2 w-2 rounded-full bg-sky-600"></span>
                   1. MX 레코드 (메일 수신 목적지)
                 </div>
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700">
-                  <div><strong>호스트:</strong> @</div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div><strong>호스트:</strong> @</div>
+                    {renderDnsCopyButton('mx-host', '@')}
+                  </div>
                   <div><strong>타입:</strong> MX</div>
-                  <div><strong>우선순위(Priority):</strong> 10</div>
-                  <div><strong>값(Value):</strong> mail.{selectedDomainForDns.name}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div><strong>우선순위(Priority):</strong> 10</div>
+                    {renderDnsCopyButton('mx-priority', '10')}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="break-all"><strong>값(Value):</strong> mail.{selectedDomainForDns.name}</div>
+                    {renderDnsCopyButton('mx-value', `mail.${selectedDomainForDns.name}`)}
+                  </div>
                 </div>
               </div>
 
@@ -754,10 +826,16 @@ export default function DomainsPage() {
                   <span className="h-2 w-2 rounded-full bg-emerald-600"></span>
                   2. SPF 레코드 (발송자 인증 및 스팸 방지)
                 </div>
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700">
-                  <div><strong>호스트:</strong> @</div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div><strong>호스트:</strong> @</div>
+                    {renderDnsCopyButton('spf-host', '@')}
+                  </div>
                   <div><strong>타입:</strong> TXT</div>
-                  <div><strong>값(Value):</strong> v=spf1 mx ~all</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="break-all"><strong>값(Value):</strong> v=spf1 mx ~all</div>
+                    {renderDnsCopyButton('spf-value', 'v=spf1 mx ~all')}
+                  </div>
                 </div>
               </div>
 
@@ -766,10 +844,21 @@ export default function DomainsPage() {
                   <span className="h-2 w-2 rounded-full bg-sky-600"></span>
                   3. DMARC 레코드 (메일 보안 정책)
                 </div>
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700">
-                  <div><strong>호스트:</strong> _dmarc</div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div><strong>호스트:</strong> _dmarc</div>
+                    {renderDnsCopyButton('dmarc-host', '_dmarc')}
+                  </div>
                   <div><strong>타입:</strong> TXT</div>
-                  <div><strong>값(Value):</strong> v=DMARC1; p=none; rua=mailto:postmaster@{selectedDomainForDns.name}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="break-all">
+                      <strong>값(Value):</strong> v=DMARC1; p=none; rua=mailto:postmaster@{selectedDomainForDns.name}
+                    </div>
+                    {renderDnsCopyButton(
+                      'dmarc-value',
+                      `v=DMARC1; p=none; rua=mailto:postmaster@${selectedDomainForDns.name}`
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -788,11 +877,47 @@ export default function DomainsPage() {
                     {generatingDkim ? '생성 중...' : dkimInfo?.hasKey ? 'DKIM 재발급' : 'DKIM 키 생성'}
                   </button>
                 </div>
-                {dkimInfo?.hasKey ? (
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700 space-y-1 break-all">
-                    <div><strong>호스트:</strong> {dkimInfo.dnsHostRecord}</div>
+                {dkimInfo?.hasKey && dkimInfo.dnsTxtRecord ? (
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="break-all"><strong>호스트:</strong> {dkimInfo.dnsHostRecord}</div>
+                      {dkimInfo.dnsHostRecord && renderDnsCopyButton('dkim-host', dkimInfo.dnsHostRecord)}
+                    </div>
                     <div><strong>타입:</strong> TXT</div>
-                    <div><strong>값(Value):</strong> {dkimInfo.dnsTxtRecord}</div>
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <strong>값(Value):</strong>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {renderDnsCopyButton('dkim-value-raw', dkimInfo.dnsTxtRecord, '전체 복사')}
+                          {dkimInfo.dnsTxtRecord.length > 255 && (
+                            <>
+                              {renderDnsCopyButton(
+                                'dkim-value-quoted-split',
+                                splitDnsTxtChunks(dkimInfo.dnsTxtRecord)
+                                  .map((chunk) => `"${chunk}"`)
+                                  .join(' '),
+                                '255자 분할 ("..." "...")'
+                              )}
+                              {renderDnsCopyButton(
+                                'dkim-value-space-split',
+                                splitDnsTxtChunks(dkimInfo.dnsTxtRecord).join(' '),
+                                '255자 분할 (공백)'
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="break-all text-slate-600 bg-slate-50/70 p-2 rounded border border-slate-100">
+                        {dkimInfo.dnsTxtRecord}
+                      </div>
+                      {dkimInfo.dnsTxtRecord.length > 255 && (
+                        <p className="font-sans text-[10px] text-amber-700 bg-amber-50 border border-amber-200/70 rounded px-2 py-1 leading-relaxed">
+                          현재 {dkimInfo.dnsTxtRecord.length}자입니다. DNS 업체에 255자 길이 제한이 있는 경우{' '}
+                          <strong>255자 분할 (&quot;...&quot; &quot;...&quot;)</strong> 또는{' '}
+                          <strong>255자 분할 (공백)</strong> 버튼으로 나누어 복사해 등록해 주세요.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-[11px] text-slate-500">
@@ -817,7 +942,7 @@ export default function DomainsPage() {
 
       {/* Modal: 도메인 DNS 보안 및 평판 실시간 진단 (Health Check) */}
       {selectedDomainForHealth && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -939,6 +1064,6 @@ export default function DomainsPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
