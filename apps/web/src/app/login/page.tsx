@@ -126,6 +126,7 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@lineedge.com"
+                data-testid="login-email-input"
                 className="w-full rounded-xl border border-blue-100 bg-blue-50/60 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
@@ -143,6 +144,7 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
+                data-testid="login-password-input"
                 className="w-full rounded-xl border border-blue-100 bg-blue-50/60 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
@@ -151,6 +153,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={isBusy}
+            data-testid="login-submit-button"
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white shadow-md shadow-blue-600/30 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50"
           >
             {loginPhase === 'redirecting' ? (

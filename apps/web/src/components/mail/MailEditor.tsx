@@ -31,7 +31,10 @@ export const MailEditor: React.FC<MailEditorProps> = ({
   minHeight = '350px',
 }) => {
   return (
-    <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden transition-all focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
+    <div
+      data-testid="compose-editor-container"
+      className="relative flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden transition-all focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100"
+    >
       <DynamicQuillEditor
         value={value}
         onChange={onChange}

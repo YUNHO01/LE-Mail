@@ -269,6 +269,7 @@ export const SandboxedMailBody: React.FC<SandboxedMailBodyProps> = ({
         ref={iframeRef}
         title={title}
         srcDoc={srcDoc}
+        data-testid="mail-body-iframe"
         sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
         className={`w-full border-0 bg-transparent block ${className}`}
         style={{ height: `${height}px` }}

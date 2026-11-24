@@ -52,6 +52,8 @@
     "test:api": "yarn --cwd apps/api test:api",
     "test:users": "yarn --cwd apps/api test:users",
     "test:license": "yarn --cwd apps/api ts-node test/license-security.e2e.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "license:generate-keys": "node tools/license-issuer/generate-keys.js",
     "license:issue": "node tools/license-issuer/issue-license.js",
     "license:issue:dev": "node tools/license-issuer/issue-license.js --env dev",
@@ -60,8 +62,11 @@
     "certs:renew": "node scripts/manage-tls-certs.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "archiver": "^7.0.1",
     "concurrently": "^10.0.7",
+    "dotenv": "^18.0.10",
+    "imapflow": "^2.12.2",
     "javascript-obfuscator": "^5.10.0",
     "selfsigned": "^5.5.0",
     "standard-version": "^9.5.0",

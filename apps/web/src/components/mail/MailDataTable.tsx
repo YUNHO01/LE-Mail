@@ -899,6 +899,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                 <button
                   type="button"
                   onClick={() => onRefresh()}
+                  data-testid="mail-refresh-button"
                   className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
                   title="새로고침"
                 >
@@ -1172,6 +1173,9 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
                   aria-selected={isActiveRow}
+                  data-testid="mail-list-item"
+                  data-mail-id={mail.id}
+                  data-read={String(isRead)}
                   onClick={() => handleRowClick(mail)}
                   onKeyDown={handleRowKeyDown}
                   className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3] ${
@@ -1383,7 +1387,10 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       </section>
 
       {/* PANE 3: Reading Pane (Desktop lg+) */}
-      <div className="hidden lg:flex flex-1 min-w-0 min-h-0 flex-col bg-white print:hidden">
+      <div
+        data-testid="mail-reading-pane-container"
+        className="hidden lg:flex flex-1 min-w-0 min-h-0 flex-col bg-white print:hidden"
+      >
         <MailReadingPane
           mailId={selectedMailId}
           onRefreshList={onRefresh}

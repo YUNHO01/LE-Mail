@@ -895,6 +895,7 @@ function ComposeMailContent() {
                             value={subject}
                             onChange={(e) => setSubject(e.target.value)}
                             placeholder="메일 제목을 입력하세요"
+                            data-testid="compose-subject-input"
                             className="flex-1 border-none bg-transparent py-1 text-sm font-medium text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none"
                         />
                         <button
@@ -1087,6 +1088,7 @@ function ComposeMailContent() {
                             onClick={handleSend}
                             disabled={sending || savingDraft || isSendBlockedByQuota}
                             title={quotaBlockMessage || undefined}
+                            data-testid="compose-send-button"
                             className="flex items-center gap-1.5 rounded-lg bg-[#0071e3] px-5 py-2 text-xs font-medium text-white shadow-xs hover:bg-[#0077ed] active:scale-[0.98] disabled:opacity-50 transition"
                         >
                             {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}

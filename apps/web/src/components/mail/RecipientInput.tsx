@@ -444,6 +444,7 @@ export const RecipientInput: React.FC<RecipientInputProps> = ({
           <input
             ref={inputRef}
             type="text"
+            data-testid={fieldType ? `recipient-input-${fieldType}` : 'recipient-input'}
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);

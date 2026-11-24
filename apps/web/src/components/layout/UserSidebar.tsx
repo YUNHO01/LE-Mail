@@ -190,6 +190,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
           <div>
             <Link
               href="/mail/compose"
+              data-testid="sidebar-compose-link"
               onClick={() => {
                 setSidebarOpen(false);
                 startNavigation('/mail/compose');

@@ -637,7 +637,10 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
                   }`}
                 />
               </button>
-              <h1 className="text-[20px] font-semibold tracking-tight text-[#1d1d1f] leading-snug break-words">
+              <h1
+                data-testid="mail-viewer-subject"
+                className="text-[20px] font-semibold tracking-tight text-[#1d1d1f] leading-snug break-words"
+              >
                 {mail.subject || '(제목 없음)'}
               </h1>
             </div>
@@ -780,7 +783,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
           )}
 
           {/* Body */}
-          <div className="mt-6">
+          <div data-testid="mail-viewer-body" className="mt-6">
             {mail.body?.html ? (
               <SandboxedMailBody html={mail.body.html} />
             ) : mail.body?.text ? (
