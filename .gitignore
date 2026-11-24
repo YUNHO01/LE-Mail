@@ -34,6 +34,11 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+tests/**/*-snapshots/
+tests/**/*.png
+tests/**/*.webm
+tests/**/*.zip
+tests/**/.last-run.json
 
 # IDE
 .idea/

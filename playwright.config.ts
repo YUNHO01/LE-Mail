@@ -14,6 +14,8 @@ const testTimeoutMs = Number(process.env.E2E_TIMEOUT_MS || 60000);
 
 export default defineConfig({
   testDir: './tests',
+  globalSetup: './tests/global-setup.ts',
+  globalTeardown: './tests/global-teardown.ts',
   timeout: Number.isFinite(testTimeoutMs) ? testTimeoutMs : 60000,
   expect: {
     timeout: 10000,
@@ -21,7 +23,16 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [
+    ['list'],
+    [
+      'html',
+      {
+        open: 'never',
+        outputFolder: path.resolve(__dirname, 'playwright-report'),
+      },
+    ],
+  ],
   use: {
     baseURL: webmailUrl,
     headless: true,

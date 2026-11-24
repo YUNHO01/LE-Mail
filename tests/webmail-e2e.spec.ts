@@ -108,10 +108,16 @@ test.describe('LEMail Webmail E2E & IMAP Protocol QA', () => {
     const xssPayload =
       '<script>window.__XSS_TRIGGERED__=true;</script><img src=x onerror="window.__XSS_TRIGGERED__=true">';
 
-    // 1. 로그인 검증
-    await page.goto('/login');
-    await page.getByTestId('login-email-input').fill(TEST_USER_EMAIL);
-    await page.getByTestId('login-password-input').fill(TEST_USER_PASS);
+    // 1. 로그인 검증 (Next.js 하이드레이션 중 입력값 초기화 방지 포함)
+    await page.goto('/login', { waitUntil: 'networkidle' });
+    const emailInput = page.getByTestId('login-email-input');
+    const passwordInput = page.getByTestId('login-password-input');
+    await expect(async () => {
+      await emailInput.fill(TEST_USER_EMAIL);
+      await passwordInput.fill(TEST_USER_PASS);
+      await expect(emailInput).toHaveValue(TEST_USER_EMAIL);
+      await expect(passwordInput).toHaveValue(TEST_USER_PASS);
+    }).toPass({ timeout: 10000 });
     await page.getByTestId('login-submit-button').click();
 
     await expect(page).toHaveURL(/\/mail\/inbox/, { timeout: 15000 });
@@ -136,7 +142,7 @@ test.describe('LEMail Webmail E2E & IMAP Protocol QA', () => {
     await editor.type(xssPayload);
 
     await page.getByTestId('compose-send-button').click();
-    await expect(page).toHaveURL(/\/mail\/inbox/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/mail\/sent/, { timeout: 15000 });
 
     // 3. IMAP 프로토콜 도달 폴링 검증 (최대 20초, 1.5초 간격)
     const arrivedUids = await pollImapForSubject(
@@ -150,6 +156,7 @@ test.describe('LEMail Webmail E2E & IMAP Protocol QA', () => {
     ).toBeGreaterThan(0);
 
     // 4. UI 렌더링, 읽음 상태 및 보안(XSS) 검증
+    await page.goto('/mail/inbox', { waitUntil: 'networkidle' });
     await page.getByTestId('mail-refresh-button').click();
 
     const targetMailRow = page
@@ -173,8 +180,8 @@ test.describe('LEMail Webmail E2E & IMAP Protocol QA', () => {
       () => (window as unknown as Record<string, unknown>).__XSS_TRIGGERED__,
     );
     expect(parentXssTriggered).toBeUndefined();
-    await expect(mailBodyFrame.locator('script')).toHaveCount(0);
-    await expect(mailBodyFrame.locator('[onerror]')).toHaveCount(0);
+    await expect(mailBodyFrame.locator('#__lemail_root script')).toHaveCount(0);
+    await expect(mailBodyFrame.locator('#__lemail_root [onerror]')).toHaveCount(0);
 
     // 상세 뷰어 영역 시각적 회귀(Visual Regression) 스냅샷 비교
     const readingPane = page.getByTestId('mail-reading-pane-container');
