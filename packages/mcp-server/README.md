@@ -11,8 +11,11 @@ LEMail(메일·주소록·캘린더)을 Claude Desktop, Cursor 등 로컬 AI 클
 {
   "mcpServers": {
     "lemail": {
-      "command": "node",
-      "args": ["D:/workspace/lineedge/LE-Mail/packages/mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": [
+        "-y",
+        "@lineedge/lemail-mcp-server"
+      ],
       "env": {
         "LEMAIL_API_URL": "http://localhost:9200/api",
         "LEMAIL_API_KEY": "lem_발급받은_API_KEY"
