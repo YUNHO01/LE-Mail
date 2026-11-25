@@ -224,7 +224,8 @@ export function McpApiKeySettingsTab() {
   };
 
   return (
-    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+    <>
+      <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
       {/* 상단 요약 및 발급 버튼 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
@@ -449,6 +450,7 @@ export function McpApiKeySettingsTab() {
           {clientConfigSnippet}
         </pre>
       </div>
+      </div>
 
       {/* 발급 모달 */}
       {isCreateOpen && (
@@ -589,6 +591,6 @@ export function McpApiKeySettingsTab() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
