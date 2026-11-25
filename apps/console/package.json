@@ -1,6 +1,6 @@
 {
   "name": "@lemail/console",
-  "version": "1.5.7",
+  "version": "1.5.8",
   "private": true,
   "scripts": {
     "predev": "node -e \"try { require('fs').rmSync('.next-dev', { recursive: true, force: true }); } catch (e) {}\"",
@@ -10,7 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@lemail/shared-types": "1.5.7",
+    "@lemail/shared-types": "1.5.8",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
     "lucide-react": "^0.468.0",

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.5.8](https://github.com/YUNHO01/LE-Mail/compare/v1.5.7...v1.5.8) (2026-11-25)
+
+
+### ✨ Features (기능 추가)
+
+* e2e 테스트 환경 구축 ([baee0b8](https://github.com/YUNHO01/LE-Mail/commit/baee0b8a451bfa132743984bf922e11e47f0b5e5))
+
+
+### 🐛 Bug Fixes (버그 수정)
+
+* 도메인 관련 팝업 수정 ([acf5169](https://github.com/YUNHO01/LE-Mail/commit/acf51699a87d959f49514a5d83828d3a797d4d02))
+* 메일 읽기 상단 가로줄 제거 ([8bbeb7a](https://github.com/YUNHO01/LE-Mail/commit/8bbeb7a2f0cd92685ca90b4f82b908dca4475813))
+* 웹메일 ui 스타일 가이드 추가 ([5daf42b](https://github.com/YUNHO01/LE-Mail/commit/5daf42b27d81a12cb80dba9221530b5558d700bc))
+* 팝업 UI 수정 ([2a65a72](https://github.com/YUNHO01/LE-Mail/commit/2a65a725102d3e21c4531469b6d44acf370337c3))
+* 편지쓰기 주소록 사내 임직원 정보 수정 ([3c01507](https://github.com/YUNHO01/LE-Mail/commit/3c01507513330ed0a06221d514359194a8da97bc))
+* e2e 테스트 오류 수정 ([f789ce0](https://github.com/YUNHO01/LE-Mail/commit/f789ce0a55321eaefbdd9e9adb4b638c8d298902))
+* mcp 모듈 베포 ([2aa05aa](https://github.com/YUNHO01/LE-Mail/commit/2aa05aa94107086c26066eba01e79eab834330c2))
+
 ### [1.5.7](https://github.com/YUNHO01/LE-Mail/compare/v1.5.6...v1.5.7) (2026-11-23)
 
 
