@@ -747,7 +747,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
       <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-5">
         <div className="max-w-4xl">
           {/* AI Assistant Panel */}
-          <div className="overflow-hidden rounded-xl border border-black/[0.06]">
+          <div className="overflow-hidden rounded-xl border border-black/[0.06] empty:hidden">
             <MailAiAssistantPanel
               mailId={mail.id}
               subject={mail.subject || ''}
