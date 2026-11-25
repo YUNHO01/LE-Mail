@@ -196,7 +196,7 @@ export function McpApiKeySettingsTab() {
         mcpServers: {
           lemail: {
             command: 'npx',
-            args: ['-y', '@lemail/mcp-server'],
+            args: ['-y', '@lineedge/lemail-mcp-server'],
             env: {
               LEMAIL_API_URL: `${apiOrigin}/api`,
               LEMAIL_API_KEY: keyPlaceholder,

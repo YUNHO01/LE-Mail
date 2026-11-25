@@ -1,4 +1,4 @@
-# @lemail/mcp-server
+# @lineedge/lemail-mcp-server
 
 LEMail(메일·주소록·캘린더)을 Claude Desktop, Cursor 등 로컬 AI 클라이언트와 연동하기 위한 Model Context Protocol (MCP) Stdio 서버입니다.
 
