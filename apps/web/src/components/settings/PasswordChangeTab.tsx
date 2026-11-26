@@ -105,14 +105,14 @@ export const PasswordChangeTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-      <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+    <div className="space-y-6 rounded-2xl border border-black/[0.08] bg-white p-6 shadow-xs">
+      <div className="flex items-center gap-3 border-b border-black/[0.06] pb-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0071e3]/10 text-[#0071e3]">
           <KeyRound className="h-5 w-5" />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-900">사용자 비밀번호 변경</h3>
-          <p className="text-xs text-slate-500">
+          <h3 className="text-base font-bold text-[#1d1d1f]">사용자 비밀번호 변경</h3>
+          <p className="text-xs text-[#6e6e73]">
             현재 로그인된 계정의 로그인 비밀번호를 새롭게 변경하고 보안을 강화합니다.
           </p>
         </div>
@@ -121,10 +121,10 @@ export const PasswordChangeTab: React.FC = () => {
       {/* 상태 메시지 배너 */}
       {message && (
         <div
-          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium ${
+          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium max-w-xl ${
             message.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-rose-200 bg-rose-50 text-rose-700'
+              ? 'border-[#34c759]/30 bg-[#34c759]/10 text-[#248a3d]'
+              : 'border-[#ff3b30]/25 bg-[#ff3b30]/[0.06] text-[#d70015]'
           }`}
         >
           {message.type === 'success' ? (
@@ -137,61 +137,63 @@ export const PasswordChangeTab: React.FC = () => {
       )}
 
       {/* 비밀번호 변경 폼 */}
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
           {/* 현재 비밀번호 */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-700">
-              현재 비밀번호 <span className="text-rose-500">*</span>
+            <label htmlFor="pw-current" className="block text-xs font-semibold text-[#1d1d1f]">
+              현재 비밀번호 <span className="text-[#ff3b30]">*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#86868b]">
                 <Lock className="h-4 w-4" />
               </div>
               <input
+                id="pw-current"
                 type={showCurrent ? 'text' : 'password'}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="현재 사용 중인 비밀번호를 입력하세요"
                 autoComplete="current-password"
                 required
-                className="h-10 w-full pl-9 pr-10 rounded-xl border border-slate-300 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white text-slate-800 transition"
+                className="h-[38px] w-full pl-9 pr-10 rounded-lg border border-black/[0.1] text-xs outline-none focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/15 bg-white text-[#1d1d1f] placeholder-[#86868b] transition"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                tabIndex={-1}
+                aria-label={showCurrent ? '현재 비밀번호 숨기기' : '현재 비밀번호 보기'}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#86868b] hover:text-[#1d1d1f]"
               >
                 {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
-          <div className="border-t border-slate-100 my-4" />
+          <div className="border-t border-black/[0.06] my-4" />
 
           {/* 새 비밀번호 */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-700">
-              새 비밀번호 <span className="text-rose-500">*</span>
+            <label htmlFor="pw-new" className="block text-xs font-semibold text-[#1d1d1f]">
+              새 비밀번호 <span className="text-[#ff3b30]">*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#86868b]">
                 <KeyRound className="h-4 w-4" />
               </div>
               <input
+                id="pw-new"
                 type={showNew ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="새로운 비밀번호 (최소 6자 이상)"
+                placeholder="새로운 비밀번호 (최소 6자, 8자 이상 권장)"
                 autoComplete="new-password"
                 required
-                className="h-10 w-full pl-9 pr-10 rounded-xl border border-slate-300 text-xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white text-slate-800 transition"
+                className="h-[38px] w-full pl-9 pr-10 rounded-lg border border-black/[0.1] text-xs outline-none focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/15 bg-white text-[#1d1d1f] placeholder-[#86868b] transition"
               />
               <button
                 type="button"
                 onClick={() => setShowNew(!showNew)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                tabIndex={-1}
+                aria-label={showNew ? '새 비밀번호 숨기기' : '새 비밀번호 보기'}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#86868b] hover:text-[#1d1d1f]"
               >
                 {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -201,28 +203,28 @@ export const PasswordChangeTab: React.FC = () => {
             {newPassword && (
               <div className="pt-1.5 space-y-1">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500">비밀번호 보안 강도</span>
-                  <span className="font-semibold text-slate-700">{strength.label}</span>
+                  <span className="text-[#6e6e73]">비밀번호 보안 강도</span>
+                  <span className="font-semibold text-[#1d1d1f]">{strength.label}</span>
                 </div>
                 <div className="grid grid-cols-4 gap-1 h-1.5">
                   <div
                     className={`rounded-full transition-colors ${
-                      strength.score >= 1 ? strength.color : 'bg-slate-200'
+                      strength.score >= 1 ? strength.color : 'bg-black/[0.08]'
                     }`}
                   />
                   <div
                     className={`rounded-full transition-colors ${
-                      strength.score >= 2 ? strength.color : 'bg-slate-200'
+                      strength.score >= 2 ? strength.color : 'bg-black/[0.08]'
                     }`}
                   />
                   <div
                     className={`rounded-full transition-colors ${
-                      strength.score >= 3 ? strength.color : 'bg-slate-200'
+                      strength.score >= 3 ? strength.color : 'bg-black/[0.08]'
                     }`}
                   />
                   <div
                     className={`rounded-full transition-colors ${
-                      strength.score >= 4 ? strength.color : 'bg-slate-200'
+                      strength.score >= 4 ? strength.color : 'bg-black/[0.08]'
                     }`}
                   />
                 </div>
@@ -230,7 +232,7 @@ export const PasswordChangeTab: React.FC = () => {
             )}
 
             {isSameAsCurrent && (
-              <p className="text-[11px] text-amber-600 flex items-center gap-1 mt-1">
+              <p className="text-[11px] text-[#b25000] flex items-center gap-1 mt-1">
                 <AlertCircle className="h-3 w-3" />
                 <span>현재 비밀번호와 동일합니다. 다른 비밀번호를 입력해 주세요.</span>
               </p>
@@ -239,46 +241,47 @@ export const PasswordChangeTab: React.FC = () => {
 
           {/* 새 비밀번호 확인 */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-700">
-              새 비밀번호 확인 <span className="text-rose-500">*</span>
+            <label htmlFor="pw-confirm" className="block text-xs font-semibold text-[#1d1d1f]">
+              새 비밀번호 확인 <span className="text-[#ff3b30]">*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#86868b]">
                 <ShieldCheck className="h-4 w-4" />
               </div>
               <input
+                id="pw-confirm"
                 type={showConfirm ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="새로운 비밀번호를 한 번 더 입력하세요"
                 autoComplete="new-password"
                 required
-                className={`h-10 w-full pl-9 pr-10 rounded-xl border text-xs outline-none bg-white text-slate-800 transition ${
+                className={`h-[38px] w-full pl-9 pr-10 rounded-lg border text-xs outline-none bg-white text-[#1d1d1f] placeholder-[#86868b] transition ${
                   isMismatch
-                    ? 'border-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                    ? 'border-[#ff3b30] focus:border-[#ff3b30] focus:ring-2 focus:ring-[#ff3b30]/15'
                     : isMatch
-                      ? 'border-emerald-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
-                      : 'border-slate-300 focus:border-sky-500 focus:ring-1 focus:ring-sky-500'
+                      ? 'border-[#34c759] focus:border-[#34c759] focus:ring-2 focus:ring-[#34c759]/15'
+                      : 'border-black/[0.1] focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/15'
                 }`}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirm(!showConfirm)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-                tabIndex={-1}
+                aria-label={showConfirm ? '새 비밀번호 확인 숨기기' : '새 비밀번호 확인 보기'}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#86868b] hover:text-[#1d1d1f]"
               >
                 {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
 
             {isMatch && (
-              <p className="text-[11px] text-emerald-600 flex items-center gap-1 mt-1">
+              <p className="text-[11px] text-[#248a3d] flex items-center gap-1 mt-1">
                 <CheckCircle2 className="h-3 w-3" />
                 <span>비밀번호가 일치합니다.</span>
               </p>
             )}
             {isMismatch && (
-              <p className="text-[11px] text-rose-500 flex items-center gap-1 mt-1">
+              <p className="text-[11px] text-[#ff3b30] flex items-center gap-1 mt-1">
                 <AlertCircle className="h-3 w-3" />
                 <span>새 비밀번호와 일치하지 않습니다.</span>
               </p>
@@ -286,8 +289,8 @@ export const PasswordChangeTab: React.FC = () => {
           </div>
 
           {/* 보안 권장 안내 박스 */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600 flex items-start gap-2.5">
-            <Info className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+          <div className="rounded-xl bg-[#f5f5f7] px-4 py-3 text-xs text-[#6e6e73] flex items-start gap-2.5">
+            <Info className="h-4 w-4 text-[#86868b] shrink-0 mt-0.5" />
             <span>
               영문 대/소문자, 숫자, 특수문자를 혼합한 8자리 이상의 비밀번호를 권장합니다. 타 사이트와 동일한
               비밀번호를 재사용하지 마세요.
@@ -307,7 +310,7 @@ export const PasswordChangeTab: React.FC = () => {
                 Boolean(isSameAsCurrent) ||
                 newPassword.length < 6
               }
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 px-5 rounded-lg bg-[#0071e3] hover:bg-[#0062c4] text-white text-xs font-semibold shadow-xs transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>

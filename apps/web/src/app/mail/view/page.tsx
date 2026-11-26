@@ -18,6 +18,7 @@ import {
 import { EventModal } from '@/components/calendar/EventModal';
 import { ContactModal } from '@/components/contacts/ContactModal';
 import { MailAiAssistantPanel } from '@/components/ai/MailAiAssistantPanel';
+import { ToastBanner, useToast, formatFileSize } from '@/components/common/ToastBanner';
 import {
   ArrowLeft,
   Download,
@@ -70,6 +71,7 @@ function MailMultiViewContent() {
   const [spamFolderId, setSpamFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+  const { toast, showToast } = useToast();
 
   const [calendars, setCalendars] = useState<CalendarDto[]>([]);
   const [calendarTargetMail, setCalendarTargetMail] = useState<MailMessageDto | null>(null);
@@ -273,7 +275,7 @@ function MailMultiViewContent() {
       );
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
     } catch (err: any) {
-      alert(err.message || '읽음 상태 변경 실패');
+      showToast(err.message || '읽음 상태 변경 실패', 'error');
     }
   };
 
@@ -289,7 +291,7 @@ function MailMultiViewContent() {
         prev.map((m) => (m.id === mail.id ? { ...m, isStarred: nextStarred } : m)),
       );
     } catch (err: any) {
-      alert(err.message || '중요 표시 변경 실패');
+      showToast(err.message || '중요 표시 변경 실패', 'error');
     }
   };
 
@@ -306,11 +308,11 @@ function MailMultiViewContent() {
         `/mails/${mail.id}/report-spam`,
         { method: 'POST' },
       );
-      alert(res.message || '스팸 신고 처리되었습니다.');
+      showToast(res.message || '스팸 신고 처리되었습니다.');
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       removeMailFromView(mail.id);
     } catch (err: any) {
-      alert(err.message || '스팸 신고 실패');
+      showToast(err.message || '스팸 신고 실패', 'error');
     }
   };
 
@@ -327,11 +329,11 @@ function MailMultiViewContent() {
         `/mails/${mail.id}/unreport-spam`,
         { method: 'POST' },
       );
-      alert(res.message || '받은편지함으로 복원되었습니다.');
+      showToast(res.message || '받은편지함으로 복원되었습니다.');
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       removeMailFromView(mail.id);
     } catch (err: any) {
-      alert(err.message || '스팸 해제 실패');
+      showToast(err.message || '스팸 해제 실패', 'error');
     }
   };
 
@@ -342,7 +344,7 @@ function MailMultiViewContent() {
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       removeMailFromView(mail.id);
     } catch (err: any) {
-      alert(err.message || '삭제 실패');
+      showToast(err.message || '삭제 실패', 'error');
     }
   };
 
@@ -354,7 +356,7 @@ function MailMultiViewContent() {
       }
       setCalendarTargetMail(mail);
     } catch (err: any) {
-      alert(err?.message || '캘린더 목록을 불러오지 못했습니다.');
+      showToast(err?.message || '캘린더 목록을 불러오지 못했습니다.', 'error');
     }
   };
 
@@ -362,23 +364,23 @@ function MailMultiViewContent() {
     payload: CreateCalendarEventDto | UpdateCalendarEventDto,
   ) => {
     await calendarApi.createEvent(payload as CreateCalendarEventDto);
-    alert('캘린더에 일정이 등록되었습니다.');
+    showToast('캘린더에 일정이 등록되었습니다.');
   };
 
   if (loading) {
     return (
-      <div className="py-20 text-center text-slate-400">
-        <p>선택한 메일을 불러오는 중...</p>
+      <div className="py-20 text-center text-[#86868b]">
+        <p className="text-xs font-medium">선택한 메일을 불러오는 중...</p>
       </div>
     );
   }
 
   if (targetIds.length === 0 || mails.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 px-6 text-center shadow-sm">
-        <Layers className="h-10 w-10 text-slate-300 mb-3" />
-        <h2 className="text-lg font-bold text-slate-800">열람할 메일이 없습니다</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-black/[0.08] bg-white py-16 px-6 text-center shadow-xs">
+        <Layers className="h-10 w-10 text-[#c7c7cc] mb-3" />
+        <h2 className="text-lg font-bold text-[#1d1d1f]">열람할 메일이 없습니다</h2>
+        <p className="mt-1 text-sm text-[#6e6e73]">
           {failedCount > 0
             ? '선택한 메일을 불러오지 못했습니다.'
             : '편지함에서 열람할 메일을 선택해 주세요. (최대 5건)'}
@@ -386,7 +388,7 @@ function MailMultiViewContent() {
         <button
           type="button"
           onClick={handleGoBack}
-          className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 transition"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#0071e3] px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-[#0062c4] transition"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>목록으로 돌아가기</span>
@@ -398,17 +400,17 @@ function MailMultiViewContent() {
   return (
     <div className="space-y-5">
       {/* Top Bar */}
-      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-black/[0.08] pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={handleGoBack}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#6e6e73] hover:text-[#1d1d1f] transition"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>목록으로 돌아가기</span>
           </button>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#0071e3]/20 bg-[#0071e3]/10 px-2.5 py-1 text-xs font-semibold text-[#0071e3]">
             <Layers className="h-3.5 w-3.5" />
             <span>동시 열람 {mails.length}건</span>
           </span>
@@ -417,9 +419,9 @@ function MailMultiViewContent() {
         <button
           type="button"
           onClick={handleToggleAllExpand}
-          className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition"
+          className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-black/[0.08] bg-white px-3 py-1.5 text-xs font-semibold text-[#1d1d1f] shadow-xs hover:bg-black/[0.03] transition"
         >
-          <ChevronsUpDown className="h-3.5 w-3.5 text-slate-500" />
+          <ChevronsUpDown className="h-3.5 w-3.5 text-[#6e6e73]" />
           <span>{allExpanded ? '모두 접기' : '모두 펼치기'}</span>
         </button>
       </div>
@@ -447,8 +449,8 @@ function MailMultiViewContent() {
 
       {/* Quick Jump Navigation */}
       {mails.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-          <span className="text-[11px] font-semibold text-slate-500 mr-1">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-black/[0.08] bg-white p-3">
+          <span className="text-[11px] font-semibold text-[#6e6e73] mr-1">
             빠른 이동:
           </span>
           {mails.map((m, idx) => (
@@ -456,10 +458,10 @@ function MailMultiViewContent() {
               key={m.id}
               type="button"
               onClick={() => handleJumpToCard(m.id)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 transition max-w-[240px]"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-[#f5f5f7] px-2.5 py-1 text-xs text-[#1d1d1f] hover:border-[#0071e3]/40 hover:bg-[#0071e3]/8 hover:text-[#0071e3] transition max-w-[240px]"
               title={m.subject || '(제목 없음)'}
             >
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-100 text-[10px] font-bold text-sky-700 shrink-0">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#0071e3]/15 text-[10px] font-bold text-[#0071e3] shrink-0">
                 {idx + 1}
               </span>
               <span className="truncate font-medium">
@@ -478,39 +480,40 @@ function MailMultiViewContent() {
             <article
               key={mail.id}
               id={`mail-card-${mail.id}`}
-              className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden scroll-mt-4"
+              className="rounded-2xl border border-black/[0.08] bg-white shadow-xs overflow-hidden scroll-mt-4"
             >
               {/* Accordion Header */}
               <div
                 onClick={() => toggleExpand(mail.id)}
-                className="flex flex-col gap-2 border-b border-slate-100 bg-slate-50/70 px-5 py-4 cursor-pointer hover:bg-slate-100/60 transition sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 border-b border-black/[0.06] bg-[#f5f5f7]/60 px-6 py-4 cursor-pointer hover:bg-[#f5f5f7] transition sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-                  <span className="inline-flex h-6 px-2 items-center justify-center rounded-md bg-sky-100 text-xs font-bold text-sky-700 shrink-0">
+                  <span className="inline-flex h-6 px-2 items-center justify-center rounded-md bg-[#0071e3]/12 text-xs font-bold text-[#0071e3] shrink-0">
                     {idx + 1}/{mails.length}
                   </span>
                   <button
                     type="button"
                     onClick={(e) => handleToggleStar(e, mail)}
                     title={mail.isStarred ? '중요 메일 해제' : '중요 메일 표시'}
-                    className="p-1 rounded-lg hover:bg-amber-50 transition shrink-0"
+                    aria-label={mail.isStarred ? '중요 메일 해제' : '중요 메일 표시'}
+                    className="p-1 rounded-lg hover:bg-[#ff9500]/10 transition shrink-0"
                   >
                     <Star
                       className={`h-4 w-4 ${
                         mail.isStarred
-                          ? 'fill-amber-400 text-amber-400'
-                          : 'text-slate-300 hover:text-amber-400'
+                          ? 'fill-[#ff9500] text-[#ff9500]'
+                          : 'text-[#d2d2d7] hover:text-[#ff9500]'
                       }`}
                     />
                   </button>
                   <div className="min-w-0">
-                    <h2 className="text-base font-bold text-slate-900 truncate">
+                    <h2 className="text-base font-bold text-[#1d1d1f] truncate">
                       {mail.subject || '(제목 없음)'}
                     </h2>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[#6e6e73]">
                       <span className="inline-flex items-center gap-1.5 min-w-0">
                         <span className="truncate max-w-[260px]">
-                          <strong className="font-semibold text-slate-700">보낸사람:</strong>{' '}
+                          <strong className="font-semibold text-[#1d1d1f]">보낸사람:</strong>{' '}
                           {mail.sender}
                         </span>
                         {canAddExternalContact(mail.sender) && (
@@ -520,15 +523,15 @@ function MailMultiViewContent() {
                               handleOpenAddContact(e, mail.senderName || mail.sender, mail.sender)
                             }
                             title="주소록에 추가"
-                            className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 hover:bg-sky-100 transition shrink-0"
+                            className="inline-flex items-center gap-1 rounded-md border border-[#0071e3]/25 bg-[#0071e3]/8 px-1.5 py-0.5 text-[11px] font-medium text-[#0071e3] hover:bg-[#0071e3]/15 transition shrink-0"
                           >
                             <UserPlus className="h-3 w-3" />
                             <span>주소록 추가</span>
                           </button>
                         )}
                       </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-slate-400" />
+                      <span className="inline-flex items-center gap-1 tabular-nums">
+                        <Clock className="h-3 w-3 text-[#86868b]" />
                         {new Date(mail.createdAt).toLocaleString()}
                       </span>
                     </div>
@@ -544,7 +547,7 @@ function MailMultiViewContent() {
                     target="_blank"
                     rel="noreferrer"
                     title="새 탭에서 단독 열람"
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:border-sky-300 hover:text-sky-700 transition"
+                    className="inline-flex items-center gap-1 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:border-[#0071e3]/40 hover:text-[#0071e3] transition"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                     <span className="hidden md:inline">새 탭</span>
@@ -553,7 +556,7 @@ function MailMultiViewContent() {
                     type="button"
                     onClick={() => toggleExpand(mail.id)}
                     aria-label={isExpanded ? '메일 접기' : '메일 펼치기'}
-                    className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-50 transition"
+                    className="inline-flex items-center justify-center rounded-lg border border-black/[0.08] bg-white p-1.5 text-[#6e6e73] hover:bg-black/[0.03] transition"
                   >
                     {isExpanded ? (
                       <ChevronUp className="h-4 w-4" />
@@ -568,15 +571,15 @@ function MailMultiViewContent() {
               {isExpanded && (
                 <div>
                   {/* Per-mail Action Toolbar */}
-                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-white px-5 py-3">
+                  <div className="flex flex-wrap items-center gap-2 border-b border-black/[0.06] bg-white px-6 py-3">
                     <button
                       type="button"
                       onClick={() =>
                         router.push(`/mail/compose?mode=reply&replyId=${mail.id}`)
                       }
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-semibold text-[#1d1d1f] shadow-xs hover:bg-black/[0.03] transition"
                     >
-                      <Reply className="h-3.5 w-3.5 text-slate-500" />
+                      <Reply className="h-3.5 w-3.5 text-[#0071e3]" />
                       <span>답장</span>
                     </button>
 
@@ -585,9 +588,9 @@ function MailMultiViewContent() {
                       onClick={() =>
                         router.push(`/mail/compose?mode=replyAll&replyId=${mail.id}`)
                       }
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-semibold text-[#1d1d1f] shadow-xs hover:bg-black/[0.03] transition"
                     >
-                      <ReplyAll className="h-3.5 w-3.5 text-slate-500" />
+                      <ReplyAll className="h-3.5 w-3.5 text-[#6e6e73]" />
                       <span>전체답장</span>
                     </button>
 
@@ -596,40 +599,40 @@ function MailMultiViewContent() {
                       onClick={() =>
                         router.push(`/mail/compose?mode=forward&replyId=${mail.id}`)
                       }
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-semibold text-[#1d1d1f] shadow-xs hover:bg-black/[0.03] transition"
                     >
-                      <Forward className="h-3.5 w-3.5 text-slate-500" />
+                      <Forward className="h-3.5 w-3.5 text-[#6e6e73]" />
                       <span>전달</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleOpenCreateCalendarEvent(mail)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 shadow-xs hover:bg-violet-100 transition"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#0071e3]/25 bg-[#0071e3]/8 px-2.5 py-1 text-xs font-semibold text-[#0071e3] shadow-xs hover:bg-[#0071e3]/15 transition"
                     >
-                      <CalendarPlus className="h-3.5 w-3.5 text-violet-600" />
+                      <CalendarPlus className="h-3.5 w-3.5 text-[#0071e3]" />
                       <span>일정 등록</span>
                     </button>
 
-                    <div className="h-4 w-px bg-slate-200 mx-0.5 hidden sm:block" />
+                    <div className="h-4 w-px bg-black/[0.08] mx-0.5 hidden sm:block" />
 
                     <button
                       type="button"
                       onClick={() => handleToggleRead(mail)}
                       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold shadow-xs transition ${
                         mail.isRead
-                          ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                          : 'border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100'
+                          ? 'border-black/[0.08] bg-white text-[#1d1d1f] hover:bg-black/[0.03]'
+                          : 'border-[#0071e3]/30 bg-[#0071e3]/10 text-[#0071e3] hover:bg-[#0071e3]/15'
                       }`}
                     >
                       {mail.isRead ? (
                         <>
-                          <MailIcon className="h-3.5 w-3.5 text-slate-500" />
+                          <MailIcon className="h-3.5 w-3.5 text-[#6e6e73]" />
                           <span>안읽음으로 표시</span>
                         </>
                       ) : (
                         <>
-                          <MailCheck className="h-3.5 w-3.5 text-sky-600" />
+                          <MailCheck className="h-3.5 w-3.5 text-[#0071e3]" />
                           <span>읽음으로 표시</span>
                         </>
                       )}
@@ -639,9 +642,9 @@ function MailMultiViewContent() {
                       href={`/api/mails/${mail.id}/raw`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-semibold text-[#1d1d1f] shadow-xs hover:bg-black/[0.03] transition"
                     >
-                      <Download className="h-3.5 w-3.5 text-slate-500" />
+                      <Download className="h-3.5 w-3.5 text-[#6e6e73]" />
                       <span>원본 EML</span>
                     </a>
 
@@ -649,18 +652,18 @@ function MailMultiViewContent() {
                       <button
                         type="button"
                         onClick={() => handleUnreportSpam(mail)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 shadow-xs hover:bg-emerald-100 transition"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#34c759]/30 bg-[#34c759]/10 px-2.5 py-1 text-xs font-semibold text-[#248a3d] shadow-xs hover:bg-[#34c759]/20 transition"
                       >
-                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                        <ShieldCheck className="h-3.5 w-3.5 text-[#248a3d]" />
                         <span>정상 메일 복원</span>
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={() => handleReportSpam(mail)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 shadow-xs hover:bg-amber-100 transition"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#ff9500]/30 bg-[#ff9500]/10 px-2.5 py-1 text-xs font-semibold text-[#b25000] shadow-xs hover:bg-[#ff9500]/20 transition"
                       >
-                        <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
+                        <ShieldAlert className="h-3.5 w-3.5 text-[#b25000]" />
                         <span>스팸 신고</span>
                       </button>
                     )}
@@ -668,7 +671,7 @@ function MailMultiViewContent() {
                     <button
                       type="button"
                       onClick={() => handleDelete(mail)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#ff3b30]/25 bg-[#ff3b30]/10 px-2.5 py-1 text-xs font-semibold text-[#ff3b30] hover:bg-[#ff3b30]/20 transition"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       <span>삭제</span>
@@ -676,10 +679,10 @@ function MailMultiViewContent() {
                   </div>
 
                   {/* Recipients & Security Badges */}
-                  <div className="border-b border-slate-100 bg-slate-50/40 px-6 py-3 space-y-2 text-xs text-slate-500">
+                  <div className="border-b border-black/[0.06] bg-[#f5f5f7]/40 px-6 py-3 space-y-2 text-xs text-[#6e6e73]">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-700">받는사람:</span>
-                      <span className="text-slate-700">
+                      <span className="font-semibold text-[#1d1d1f]">받는사람:</span>
+                      <span className="text-[#1d1d1f]">
                         {mail.recipients && mail.recipients.length > 0
                           ? mail.recipients
                               .map((r) =>
@@ -694,26 +697,30 @@ function MailMultiViewContent() {
                   </div>
 
                   {/* AI Assistant Panel */}
-                  <MailAiAssistantPanel
-                    mailId={mail.id}
-                    subject={mail.subject || ''}
-                    senderEmail={mail.sender}
-                    bodyHtml={mail.body?.html || undefined}
-                    bodyText={mail.body?.text || undefined}
-                    attachments={mail.attachments as any}
-                    onReplyWithDraft={(draftBody) => {
-                      if (typeof window !== 'undefined') {
-                        sessionStorage.setItem('ai_reply_draft', draftBody);
-                      }
-                      router.push(`/mail/compose?mode=reply&replyId=${mail.id}`);
-                    }}
-                  />
+                  <div className="px-6 pt-4 empty:hidden">
+                    <div className="rounded-xl border border-black/[0.06]">
+                      <MailAiAssistantPanel
+                        mailId={mail.id}
+                        subject={mail.subject || ''}
+                        senderEmail={mail.sender}
+                        bodyHtml={mail.body?.html || undefined}
+                        bodyText={mail.body?.text || undefined}
+                        attachments={mail.attachments as any}
+                        onReplyWithDraft={(draftBody) => {
+                          if (typeof window !== 'undefined') {
+                            sessionStorage.setItem('ai_reply_draft', draftBody);
+                          }
+                          router.push(`/mail/compose?mode=reply&replyId=${mail.id}`);
+                        }}
+                      />
+                    </div>
+                  </div>
 
                   {/* Attachments */}
                   {mail.attachments && mail.attachments.length > 0 && (
-                    <div className="border-b border-slate-100 bg-sky-50/30 p-4 px-6">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2">
-                        <Paperclip className="h-4 w-4 text-sky-600" />
+                    <div className="border-b border-black/[0.06] bg-[#f5f5f7]/40 px-6 py-4 mt-4">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-[#1d1d1f] mb-2">
+                        <Paperclip className="h-4 w-4 text-[#0071e3]" />
                         <span>첨부파일 ({mail.attachments.length}개)</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -721,14 +728,14 @@ function MailMultiViewContent() {
                           <a
                             key={att.id}
                             href={`/api/mails/${mail.id}/attachments/${att.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 shadow-sm hover:border-sky-300 hover:bg-sky-50 transition"
+                            className="inline-flex items-center gap-2 rounded-xl border border-black/[0.08] bg-white px-3 py-1.5 text-xs font-medium text-[#1d1d1f] shadow-xs hover:border-[#0071e3]/40 hover:bg-[#0071e3]/5 transition"
                           >
-                            <FileText className="h-4 w-4 text-sky-500" />
+                            <FileText className="h-4 w-4 text-[#0071e3]" />
                             <span>{att.filename}</span>
-                            <span className="text-[11px] text-slate-400">
-                              ({att.sizeBytes} B)
+                            <span className="text-[11px] text-[#86868b]">
+                              ({formatFileSize(att.sizeBytes)})
                             </span>
-                            <Download className="h-3 w-3 text-slate-400 ml-1" />
+                            <Download className="h-3 w-3 text-[#86868b] ml-1" />
                           </a>
                         ))}
                       </div>
@@ -740,11 +747,11 @@ function MailMultiViewContent() {
                     {mail.body?.html ? (
                       <SandboxedMailBody html={mail.body.html} />
                     ) : mail.body?.text ? (
-                      <pre className="whitespace-pre-wrap font-sans text-sm text-slate-800">
+                      <pre className="whitespace-pre-wrap font-sans text-sm text-[#1d1d1f]">
                         {mail.body.text}
                       </pre>
                     ) : (
-                      <p className="text-sm italic text-slate-400">
+                      <p className="text-sm italic text-[#86868b]">
                         본문 내용이 없습니다.
                       </p>
                     )}
@@ -789,6 +796,8 @@ function MailMultiViewContent() {
         groups={contactGroups}
         onSaved={handleContactSaved}
       />
+
+      <ToastBanner toast={toast} />
     </div>
   );
 }

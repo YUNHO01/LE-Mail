@@ -18,7 +18,7 @@ export const Header: React.FC<HeaderProps> = ({ sidebarOpen, setSidebarOpen }) =
   const { canInstall, isStandalone, promptInstall } = usePwa();
 
   return (
-    <header className="sticky top-0 z-20 flex h-12 w-full shrink-0 items-center justify-between border-b border-black/[0.08] bg-[#f5f5f7]/90 backdrop-blur-xl px-4">
+    <header className="sticky top-0 z-20 flex h-12 w-full shrink-0 items-center justify-between border-b border-black/[0.08] bg-[#f5f5f7]/90 backdrop-blur-xl px-4 lg:hidden">
       <div className="flex items-center gap-3">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}

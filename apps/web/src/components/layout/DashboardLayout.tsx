@@ -54,7 +54,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
                 {/* 상단 씬(Slim) 로딩 프로그레스 인디케이터 (페이지 전환 중일 때 즉각 표시) */}
                 {isNavigating && (
-                    <div className="absolute top-12 left-0 right-0 h-0.5 bg-black/5 z-50 overflow-hidden">
+                    <div className="absolute top-12 lg:top-0 left-0 right-0 h-0.5 bg-black/5 z-50 overflow-hidden">
                         <div className="h-full animate-pulse w-full origin-left transition-all bg-[#0071e3]" />
                     </div>
                 )}

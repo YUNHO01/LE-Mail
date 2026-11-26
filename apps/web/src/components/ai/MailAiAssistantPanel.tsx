@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Sparkles,
   FileText,
   Reply,
   Languages,
@@ -13,6 +12,8 @@ import {
   CheckCircle2,
   Copy,
   RefreshCw,
+  ChevronDown,
+  Wand2,
   X,
 } from 'lucide-react';
 import { fetchApi, contactsApi } from '@/lib/api';
@@ -89,7 +90,29 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
   const [calendarDraft, setCalendarDraft] = useState<AiParsedCalendarEventDto | null>(null);
   const [imageResult, setImageResult] = useState<AiImageAnalysisResultDto | null>(null);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
   const lastAutoSummarizedMailIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isToolsOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
+        setIsToolsOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsToolsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isToolsOpen]);
 
   const imageCandidates = useMemo(() => {
     const list: { label: string; attachmentId?: string; dataUrl?: string }[] = [];
@@ -352,89 +375,131 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
   const isBusy = busyAction !== null;
 
   return (
-    <div className="border-b border-black/[0.06] bg-[#f5f5f7]/75 px-4 py-2.5 space-y-2.5">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1d1d1f] mr-1">
-          <Sparkles className="h-3.5 w-3.5 text-[#0071e3]" />
-          AI 도우미
-        </span>
-
+    <div className="rounded-xl bg-[#f5f5f7]/60 px-4 py-2 space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
         <button
           type="button"
           disabled={isBusy}
           onClick={() => handleSummarize(false)}
           className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
         >
-          {busyAction === 'summarize' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <FileText className="h-3 w-3 text-[#0071e3]" />}
-          요약 / 할 일
+          {busyAction === 'summarize' || autoSummarizing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#0071e3]" />
+          ) : (
+            <FileText className="h-3.5 w-3.5 text-[#0071e3]" />
+          )}
+          <span>{autoSummarizing ? '요약 생성 중...' : '메일 요약'}</span>
         </button>
 
-        <button
-          type="button"
-          disabled={isBusy}
-          onClick={() => handleDraft('reply')}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
-        >
-          {busyAction === 'reply' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <Reply className="h-3 w-3 text-[#0071e3]" />}
-          답장 초안
-        </button>
-
-        <button
-          type="button"
-          disabled={isBusy}
-          onClick={() => handleDraft('translate')}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
-        >
-          {busyAction === 'translate' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <Languages className="h-3 w-3 text-[#0071e3]" />}
-          한국어 번역
-        </button>
-
-        <button
-          type="button"
-          disabled={isBusy}
-          onClick={handleExtractContact}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
-        >
-          {busyAction === 'contact' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <UserPlus className="h-3 w-3 text-[#0071e3]" />}
-          서명 → 주소록
-        </button>
-
-        <button
-          type="button"
-          disabled={isBusy}
-          onClick={handleExtractCalendar}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
-        >
-          {busyAction === 'calendar' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <CalendarPlus className="h-3 w-3 text-[#0071e3]" />}
-          일정 추출
-        </button>
-
-        {canAnalyzeImage && imageCandidates.length > 0 && (
-          <div className="inline-flex items-center gap-1">
-            {imageCandidates.length > 1 && (
-              <select
-                value={selectedImageIdx}
-                onChange={(e) => setSelectedImageIdx(Number(e.target.value))}
-                className="rounded-lg border border-black/[0.08] bg-white px-2 py-1 text-xs text-[#1d1d1f]"
-              >
-                {imageCandidates.map((img, i) => (
-                  <option key={i} value={i}>
-                    {img.label}
-                  </option>
-                ))}
-              </select>
+        <div className="relative" ref={toolsMenuRef}>
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => setIsToolsOpen((prev) => !prev)}
+            aria-expanded={isToolsOpen}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition disabled:opacity-40 ${
+              isToolsOpen
+                ? 'border-[#0071e3] bg-white text-[#0071e3]'
+                : 'border-black/[0.08] bg-white text-[#1d1d1f] hover:bg-black/[0.03]'
+            }`}
+          >
+            {isBusy && busyAction !== 'summarize' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#0071e3]" />
+            ) : (
+              <Wand2 className="h-3.5 w-3.5 text-[#0071e3]" />
             )}
-            <button
-              type="button"
-              disabled={isBusy}
-              onClick={handleAnalyzeImage}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-1 text-xs font-medium text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-40 transition"
-            >
-              {busyAction === 'image' ? <Loader2 className="h-3 w-3 animate-spin text-[#0071e3]" /> : <ImageIcon className="h-3 w-3 text-[#0071e3]" />}
-              이미지 해석
-            </button>
-          </div>
-        )}
+            <span>AI 도구</span>
+            <ChevronDown
+              className={`h-3 w-3 text-[#86868b] transition-transform duration-150 ${
+                isToolsOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
+          {isToolsOpen && (
+            <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl border border-black/[0.08] bg-white py-1.5 shadow-xl z-40">
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => {
+                  setIsToolsOpen(false);
+                  handleDraft('reply');
+                }}
+                className="w-full px-3 py-1.5 text-left text-xs text-[#1d1d1f] hover:bg-[#007aff]/10 hover:text-[#0071e3] flex items-center gap-2 transition"
+              >
+                <Reply className="h-3.5 w-3.5 text-[#0071e3]" />
+                <span>답장 초안 작성</span>
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => {
+                  setIsToolsOpen(false);
+                  handleDraft('translate');
+                }}
+                className="w-full px-3 py-1.5 text-left text-xs text-[#1d1d1f] hover:bg-[#007aff]/10 hover:text-[#0071e3] flex items-center gap-2 transition"
+              >
+                <Languages className="h-3.5 w-3.5 text-[#0071e3]" />
+                <span>한국어 번역</span>
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => {
+                  setIsToolsOpen(false);
+                  handleExtractContact();
+                }}
+                className="w-full px-3 py-1.5 text-left text-xs text-[#1d1d1f] hover:bg-[#007aff]/10 hover:text-[#0071e3] flex items-center gap-2 transition"
+              >
+                <UserPlus className="h-3.5 w-3.5 text-[#0071e3]" />
+                <span>서명에서 연락처 추출</span>
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => {
+                  setIsToolsOpen(false);
+                  handleExtractCalendar();
+                }}
+                className="w-full px-3 py-1.5 text-left text-xs text-[#1d1d1f] hover:bg-[#007aff]/10 hover:text-[#0071e3] flex items-center gap-2 transition"
+              >
+                <CalendarPlus className="h-3.5 w-3.5 text-[#0071e3]" />
+                <span>본문에서 일정 추출</span>
+              </button>
+
+              {canAnalyzeImage && imageCandidates.length > 0 && (
+                <div className="mt-1 pt-1 border-t border-black/[0.06] px-2 space-y-1">
+                  {imageCandidates.length > 1 && (
+                    <select
+                      value={selectedImageIdx}
+                      onChange={(e) => setSelectedImageIdx(Number(e.target.value))}
+                      aria-label="해석할 이미지 선택"
+                      className="w-full rounded-lg border border-black/[0.08] bg-[#f5f5f7] px-2 py-1 text-[11px] text-[#1d1d1f]"
+                    >
+                      {imageCandidates.map((img, i) => (
+                        <option key={i} value={i}>
+                          {img.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => {
+                      setIsToolsOpen(false);
+                      handleAnalyzeImage();
+                    }}
+                    className="w-full px-1 py-1.5 text-left text-xs text-[#1d1d1f] hover:bg-[#007aff]/10 hover:text-[#0071e3] flex items-center gap-2 rounded-lg transition"
+                  >
+                    <ImageIcon className="h-3.5 w-3.5 text-[#0071e3]" />
+                    <span>첨부 이미지 해석</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -484,6 +549,8 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           <button
             type="button"
             onClick={() => setSummaryResult(null)}
+            aria-label="요약 닫기"
+            title="닫기"
             className="absolute right-3 top-3.5 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
@@ -491,7 +558,7 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           <p className="text-[#1d1d1f]/80 leading-relaxed whitespace-pre-wrap">{summaryResult.summary}</p>
           {summaryResult.actionItems.length > 0 && (
             <div>
-              <p className="font-semibold text-[#0071e3] mb-1">할 일 (Action Items)</p>
+              <p className="font-semibold text-[#0071e3] mb-1">할 일</p>
               <ul className="list-disc pl-4 space-y-0.5 text-[#6e6e73]">
                 {summaryResult.actionItems.map((item, idx) => (
                   <li key={idx}>{item}</li>
@@ -517,6 +584,8 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           <button
             type="button"
             onClick={() => setDraftResult(null)}
+            aria-label="AI 생성 결과 닫기"
+            title="닫기"
             className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
@@ -556,6 +625,8 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           <button
             type="button"
             onClick={() => setContactDraft(null)}
+            aria-label="연락처 추출 닫기"
+            title="닫기"
             className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
@@ -616,6 +687,8 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           <button
             type="button"
             onClick={() => setCalendarDraft(null)}
+            aria-label="일정 추출 닫기"
+            title="닫기"
             className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />
@@ -664,6 +737,8 @@ export const MailAiAssistantPanel: React.FC<MailAiAssistantPanelProps> = ({
           <button
             type="button"
             onClick={() => setImageResult(null)}
+            aria-label="이미지 해석 닫기"
+            title="닫기"
             className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f]"
           >
             <X className="h-3.5 w-3.5" />

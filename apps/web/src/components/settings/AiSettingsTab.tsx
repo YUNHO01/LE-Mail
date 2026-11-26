@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  Sparkles,
+  Bot,
   KeyRound,
   CheckCircle2,
   XCircle,
@@ -15,7 +15,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
-import { SelectDropdown } from '@/components/common';
+import { SelectDropdown, ToggleSwitch } from '@/components/common';
 import {
   AiPolicyDto,
   AiProvider,
@@ -56,7 +56,7 @@ const PROVIDER_META: Record<
   },
 };
 
-export function AiSettingsTab() {
+export function AiSettingsTab({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -69,6 +69,7 @@ export function AiSettingsTab() {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [maskedApiKey, setMaskedApiKey] = useState<string | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [confirmClearKey, setConfirmClearKey] = useState(false);
   const [customBaseUrl, setCustomBaseUrl] = useState('');
   const [responseTone, setResponseTone] = useState<AiResponseTone>(
     AiResponseTone.PROFESSIONAL,
@@ -175,6 +176,7 @@ export function AiSettingsTab() {
       setMaskedApiKey(updated.maskedApiKey);
       setAutoSummarizeOnRead(Boolean(updated.autoSummarizeOnRead));
       setApiKeyInput('');
+      onDirtyChange?.(false);
       setFeedback({
         type: 'success',
         message: clearKey
@@ -203,7 +205,7 @@ export function AiSettingsTab() {
         <div>
           <p className="font-semibold">관리자 정책에 의해 개인 외부 AI 사용이 비활성화되어 있습니다.</p>
           <p className="mt-1 text-xs text-amber-700">
-            시스템 관리자가 관리자 환경설정(Step 6: AI 지원)에서 허용하면 개인 API Key를 연동할 수 있습니다.
+            시스템 관리자가 관리자 환경설정에서 허용하면 개인 API Key를 연동할 수 있습니다.
           </p>
         </div>
       </div>
@@ -213,38 +215,35 @@ export function AiSettingsTab() {
   const allowedProviders = policy?.allowedProviders || Object.values(AiProvider);
 
   return (
-    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-      <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+    <div className="space-y-6 rounded-2xl border border-black/[0.08] bg-white p-6 shadow-xs">
+      <div className="flex items-start justify-between gap-4 border-b border-black/[0.06] pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-            <Sparkles className="h-5 w-5" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0071e3]/10 text-[#0071e3]">
+            <Bot className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">개인용 외부 AI 연동</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="text-base font-bold text-[#1d1d1f]">개인용 외부 AI 연동</h3>
+            <p className="text-xs text-[#6e6e73]">
               입력한 API Key는 서버에서 AES-256-GCM으로 암호화되어 저장되며, 메일·주소록·일정 보조 기능에 활용됩니다.
             </p>
           </div>
         </div>
 
-        <label className="inline-flex cursor-pointer items-center">
-          <input
-            type="checkbox"
-            checked={isEnabled}
-            onChange={(e) => setIsEnabled(e.target.checked)}
-            aria-label="개인용 외부 AI 연동"
-            className="peer sr-only"
-          />
-          <div className="h-6 w-11 rounded-full bg-slate-200 peer-checked:bg-violet-600 relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-        </label>
+        <ToggleSwitch
+          checked={isEnabled}
+          onChange={setIsEnabled}
+          color="primary"
+          showStatusText={false}
+          className="shrink-0"
+        />
       </div>
 
       {feedback && (
         <div
           className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium ${
             feedback.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-rose-200 bg-rose-50 text-rose-700'
+              ? 'border-[#34c759]/30 bg-[#34c759]/10 text-[#248a3d]'
+              : 'border-[#ff3b30]/25 bg-[#ff3b30]/[0.06] text-[#d70015]'
           }`}
         >
           {feedback.type === 'success' ? (
@@ -258,7 +257,7 @@ export function AiSettingsTab() {
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+          <label className="mb-1.5 block text-xs font-semibold text-[#1d1d1f]">
             AI 제공자 (Provider)
           </label>
           <SelectDropdown
@@ -274,25 +273,29 @@ export function AiSettingsTab() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+          <label htmlFor="ai-model-input" className="mb-1.5 block text-xs font-semibold text-[#1d1d1f]">
             모델명 (Model)
           </label>
           <input
+            id="ai-model-input"
             type="text"
             value={model}
-            onChange={(e) => setModel(e.target.value)}
+            onChange={(e) => {
+              setModel(e.target.value);
+              onDirtyChange?.(true);
+            }}
             placeholder={PROVIDER_META[provider]?.defaultModel}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:border-violet-500 focus:bg-white focus:outline-none"
+            className="h-[38px] w-full rounded-lg border border-black/[0.1] bg-white px-3.5 text-sm text-[#1d1d1f] placeholder-[#86868b] focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/15 focus:outline-none"
           />
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-[11px] text-[#86868b]">
             예: {PROVIDER_META[provider]?.hint}
           </p>
         </div>
 
         <div className="md:col-span-2">
-          <label className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-700">
+          <label htmlFor="ai-apikey-input" className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-[#1d1d1f]">
             <span className="flex items-center gap-1.5">
-              <KeyRound className="h-3.5 w-3.5 text-violet-600" />
+              <KeyRound className="h-3.5 w-3.5 text-[#0071e3]" />
               API Key
             </span>
             <div className="flex items-center gap-3">
@@ -301,14 +304,14 @@ export function AiSettingsTab() {
                   href={PROVIDER_META[provider].keyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700 hover:underline"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0071e3] hover:underline"
                 >
                   <span>{PROVIDER_META[provider].keyLabel}</span>
                   <ExternalLink className="h-3 w-3" />
                 </a>
               )}
               {hasApiKey && maskedApiKey && (
-                <span className="font-mono text-[11px] text-emerald-600">
+                <span className="font-mono text-[11px] text-[#248a3d]">
                   등록됨 ({maskedApiKey})
                 </span>
               )}
@@ -317,20 +320,26 @@ export function AiSettingsTab() {
           <div className="relative flex items-center gap-2">
             <div className="relative flex-1">
               <input
+                id="ai-apikey-input"
                 type={showApiKey ? 'text' : 'password'}
                 value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
+                onChange={(e) => {
+                  setApiKeyInput(e.target.value);
+                  onDirtyChange?.(true);
+                }}
                 placeholder={
                   hasApiKey
                     ? '변경할 경우에만 새 API Key를 입력하세요'
                     : '발급받은 API Key를 입력하세요'
                 }
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-10 text-sm text-slate-800 focus:border-violet-500 focus:bg-white focus:outline-none"
+                className="h-[38px] w-full rounded-lg border border-black/[0.1] bg-white px-3.5 pr-10 text-sm text-[#1d1d1f] placeholder-[#86868b] focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/15 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey((v) => !v)}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                aria-label={showApiKey ? 'API Key 숨기기' : 'API Key 보기'}
+                title={showApiKey ? '숨기기' : '보기'}
+                className="absolute inset-y-0 right-2.5 flex items-center text-[#86868b] hover:text-[#1d1d1f]"
               >
                 {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -339,7 +348,7 @@ export function AiSettingsTab() {
               type="button"
               onClick={handleTest}
               disabled={testing}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex h-[38px] items-center gap-1.5 rounded-lg border border-black/[0.1] bg-white px-4 text-xs font-semibold text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-50 transition"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${testing ? 'animate-spin' : ''}`} />
               연결 테스트
@@ -349,7 +358,7 @@ export function AiSettingsTab() {
 
         {provider === AiProvider.CUSTOM && (
           <div className="md:col-span-2">
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+            <label className="mb-1.5 block text-xs font-semibold text-[#1d1d1f]">
               Custom Base URL (OpenAI 호환 엔드포인트)
             </label>
             <input
@@ -357,13 +366,13 @@ export function AiSettingsTab() {
               value={customBaseUrl}
               onChange={(e) => setCustomBaseUrl(e.target.value)}
               placeholder="http://localhost:11434/v1"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:border-violet-500 focus:bg-white focus:outline-none"
+              className="h-[38px] w-full rounded-lg border border-black/[0.1] bg-white px-3.5 text-sm text-[#1d1d1f] placeholder-[#86868b] focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/15 focus:outline-none"
             />
           </div>
         )}
 
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+          <label className="mb-1.5 block text-xs font-semibold text-[#1d1d1f]">
             기본 메일 작성 어조
           </label>
           <SelectDropdown
@@ -380,7 +389,7 @@ export function AiSettingsTab() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+          <label className="mb-1.5 block text-xs font-semibold text-[#1d1d1f]">
             기본 AI 응답 언어
           </label>
           <SelectDropdown
@@ -397,44 +406,65 @@ export function AiSettingsTab() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3.5">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-black/[0.06] bg-[#f5f5f7] px-4 py-3.5">
         <div>
-          <p className="text-xs font-semibold text-slate-800">
+          <p className="text-xs font-semibold text-[#1d1d1f]">
             메일 읽기 시 AI 자동 요약
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-500">
+          <p className="mt-0.5 text-[11px] text-[#6e6e73]">
             메일을 열면 상단에 핵심 요약과 할 일을 자동으로 표시합니다. (답신/이전 원본 인용 내용은 제외되며, 한 번 요약된 메일은 DB에 저장되어 재요청하지 않습니다.)
           </p>
         </div>
 
-        <label className="inline-flex shrink-0 cursor-pointer items-center">
-          <input
-            type="checkbox"
-            checked={autoSummarizeOnRead}
-            disabled={!isEnabled}
-            onChange={(e) => setAutoSummarizeOnRead(e.target.checked)}
-            aria-label="메일 읽기 시 AI 자동 요약"
-            className="peer sr-only"
-          />
-          <div className="h-6 w-11 rounded-full bg-slate-200 peer-disabled:opacity-50 peer-checked:bg-violet-600 relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-        </label>
+        <ToggleSwitch
+          checked={autoSummarizeOnRead}
+          disabled={!isEnabled}
+          onChange={setAutoSummarizeOnRead}
+          color="primary"
+          showStatusText={false}
+          className="shrink-0"
+        />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600">
+      <div className="rounded-xl bg-[#f5f5f7] px-4 py-3 text-xs text-[#6e6e73]">
         안내: 메일 요약, 답장 초안, 서명 연락처 추출, 일정 등록 등 AI 기능을 사용할 때(자동 요약 활성화 시 메일 열람 시점 포함) 해당 본문 텍스트가 선택한 외부 AI 서버로 전송됩니다. (첨부파일은 전송되지 않습니다.)
       </div>
 
-      <div className="flex items-center justify-between pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
         {hasApiKey ? (
-          <button
-            type="button"
-            onClick={() => handleSave(true)}
-            disabled={saving}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-50"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            저장된 API Key 삭제
-          </button>
+          confirmClearKey ? (
+            <div className="flex items-center gap-2 rounded-lg border border-[#ff3b30]/25 bg-[#ff3b30]/[0.06] px-3 py-1.5 text-xs">
+              <span className="font-medium text-[#d70015]">API Key를 삭제하고 AI를 비활성화할까요?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmClearKey(false);
+                  handleSave(true);
+                }}
+                disabled={saving}
+                className="rounded-md bg-[#ff3b30] px-2.5 py-1 font-semibold text-white hover:bg-[#d70015] disabled:opacity-50 transition"
+              >
+                삭제 확인
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmClearKey(false)}
+                className="rounded-md px-2 py-1 font-medium text-[#6e6e73] hover:bg-black/[0.05] transition"
+              >
+                취소
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmClearKey(true)}
+              disabled={saving}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#ff3b30]/25 bg-[#ff3b30]/[0.06] px-3.5 text-xs font-semibold text-[#ff3b30] hover:bg-[#ff3b30]/12 disabled:opacity-50 transition"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              저장된 API Key 삭제
+            </button>
+          )
         ) : (
           <div />
         )}
@@ -443,7 +473,7 @@ export function AiSettingsTab() {
           type="button"
           onClick={() => handleSave(false)}
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-violet-500 disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#0071e3] px-5 text-xs font-semibold text-white shadow-xs hover:bg-[#0062c4] disabled:opacity-50 transition"
         >
           <Save className="h-4 w-4" />
           <span>{saving ? '저장 중...' : 'AI 설정 저장'}</span>

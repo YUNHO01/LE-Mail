@@ -143,10 +143,10 @@ export function SelectDropdown<T extends string = string>({
           fullWidth ? 'w-full' : ''
         } ${sizeClasses} ${
           disabled
-            ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75'
+            ? 'border-black/[0.08] bg-[#f5f5f7] text-[#86868b] cursor-not-allowed opacity-75'
             : isOpen
-              ? 'border-sky-500 ring-2 ring-sky-500/20 text-slate-800 cursor-pointer'
-              : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+              ? 'border-[#0071e3] ring-2 ring-[#0071e3]/15 text-[#1d1d1f] cursor-pointer'
+              : 'border-black/[0.1] text-[#1d1d1f] hover:border-black/[0.18] hover:bg-black/[0.02] cursor-pointer'
         }`}
       >
         <span className="flex items-center gap-2 min-w-0">
@@ -157,14 +157,14 @@ export function SelectDropdown<T extends string = string>({
           )}
           <span
             className={`truncate ${
-              size === 'sm' ? 'font-semibold text-slate-800' : 'text-slate-800'
-            } ${!currentOption ? 'text-slate-400' : ''}`}
+              size === 'sm' ? 'font-semibold text-[#1d1d1f]' : 'text-[#1d1d1f]'
+            } ${!currentOption ? 'text-[#86868b]' : ''}`}
           >
             {currentOption ? currentOption.label : placeholder}
           </span>
         </span>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-150 ${
+          className={`w-3.5 h-3.5 text-[#86868b] shrink-0 transition-transform duration-150 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -184,12 +184,12 @@ export function SelectDropdown<T extends string = string>({
               minWidth: coords.minWidth,
               transform: coords.openUpward ? 'translateY(-100%)' : undefined,
             }}
-            className={`rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl z-[9999] animate-in fade-in zoom-in-95 duration-100 ${
+            className={`rounded-xl border border-black/[0.08] bg-white py-1.5 shadow-xl z-[9999] animate-in fade-in zoom-in-95 duration-100 ${
               menuWidthClass || ''
             }`}
           >
             {headerLabel && (
-              <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              <div className="px-3 py-1 border-b border-black/[0.06] text-[10px] font-semibold text-[#86868b] uppercase tracking-wider">
                 {headerLabel}
               </div>
             )}
@@ -208,10 +208,10 @@ export function SelectDropdown<T extends string = string>({
                     }}
                     className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between gap-2 transition ${
                       opt.disabled
-                        ? 'text-slate-300 cursor-not-allowed'
+                        ? 'text-[#c7c7cc] cursor-not-allowed'
                         : isSelected
-                          ? 'bg-sky-50 text-sky-800 font-semibold'
-                          : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900 cursor-pointer'
+                          ? 'bg-[#007aff]/10 text-[#0071e3] font-semibold'
+                          : 'text-[#1d1d1f] hover:bg-black/[0.04] cursor-pointer'
                     }`}
                   >
                     <span
@@ -219,7 +219,7 @@ export function SelectDropdown<T extends string = string>({
                       style={opt.indent ? { paddingLeft: `${opt.indent * 14}px` } : undefined}
                     >
                       {opt.treePrefix && (
-                        <span className="text-slate-400 font-mono text-[11px] shrink-0 select-none">
+                        <span className="text-[#86868b] font-mono text-[11px] shrink-0 select-none">
                           {opt.treePrefix}
                         </span>
                       )}
@@ -230,7 +230,7 @@ export function SelectDropdown<T extends string = string>({
                       )}
                       <span className="truncate">{opt.label}</span>
                     </span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-sky-600 shrink-0" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-[#0071e3] shrink-0" />}
                   </button>
                 );
               })}

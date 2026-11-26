@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { PushSubscriptionItem } from '@lemail/shared-types';
 import { pushApi } from '@/lib/api';
+import { ToggleSwitch } from '@/components/common';
 import {
   getCurrentBrowserPushEndpoint,
   isIosSafariNotInstalled,
@@ -34,6 +35,7 @@ export const NotificationSettingsTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [updatingField, setUpdatingField] = useState<'pushEnabled' | 'pushPreviewEnabled' | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadState = useCallback(async () => {
@@ -142,7 +144,9 @@ export const NotificationSettingsTab: React.FC = () => {
     field: 'pushEnabled' | 'pushPreviewEnabled',
     nextValue: boolean,
   ) => {
+    if (updatingField) return;
     setMessage(null);
+    setUpdatingField(field);
     try {
       const updated = await pushApi.updateSettings({ [field]: nextValue });
       setPushEnabled(updated.pushEnabled);
@@ -153,6 +157,8 @@ export const NotificationSettingsTab: React.FC = () => {
         type: 'error',
         text: err?.message || '설정 변경에 실패했습니다.',
       });
+    } finally {
+      setUpdatingField(null);
     }
   };
 
@@ -190,20 +196,26 @@ export const NotificationSettingsTab: React.FC = () => {
     );
   }
 
+  const permissionLabelMap: Record<NotificationPermission, string> = {
+    granted: '허용됨',
+    denied: '차단됨',
+    default: '미설정',
+  };
+
   return (
-    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+    <div className="space-y-6 rounded-2xl border border-black/[0.08] bg-white p-6 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-black/[0.06] pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0071e3]/10 text-[#0071e3]">
             {currentSubscription ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">Web Push 알림 설정</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="text-base font-bold text-[#1d1d1f]">Web Push 알림 설정</h3>
+            <p className="text-xs text-[#6e6e73]">
               새 메일 도착 시 현재 브라우저 또는 모바일 PWA로 실시간 푸시 알림을 수신합니다.
-              {' · '}권한: <span className="font-semibold">{permission}</span>
+              {' · '}권한: <span className="font-semibold text-[#1d1d1f]">{permissionLabelMap[permission] || permission}</span>
               {' · '}상태:{' '}
-              <span className={currentSubscription ? 'font-semibold text-emerald-600' : 'text-slate-500'}>
+              <span className={currentSubscription ? 'font-semibold text-[#248a3d]' : 'text-[#6e6e73]'}>
                 {currentSubscription ? '구독 중' : '미등록'}
               </span>
             </p>
@@ -217,16 +229,16 @@ export const NotificationSettingsTab: React.FC = () => {
                 type="button"
                 onClick={handleTestPush}
                 disabled={testing || busy}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-black/[0.1] bg-white px-3.5 text-xs font-semibold text-[#1d1d1f] hover:bg-black/[0.03] disabled:opacity-50 transition"
               >
-                {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5 text-[#0071e3]" />}
                 <span>테스트 알림</span>
               </button>
               <button
                 type="button"
                 onClick={handleUnsubscribeThisDevice}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#ff3b30]/25 bg-[#ff3b30]/[0.06] px-3.5 text-xs font-semibold text-[#ff3b30] hover:bg-[#ff3b30]/12 disabled:opacity-50 transition"
               >
                 <BellOff className="h-3.5 w-3.5" />
                 <span>이 기기 알림 끄기</span>
@@ -237,7 +249,7 @@ export const NotificationSettingsTab: React.FC = () => {
               type="button"
               onClick={handleSubscribeThisDevice}
               disabled={busy || !supported}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-500 disabled:opacity-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#0071e3] px-4 text-xs font-semibold text-white shadow-xs hover:bg-[#0062c4] disabled:opacity-50 transition"
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
               <span>이 기기에서 알림 받기</span>
@@ -250,8 +262,8 @@ export const NotificationSettingsTab: React.FC = () => {
         <div
           className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium ${
             message.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-rose-200 bg-rose-50 text-rose-700'
+              ? 'border-[#34c759]/30 bg-[#34c759]/10 text-[#248a3d]'
+              : 'border-[#ff3b30]/25 bg-[#ff3b30]/[0.06] text-[#d70015]'
           }`}
         >
           {message.type === 'success' ? (
@@ -263,8 +275,17 @@ export const NotificationSettingsTab: React.FC = () => {
         </div>
       )}
 
+      {permission === 'denied' && (
+        <div className="rounded-xl border border-[#ff9500]/30 bg-[#ff9500]/10 p-4 text-xs text-[#9c4200] space-y-1">
+          <p className="font-semibold">브라우저 알림 권한이 차단되어 있습니다</p>
+          <p>
+            브라우저 주소창 왼쪽의 사이트 설정 아이콘을 눌러 <strong>알림 권한을 &apos;허용&apos;</strong>으로 변경한 뒤 다시 시도해 주세요.
+          </p>
+        </div>
+      )}
+
       {iosNeedsInstall && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-1">
+        <div className="rounded-xl border border-[#ff9500]/30 bg-[#ff9500]/10 p-4 text-xs text-[#9c4200] space-y-1">
           <p className="font-semibold">iOS Safari 알림 안내</p>
           <p>
             iPhone / iPad에서는 공유 버튼 → <strong>홈 화면에 추가</strong>로 앱을 설치한 뒤,
@@ -274,97 +295,81 @@ export const NotificationSettingsTab: React.FC = () => {
       )}
 
       {!supported && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600">
+        <div className="rounded-xl bg-[#f5f5f7] px-4 py-3 text-xs text-[#6e6e73]">
           현재 브라우저 환경에서는 Web Push API를 사용할 수 없습니다. (HTTPS 또는 localhost 환경의 최신 브라우저가 필요합니다.)
         </div>
       )}
 
       {/* 계정 전역 알림 옵션 */}
       <div className="space-y-3">
-        <h4 className="text-xs font-semibold text-slate-700">계정 알림 정책</h4>
+        <h4 className="text-xs font-semibold text-[#1d1d1f]">계정 알림 정책</h4>
 
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-black/[0.06] bg-[#f5f5f7] p-4">
           <div>
-            <p className="text-xs font-bold text-slate-900">새 메일 푸시 알림 수신</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">
+            <p className="text-xs font-bold text-[#1d1d1f]">새 메일 푸시 알림 수신</p>
+            <p className="mt-0.5 text-[11px] text-[#6e6e73]">
               비활성화하면 등록된 모든 기기로 새 메일 푸시를 발송하지 않습니다. (스팸함 메일은 항상 제외)
             </p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={pushEnabled}
-            aria-label="새 메일 푸시 알림 수신"
-            onClick={() => handleToggleSetting('pushEnabled', !pushEnabled)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
-              pushEnabled ? 'bg-sky-600' : 'bg-slate-200'
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                pushEnabled ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
+          <ToggleSwitch
+            checked={pushEnabled}
+            disabled={updatingField !== null}
+            onChange={(next) => handleToggleSetting('pushEnabled', next)}
+            color="primary"
+            showStatusText={false}
+            className="shrink-0"
+          />
         </div>
 
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-black/[0.06] bg-[#f5f5f7] p-4">
           <div>
-            <p className="text-xs font-bold text-slate-900">발신자 및 제목 미리보기 표시</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">
+            <p className="text-xs font-bold text-[#1d1d1f]">발신자 및 제목 미리보기 표시</p>
+            <p className="mt-0.5 text-[11px] text-[#6e6e73]">
               끄면 알림에 발신자와 제목 대신 &quot;새로운 메일이 도착했습니다.&quot;만 표시됩니다.
             </p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={pushPreviewEnabled}
-            aria-label="발신자 및 제목 미리보기 표시"
-            onClick={() => handleToggleSetting('pushPreviewEnabled', !pushPreviewEnabled)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
-              pushPreviewEnabled ? 'bg-sky-600' : 'bg-slate-200'
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                pushPreviewEnabled ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
+          <ToggleSwitch
+            checked={pushPreviewEnabled}
+            disabled={updatingField !== null}
+            onChange={(next) => handleToggleSetting('pushPreviewEnabled', next)}
+            color="primary"
+            showStatusText={false}
+            className="shrink-0"
+          />
         </div>
       </div>
 
       {/* 등록된 기기 목록 */}
       <div className="space-y-3">
-        <h4 className="text-xs font-semibold text-slate-700">
+        <h4 className="text-xs font-semibold text-[#1d1d1f]">
           등록된 알림 기기 ({subscriptions.length})
         </h4>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4">
+        <div className="rounded-xl border border-black/[0.06] bg-[#f5f5f7]/60 px-4">
           {subscriptions.length === 0 ? (
-            <p className="py-6 text-center text-xs text-slate-400">
+            <p className="py-6 text-center text-xs text-[#86868b]">
               아직 등록된 기기가 없습니다.
             </p>
           ) : (
-            <ul className="divide-y divide-slate-200/70">
+            <ul className="divide-y divide-black/[0.06]">
               {subscriptions.map((sub) => {
                 const isCurrent = sub.endpoint === currentEndpoint;
                 return (
                   <li key={sub.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Smartphone className="h-4 w-4 shrink-0 text-slate-400" />
+                      <Smartphone className="h-4 w-4 shrink-0 text-[#86868b]" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-xs font-semibold text-slate-800">
+                          <span className="truncate text-xs font-semibold text-[#1d1d1f]">
                             {sub.deviceLabel || '웹 브라우저'}
                           </span>
                           {isCurrent && (
-                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                            <span className="rounded-full bg-[#0071e3]/12 px-2 py-0.5 text-[10px] font-semibold text-[#0071e3]">
                               현재 기기
                             </span>
                           )}
                         </div>
-                        <p className="truncate text-[11px] text-slate-400">
+                        <p className="truncate text-[11px] text-[#86868b]">
                           등록: {new Date(sub.createdAt).toLocaleString('ko-KR')}
                           {sub.lastUsedAt
                             ? ` · 최근 발송: ${new Date(sub.lastUsedAt).toLocaleString('ko-KR')}`
@@ -376,8 +381,9 @@ export const NotificationSettingsTab: React.FC = () => {
                       type="button"
                       onClick={() => handleRemoveSubscription(sub)}
                       disabled={busy}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                      className="rounded-lg p-1.5 text-[#86868b] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] disabled:opacity-50 transition"
                       title="구독 삭제"
+                      aria-label={`${sub.deviceLabel || '웹 브라우저'} 알림 구독 삭제`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

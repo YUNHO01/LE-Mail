@@ -18,6 +18,7 @@ import {
 import { EventModal } from '@/components/calendar/EventModal';
 import { ContactModal } from '@/components/contacts/ContactModal';
 import { MailAiAssistantPanel } from '@/components/ai/MailAiAssistantPanel';
+import { ToastBanner, useToast, formatFileSize } from '@/components/common/ToastBanner';
 import {
   ArrowLeft,
   Download,
@@ -65,6 +66,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
   onStarChanged,
 }) => {
   const router = useRouter();
+  const { toast, showToast } = useToast();
   const [mail, setMail] = useState<MailMessageDto | null>(null);
   const [folders, setFolders] = useState<MailFolderDto[]>([]);
   const [spamFolderId, setSpamFolderId] = useState<string | null>(null);
@@ -137,7 +139,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
       }
       setCalendarModalOpen(true);
     } catch (err: any) {
-      alert(err?.message || '캘린더 목록을 불러오지 못했습니다.');
+      showToast(err?.message || '캘린더 목록을 불러오지 못했습니다.', 'error');
     }
   };
 
@@ -145,7 +147,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
     payload: CreateCalendarEventDto | UpdateCalendarEventDto,
   ) => {
     await calendarApi.createEvent(payload as CreateCalendarEventDto);
-    alert('캘린더에 일정이 등록되었습니다.');
+    showToast('캘린더에 일정이 등록되었습니다.');
   };
 
   useEffect(() => {
@@ -197,7 +199,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
       } catch (err: any) {
         if (!cancelled) {
           if (standalone) {
-            alert(err.message || '메일을 불러올 수 없습니다.');
+            showToast(err.message || '메일을 불러올 수 없습니다.', 'error');
             router.push('/mail/inbox');
           } else {
             console.error('메일 상세 조회 오류:', err);
@@ -243,9 +245,16 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         setIsMoveOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMoveOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMoveOpen]);
 
@@ -293,14 +302,14 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       if (standalone) {
         setMail((prev) => (prev ? { ...prev, folderId: targetFolder.id } : prev));
-        alert(`[${targetFolder.name}] 편지함으로 이동했습니다.`);
+        showToast(`[${targetFolder.name}] 편지함으로 이동했습니다.`);
       } else {
         onMoved?.(mail.id, targetFolder.id);
         onRefreshList?.();
-        alert(`[${targetFolder.name}] 편지함으로 이동했습니다.`);
+        showToast(`[${targetFolder.name}] 편지함으로 이동했습니다.`);
       }
     } catch (err: any) {
-      alert(err.message || '편지함 이동 실패');
+      showToast(err.message || '편지함 이동 실패', 'error');
     } finally {
       setMoving(false);
     }
@@ -318,7 +327,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
       onReadChanged?.(mail.id, nextRead);
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
     } catch (err: any) {
-      alert(err.message || '읽음 상태 변경 실패');
+      showToast(err.message || '읽음 상태 변경 실패', 'error');
     }
   };
 
@@ -333,7 +342,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
       setMail({ ...mail, isStarred: nextStarred });
       onStarChanged?.(mail.id, nextStarred);
     } catch (err: any) {
-      alert(err.message || '중요 표시 변경 실패');
+      showToast(err.message || '중요 표시 변경 실패', 'error');
     }
   };
 
@@ -350,7 +359,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         `/mails/${mail.id}/report-spam`,
         { method: 'POST' },
       );
-      alert(res.message || '스팸 신고 처리되었습니다.');
+      showToast(res.message || '스팸 신고 처리되었습니다.');
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       if (standalone) {
         router.push('/mail/inbox');
@@ -359,7 +368,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         onRefreshList?.();
       }
     } catch (err: any) {
-      alert(err.message || '스팸 신고 실패');
+      showToast(err.message || '스팸 신고 실패', 'error');
     }
   };
 
@@ -376,7 +385,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         `/mails/${mail.id}/unreport-spam`,
         { method: 'POST' },
       );
-      alert(res.message || '받은편지함으로 복원되었습니다.');
+      showToast(res.message || '받은편지함으로 복원되었습니다.');
       window.dispatchEvent(new CustomEvent('mail:refresh-folders'));
       if (standalone) {
         router.push('/mail/inbox');
@@ -385,7 +394,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         onRefreshList?.();
       }
     } catch (err: any) {
-      alert(err.message || '스팸 해제 실패');
+      showToast(err.message || '스팸 해제 실패', 'error');
     }
   };
 
@@ -402,7 +411,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         onRefreshList?.();
       }
     } catch (err: any) {
-      alert(err.message || '삭제 실패');
+      showToast(err.message || '삭제 실패', 'error');
     }
   };
 
@@ -436,9 +445,9 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
     : 'M';
 
   return (
-    <div className={`flex-1 flex flex-col min-h-0 bg-white ${standalone ? 'rounded-2xl border border-black/[0.08] overflow-hidden' : ''}`}>
+    <div className={`flex-1 flex flex-col min-h-0 bg-white ${standalone ? 'm-3 sm:m-5 rounded-2xl border border-black/[0.08] overflow-hidden shadow-xs' : ''}`}>
       {/* iCloud Style Sticky Action Toolbar */}
-      <div className="relative z-20 h-12 shrink-0 px-4 sm:px-6 border-b border-black/[0.06] flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md">
+      <div className="relative z-20 h-12 shrink-0 px-6 sm:px-8 border-b border-black/[0.06] flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md">
         <div className="flex items-center gap-1 flex-wrap">
           {standalone && (
             <>
@@ -616,8 +625,10 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         </div>
       </div>
 
-      {/* Fixed Mail Header (Subject + Sender/Recipients Metadata) */}
-      <div className="shrink-0 max-h-[38vh] overflow-y-auto border-b border-black/[0.06] bg-white px-6 sm:px-8 pt-5 pb-4">
+      {/* Scrollable Reading Content (Header + AI Assistant + Attachments + Mail Body) */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Mail Header (Subject + Sender/Recipients Metadata) */}
+        <div className="border-b border-black/[0.06] bg-white px-6 sm:px-8 pt-5 pb-4">
         <div className="max-w-4xl">
           {/* Subject & Badges */}
           <div className="flex items-start justify-between gap-3">
@@ -743,11 +754,11 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Body Area (AI Assistant + Attachments + Mail Body) */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-5">
+        {/* Body Area (AI Assistant + Attachments + Mail Body) */}
+        <div className="px-6 sm:px-8 py-5">
         <div className="max-w-4xl">
           {/* AI Assistant Panel */}
-          <div className="overflow-hidden rounded-xl border border-black/[0.06] empty:hidden">
+          <div className="rounded-xl border border-black/[0.06] empty:hidden">
             <MailAiAssistantPanel
               mailId={mail.id}
               subject={mail.subject || ''}
@@ -775,7 +786,7 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
                 >
                   <FileText className="h-3.5 w-3.5 text-[#0071e3]" />
                   <span>{att.filename}</span>
-                  <span className="text-[11px] text-[#86868b]">({att.sizeBytes} B)</span>
+                  <span className="text-[11px] text-[#86868b]">({formatFileSize(att.sizeBytes)})</span>
                   <Download className="h-3 w-3 text-[#86868b]" />
                 </a>
               ))}
@@ -795,7 +806,10 @@ export const MailReadingPane: React.FC<MailReadingPaneProps> = ({
             )}
           </div>
         </div>
+        </div>
       </div>
+
+      <ToastBanner toast={toast} />
 
       <EventModal
         isOpen={calendarModalOpen}

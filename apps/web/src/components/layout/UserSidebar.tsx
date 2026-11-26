@@ -22,6 +22,7 @@ import {
   Calendar as CalendarIcon,
   CalendarDays,
   CalendarClock,
+  LogOut,
 } from 'lucide-react';
 import { contactsApi, calendarApi } from '../../lib/api';
 import { ContactGroupDto, CalendarDto, formatBrandName } from '@lemail/shared-types';
@@ -38,7 +39,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAdmin, refreshStorageUsage, licenseStatus } = useAuth();
+  const { user, isAdmin, logout, refreshStorageUsage, licenseStatus } = useAuth();
   const brandName = formatBrandName(licenseStatus);
   const { startNavigation } = useNavigation();
   const isCompose = pathname === '/mail/compose';
@@ -259,7 +260,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
               className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-[11px] font-semibold tracking-wide text-[#86868b] hover:text-[#1d1d1f] hover:bg-black/[0.04] transition group"
             >
               <div className="flex items-center gap-2">
-                <Users className="h-3.5 w-3.5 text-emerald-600" />
+                <Users className="h-3.5 w-3.5 text-[#0071e3]" />
                 <span>주소록</span>
               </div>
               <ChevronDown
@@ -395,7 +396,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
               className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-[11px] font-semibold tracking-wide text-[#86868b] hover:text-[#1d1d1f] hover:bg-black/[0.04] transition group"
             >
               <div className="flex items-center gap-2">
-                <CalendarIcon className="h-3.5 w-3.5 text-violet-600" />
+                <CalendarIcon className="h-3.5 w-3.5 text-[#0071e3]" />
                 <span>캘린더</span>
               </div>
               <ChevronDown
@@ -572,6 +573,44 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Desktop Account Footer (lg+ 헤더 숨김으로 회수된 계정/로그아웃 컨트롤) */}
+        {user && (
+          <div className="hidden lg:flex shrink-0 items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-black/[0.06] px-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0071e3] text-[11px] font-bold text-white uppercase shadow-xs">
+                {user.name ? user.name.slice(0, 2) : 'US'}
+              </div>
+              <div className="min-w-0 leading-tight">
+                <div className="text-xs font-semibold text-[#1d1d1f] truncate">{user.name}</div>
+                <div className="text-[11px] text-[#86868b] truncate">{user.email}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {isAdmin && (process.env.NEXT_PUBLIC_CONSOLE_URL || '').trim() && (
+                <a
+                  href={(process.env.NEXT_PUBLIC_CONSOLE_URL || '').trim()}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="관리자 콘솔"
+                  aria-label="관리자 콘솔"
+                  className="rounded-lg p-1.5 text-[#0071e3] hover:bg-black/[0.05] transition"
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={logout}
+                title="로그아웃"
+                aria-label="로그아웃"
+                className="rounded-lg p-1.5 text-[#86868b] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

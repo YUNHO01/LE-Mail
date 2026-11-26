@@ -212,22 +212,22 @@ export const MailboxBackupTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-      <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+    <div className="space-y-6 rounded-2xl border border-black/[0.08] bg-white p-6 shadow-xs">
+      <div className="flex items-center gap-3 border-b border-black/[0.06] pb-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0071e3]/10 text-[#0071e3]">
           <Archive className="h-5 w-5" />
         </div>
         <div>
-          <h3 className="text-base font-bold text-slate-900">메일함 데이터 백업</h3>
-          <p className="text-xs text-slate-500">
+          <h3 className="text-base font-bold text-[#1d1d1f]">메일함 데이터 백업</h3>
+          <p className="text-xs text-[#6e6e73]">
             사서함의 메일들을 표준 EML 형식의 압축 파일(.zip)로 백업하고 다운로드합니다.
           </p>
         </div>
       </div>
 
       {/* 안내 알림 배너 */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 flex items-start gap-2.5 text-xs text-slate-600">
-        <Info className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+      <div className="rounded-xl bg-[#f5f5f7] px-4 py-3 flex items-start gap-2.5 text-xs text-[#6e6e73]">
+        <Info className="h-4 w-4 text-[#86868b] shrink-0 mt-0.5" />
         <p className="leading-relaxed">
           백업 파일은 서버에서 비동기로 안전하게 압축 생성되며 완료 시 즉시 다운로드 링크가 제공됩니다.
           서버 스토리지 보호를 위해 <strong>생성일로부터 7일 후 백업 파일은 서버에서 자동 영구 삭제</strong>되므로 기한 내에 다운로드하여 보관해 주세요.
@@ -239,8 +239,8 @@ export const MailboxBackupTab: React.FC = () => {
         <div
           className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium ${
             message.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-rose-200 bg-rose-50 text-rose-700'
+              ? 'border-[#34c759]/30 bg-[#34c759]/10 text-[#248a3d]'
+              : 'border-[#ff3b30]/25 bg-[#ff3b30]/[0.06] text-[#d70015]'
           }`}
         >
           {message.type === 'success' ? (
@@ -252,14 +252,14 @@ export const MailboxBackupTab: React.FC = () => {
         </div>
       )}
 
-      {/* 백업 요청 폼 영역 */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-4">
+      {/* 백업 요청 폼 영역 (중첩 테두리 제거: 1단계 평탄화) */}
+      <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-            <Archive className="h-4 w-4 text-sky-600" />
+          <h4 className="text-xs font-bold text-[#1d1d1f] flex items-center gap-1.5">
+            <Archive className="h-4 w-4 text-[#0071e3]" />
             <span>신규 메일함 백업 파일 생성</span>
           </h4>
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-[#6e6e73]">
             원하는 백업 범위(전체 또는 개별 편지함)를 선택하여 EML 압축본을 생성합니다.
           </span>
         </div>
@@ -270,8 +270,8 @@ export const MailboxBackupTab: React.FC = () => {
             <label
               className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
                 backupMode === 'all'
-                  ? 'border-sky-500 bg-sky-50/40 text-slate-900 ring-1 ring-sky-500'
-                  : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+                  ? 'border-[#0071e3] bg-[#0071e3]/[0.05] text-[#1d1d1f] ring-1 ring-[#0071e3]'
+                  : 'border-black/[0.08] hover:border-black/[0.18] bg-white text-[#1d1d1f]'
               }`}
             >
               <input
@@ -280,11 +280,11 @@ export const MailboxBackupTab: React.FC = () => {
                 value="all"
                 checked={backupMode === 'all'}
                 onChange={() => setBackupMode('all')}
-                className="mt-0.5 text-sky-600 focus:ring-sky-500"
+                className="mt-0.5 accent-[#0071e3]"
               />
               <div className="space-y-0.5">
                 <span className="text-xs font-bold block">전체 메일함 백업</span>
-                <span className="text-[11px] text-slate-500 block">
+                <span className="text-[11px] text-[#6e6e73] block">
                   받은편지함, 보낸편지함, 임시보관함 등 모든 편지함의 메일을 일괄 압축합니다.
                 </span>
               </div>
@@ -293,8 +293,8 @@ export const MailboxBackupTab: React.FC = () => {
             <label
               className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
                 backupMode === 'selected'
-                  ? 'border-sky-500 bg-sky-50/40 text-slate-900 ring-1 ring-sky-500'
-                  : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+                  ? 'border-[#0071e3] bg-[#0071e3]/[0.05] text-[#1d1d1f] ring-1 ring-[#0071e3]'
+                  : 'border-black/[0.08] hover:border-black/[0.18] bg-white text-[#1d1d1f]'
               }`}
             >
               <input
@@ -303,11 +303,11 @@ export const MailboxBackupTab: React.FC = () => {
                 value="selected"
                 checked={backupMode === 'selected'}
                 onChange={() => setBackupMode('selected')}
-                className="mt-0.5 text-sky-600 focus:ring-sky-500"
+                className="mt-0.5 accent-[#0071e3]"
               />
               <div className="space-y-0.5">
                 <span className="text-xs font-bold block">메일함 선택적 백업</span>
-                <span className="text-[11px] text-slate-500 block">
+                <span className="text-[11px] text-[#6e6e73] block">
                   백업하고 싶은 특정 편지함들을 직접 체크하여 선택한 메일만 백업합니다.
                 </span>
               </div>
@@ -316,26 +316,24 @@ export const MailboxBackupTab: React.FC = () => {
 
           {/* 메일함 직접 선택 모드일 때 편지함 체크박스 리스트 */}
           {backupMode === 'selected' && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-700">
-                    백업할 편지함 선택 ({selectedFolderIds.length}개 선택됨)
-                  </span>
-                </div>
+            <div className="rounded-xl bg-[#f5f5f7] p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-black/[0.06] pb-2">
+                <span className="text-xs font-semibold text-[#1d1d1f]">
+                  백업할 편지함 선택 ({selectedFolderIds.length}개 선택됨)
+                </span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleSelectAllFolders}
-                    className="text-[11px] font-medium text-sky-600 hover:text-sky-700 hover:underline"
+                    className="text-[11px] font-medium text-[#0071e3] hover:underline"
                   >
                     전체 선택
                   </button>
-                  <span className="text-slate-300 text-xs">|</span>
+                  <span className="text-[#d2d2d7] text-xs">|</span>
                   <button
                     type="button"
                     onClick={handleDeselectAllFolders}
-                    className="text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:underline"
+                    className="text-[11px] font-medium text-[#6e6e73] hover:text-[#1d1d1f] hover:underline"
                   >
                     전체 해제
                   </button>
@@ -343,7 +341,7 @@ export const MailboxBackupTab: React.FC = () => {
               </div>
 
               {folders.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-400">
+                <div className="py-6 text-center text-xs text-[#86868b]">
                   불러올 수 있는 편지함 목록이 없습니다.
                 </div>
               ) : (
@@ -351,30 +349,32 @@ export const MailboxBackupTab: React.FC = () => {
                   {folders.map((f) => {
                     const isChecked = selectedFolderIds.includes(f.id);
                     return (
-                      <div
+                      <button
                         key={f.id}
+                        type="button"
+                        aria-pressed={isChecked}
                         onClick={() => toggleFolderSelection(f.id)}
-                        className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer select-none text-xs transition ${
+                        className={`flex items-center justify-between p-2.5 rounded-lg border text-left cursor-pointer select-none text-xs transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3] ${
                           isChecked
-                            ? 'bg-white border-sky-300 shadow-sm text-sky-950 font-medium'
-                            : 'bg-white/60 border-slate-200 text-slate-600 hover:bg-white'
+                            ? 'bg-white border-[#0071e3]/50 shadow-xs text-[#1d1d1f] font-medium'
+                            : 'bg-white/70 border-black/[0.06] text-[#6e6e73] hover:bg-white'
                         }`}
                       >
                         <div className="flex items-center gap-2 overflow-hidden mr-2">
                           {isChecked ? (
-                            <CheckSquare className="h-4 w-4 text-sky-600 flex-shrink-0" />
+                            <CheckSquare className="h-4 w-4 text-[#0071e3] flex-shrink-0" />
                           ) : (
-                            <Square className="h-4 w-4 text-slate-300 flex-shrink-0" />
+                            <Square className="h-4 w-4 text-[#c7c7cc] flex-shrink-0" />
                           )}
-                          <Folder className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                          <Folder className="h-3.5 w-3.5 text-[#86868b] flex-shrink-0" />
                           <span className="truncate" title={f.name}>
                             {f.name}
                           </span>
                         </div>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 flex-shrink-0">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f5f5f7] text-[#6e6e73] tabular-nums flex-shrink-0">
                           {f.totalCount ?? 0}통
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -383,13 +383,13 @@ export const MailboxBackupTab: React.FC = () => {
           )}
 
           {/* 백업 실행 버튼 영역 */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1 border-t border-slate-100">
-            <div className="text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-black/[0.06]">
+            <div className="text-xs text-[#6e6e73]">
               {backupMode === 'all' ? (
                 <span>전체 편지함의 메일이 ZIP 파일로 압축됩니다.</span>
               ) : (
                 <span>
-                  선택한 <strong>{selectedFolderIds.length}개</strong>의 편지함 메일이 압축됩니다.
+                  선택한 <strong className="text-[#1d1d1f]">{selectedFolderIds.length}개</strong>의 편지함 메일이 압축됩니다.
                 </span>
               )}
             </div>
@@ -397,7 +397,7 @@ export const MailboxBackupTab: React.FC = () => {
             <button
               type="submit"
               disabled={requesting || (backupMode === 'selected' && selectedFolderIds.length === 0)}
-              className="h-10 px-6 w-full sm:w-auto rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 px-5 w-full sm:w-auto rounded-lg bg-[#0071e3] hover:bg-[#0062c4] text-white text-xs font-semibold shadow-xs transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {requesting ? (
                 <>
@@ -416,11 +416,11 @@ export const MailboxBackupTab: React.FC = () => {
       </div>
 
       {/* 백업 이력 및 다운로드 목록 영역 */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+      <div className="rounded-xl border border-black/[0.08] bg-white overflow-hidden">
+        <div className="p-4 border-b border-black/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FileArchive className="h-4 w-4 text-slate-600" />
-            <span className="text-xs font-bold text-slate-800">
+            <FileArchive className="h-4 w-4 text-[#0071e3]" />
+            <span className="text-xs font-bold text-[#1d1d1f]">
               백업 파일 및 다운로드 링크 목록 ({backups.length}건)
             </span>
           </div>
@@ -429,26 +429,27 @@ export const MailboxBackupTab: React.FC = () => {
             type="button"
             onClick={() => loadBackups()}
             disabled={loading}
-            className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            className="p-1.5 rounded-lg text-[#86868b] hover:bg-black/[0.05] hover:text-[#1d1d1f] transition"
             title="목록 새로고침"
+            aria-label="백업 목록 새로고침"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-[#0071e3]' : ''}`} />
           </button>
         </div>
 
         {loading && backups.length === 0 ? (
-          <div className="py-16 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+          <div className="py-16 text-center text-xs text-[#86868b] flex items-center justify-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-[#0071e3]" />
             <span>백업 목록을 불러오는 중입니다...</span>
           </div>
         ) : backups.length === 0 ? (
-          <div className="py-16 text-center text-xs text-slate-400">
+          <div className="py-16 text-center text-xs text-[#86868b]">
             생성된 백업 내역이 없습니다. 상단에서 백업 생성을 요청해 보세요.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-100 text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-semibold">
+            <table className="min-w-full divide-y divide-black/[0.06] text-xs">
+              <thead className="bg-[#f5f5f7] text-[#6e6e73] font-semibold">
                 <tr>
                   <th className="px-4 py-3 text-left">백업 대상</th>
                   <th className="px-4 py-3 text-center">진행 상태</th>
@@ -459,16 +460,16 @@ export const MailboxBackupTab: React.FC = () => {
                   <th className="px-4 py-3 text-right">다운로드</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-black/[0.06]">
                 {backups.map((b) => {
                   const isAvailable = b.status === BackupStatus.COMPLETED && b.downloadUrl;
                   const isExpired = b.status === BackupStatus.EXPIRED;
 
                   return (
-                    <tr key={b.id} className="hover:bg-slate-50/60 transition">
+                    <tr key={b.id} className="hover:bg-black/[0.02] transition">
                       <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1.5 font-semibold text-slate-900">
-                          <Folder className="h-3.5 w-3.5 text-sky-500" />
+                        <div className="flex items-center gap-1.5 font-semibold text-[#1d1d1f]">
+                          <Folder className="h-3.5 w-3.5 text-[#0071e3]" />
                           <span>{b.folderName}</span>
                         </div>
                       </td>
@@ -477,24 +478,24 @@ export const MailboxBackupTab: React.FC = () => {
                         {getStatusBadge(b.status)}
                       </td>
 
-                      <td className="px-4 py-3.5 text-right font-mono text-slate-700">
+                      <td className="px-4 py-3.5 text-right font-mono text-[#1d1d1f] tabular-nums">
                         {b.totalCount.toLocaleString()}통
                       </td>
 
-                      <td className="px-4 py-3.5 text-right font-mono text-slate-700">
+                      <td className="px-4 py-3.5 text-right font-mono text-[#1d1d1f] tabular-nums">
                         {formatFileSize(b.fileSizeBytes)}
                       </td>
 
-                      <td className="px-4 py-3.5 text-slate-500 text-[11px]">
+                      <td className="px-4 py-3.5 text-[#6e6e73] text-[11px] tabular-nums">
                         {b.createdAt ? b.createdAt.slice(0, 16).replace('T', ' ') : '-'}
                       </td>
 
-                      <td className="px-4 py-3.5 text-[11px]">
+                      <td className="px-4 py-3.5 text-[11px] tabular-nums">
                         <span
                           className={
                             isExpired
-                              ? 'text-slate-400 line-through'
-                              : 'text-amber-700 font-medium'
+                              ? 'text-[#86868b] line-through'
+                              : 'text-[#b25000] font-medium'
                           }
                         >
                           {b.expiresAt ? b.expiresAt.slice(0, 16).replace('T', ' ') : '-'}
@@ -506,20 +507,20 @@ export const MailboxBackupTab: React.FC = () => {
                           <a
                             href={b.downloadUrl}
                             download
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs shadow-sm transition"
+                            className="inline-flex h-8 items-center gap-1 px-3 rounded-lg bg-[#0071e3] hover:bg-[#0062c4] text-white font-semibold text-xs shadow-xs transition"
                           >
                             <Download className="h-3 w-3" />
                             <span>다운로드</span>
                           </a>
                         ) : isExpired ? (
-                          <span className="text-slate-400 text-[11px]">다운로드 불가</span>
+                          <span className="text-[#86868b] text-[11px]">다운로드 불가</span>
                         ) : b.status === BackupStatus.PROCESSING || b.status === BackupStatus.PENDING ? (
-                          <span className="text-sky-600 text-[11px] font-medium flex items-center justify-end gap-1">
+                          <span className="text-[#0071e3] text-[11px] font-medium flex items-center justify-end gap-1">
                             <Loader2 className="h-3 w-3 animate-spin" />
                             압축 중
                           </span>
                         ) : (
-                          <span className="text-rose-500 text-[11px]">실패</span>
+                          <span className="text-[#ff3b30] text-[11px]">실패</span>
                         )}
                       </td>
                     </tr>

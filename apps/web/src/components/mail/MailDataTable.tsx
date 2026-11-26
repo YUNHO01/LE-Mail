@@ -59,6 +59,8 @@ export interface MailDataTableProps {
   onBulkMove?: (mailIds: string[], targetFolderId: string) => Promise<void>;
   onBulkToggleRead?: (mailIds: string[], targetIsRead: boolean) => Promise<void>;
   onRefresh?: () => void | Promise<void>;
+  error?: string | null;
+  onRetry?: () => void;
   emptyMessage?: string;
   emptySubMessage?: string;
   searchPlaceholder?: string;
@@ -82,6 +84,8 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   onBulkMove,
   onBulkToggleRead,
   onRefresh,
+  error,
+  onRetry,
   emptyMessage = '메일이 없습니다.',
   emptySubMessage,
   searchPlaceholder,
@@ -137,6 +141,20 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const [groupByDate, setGroupByDate] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [draggingIds, setDraggingIds] = useState<string[]>([]);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2800);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const handleMailMoved = (event: Event) => {
@@ -211,9 +229,16 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
         setIsMoveOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMoveOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMoveOpen]);
 
@@ -284,9 +309,9 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       if (onRefresh) {
         await onRefresh();
       }
-      alert(`${count}개의 메일을 [${targetFolder.name}] 편지함으로 이동했습니다.`);
+      showToast(`${count}개의 메일을 [${targetFolder.name}] 편지함으로 이동했습니다.`);
     } catch (err: any) {
-      alert(err.message || '편지함 이동 실패');
+      showToast(err.message || '편지함 이동 실패');
     }
   };
 
@@ -318,7 +343,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
         await onRefresh();
       }
     } catch (err: any) {
-      alert(err.message || '완전 삭제 실패');
+      showToast(err.message || '완전 삭제 실패');
     }
   };
 
@@ -344,7 +369,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           await onRefresh();
         }
       } catch (err: any) {
-        alert(err.message || '메일 삭제 실패');
+        showToast(err.message || '메일 삭제 실패');
       }
     }
   };
@@ -354,7 +379,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
   const handleBulkOpen = () => {
     if (selectedIds.length === 0 || isDraft) return;
     if (selectedIds.length > MAX_MULTI_OPEN_COUNT) {
-      alert(`동시 열람은 최대 ${MAX_MULTI_OPEN_COUNT}건까지 선택할 수 있습니다. (현재 ${selectedIds.length}건 선택됨)`);
+      showToast(`동시 열람은 최대 ${MAX_MULTI_OPEN_COUNT}건까지 선택할 수 있습니다. (현재 ${selectedIds.length}건 선택됨)`);
       return;
     }
     if (selectedIds.length === 1) {
@@ -387,7 +412,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           await onRefresh();
         }
       } catch (err: any) {
-        alert(err.message || '읽음 처리 실패');
+        showToast(err.message || '읽음 처리 실패');
       }
     }
   };
@@ -411,9 +436,9 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       if (onRefresh) {
         await onRefresh();
       }
-      alert('선택한 메일이 받은편지함으로 복원되었습니다.');
+      showToast('선택한 메일이 받은편지함으로 복원되었습니다.');
     } catch (err: any) {
-      alert(err.message || '스팸 해제 실패');
+      showToast(err.message || '스팸 해제 실패');
     }
   };
 
@@ -436,9 +461,9 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       if (onRefresh) {
         await onRefresh();
       }
-      alert('선택한 메일이 스팸함으로 이동 및 차단 등록되었습니다.');
+      showToast('선택한 메일이 스팸함으로 이동 및 차단 등록되었습니다.');
     } catch (err: any) {
-      alert(err.message || '스팸 신고 실패');
+      showToast(err.message || '스팸 신고 실패');
     }
   };
 
@@ -507,7 +532,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       }
     } catch (err: any) {
       setStarredOverrides((prev) => ({ ...prev, [mail.id]: currentStarred }));
-      alert(err.message || '중요 상태 변경 실패');
+      showToast(err.message || '중요 상태 변경 실패');
     }
   };
 
@@ -532,7 +557,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
       }
     } catch (err: any) {
       setReadOverrides((prev) => ({ ...prev, [mail.id]: currentIsRead }));
-      alert(err.message || '읽음 상태 변경 실패');
+      showToast(err.message || '읽음 상태 변경 실패');
     }
   };
 
@@ -1047,13 +1072,15 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                     삭제
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={handleBulkPermanentDelete}
-                  className="px-2 py-1 rounded-md text-[11px] font-medium bg-[#ff3b30] text-white hover:bg-[#d70015] transition"
-                >
-                  완전삭제
-                </button>
+                {(isTrash || isSpam) && (
+                  <button
+                    type="button"
+                    onClick={handleBulkPermanentDelete}
+                    className="px-2 py-1 rounded-md text-[11px] font-medium bg-[#ff3b30] text-white hover:bg-[#d70015] transition"
+                  >
+                    완전삭제
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1067,6 +1094,22 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                 <RefreshCw className="h-5 w-5 animate-spin text-[#0071e3]" />
                 <span className="text-xs font-medium">메일 목록을 불러오는 중...</span>
               </div>
+            </div>
+          ) : error ? (
+            <div className="py-16 px-6 text-center">
+              <ShieldAlert className="h-9 w-9 text-[#ff3b30]/80 mx-auto mb-2.5 stroke-[1.5]" />
+              <p className="font-semibold text-[#1d1d1f] text-sm">메일 목록을 불러오지 못했습니다</p>
+              <p className="text-xs text-[#6e6e73] mt-1">{error}</p>
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#0062c4] transition"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>다시 시도</span>
+                </button>
+              )}
             </div>
           ) : paginatedMails.length === 0 ? (
             <div className="py-20 px-6 text-center text-[#86868b]">
@@ -1167,7 +1210,6 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   ref={(el) => {
                     rowRefs.current[mail.id] = el;
                   }}
-                  role="button"
                   tabIndex={0}
                   draggable
                   onDragStart={handleDragStart}
@@ -1178,7 +1220,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                   data-read={String(isRead)}
                   onClick={() => handleRowClick(mail)}
                   onKeyDown={handleRowKeyDown}
-                  className={`group mx-2 my-0.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3] ${
+                  className={`relative group mx-1.5 my-0.5 px-2.5 py-2.5 rounded-xl cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3] ${
                     isDragging
                       ? 'opacity-45 bg-[#007aff]/10 ring-1 ring-dashed ring-[#0071e3]/50'
                       : isActiveRow
@@ -1193,6 +1235,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                     <div
                       className="pt-1.5 w-4 shrink-0 flex justify-center print:hidden"
                       onClick={(e) => {
+                        e.stopPropagation();
                         if (selectMode || selectedIds.length > 0) {
                           handleToggleSelect(mail.id, e);
                         } else {
@@ -1205,6 +1248,7 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => {}}
+                          aria-label={`${mail.subject || '제목 없음'} 선택`}
                           className="h-3.5 w-3.5 rounded border-black/20 accent-[#0071e3] cursor-pointer"
                         />
                       ) : !isRead ? (
@@ -1234,11 +1278,6 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                           >
                             {(!isSent && mail.senderName) || name || address || '(발신자 없음)'}
                           </span>
-                          {isNew && (
-                            <span className="inline-flex h-3.5 px-1 items-center justify-center rounded-full bg-[#007aff] text-[9px] font-bold text-white shrink-0">
-                              N
-                            </span>
-                          )}
                         </div>
 
                         <div className="flex items-center gap-1 shrink-0">
@@ -1288,27 +1327,27 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
                         {mail.subject || '(제목 없음)'}
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <span className="text-[11.5px] text-[#86868b] truncate">
+                      <div className="mt-0.5 pr-0 group-hover:pr-6 group-focus-within:pr-6 transition-[padding]">
+                        <span className="block text-[11.5px] text-[#86868b] truncate">
                           {mail.body?.text
                             ? mail.body.text.replace(/\s+/g, ' ').trim()
                             : address || ''}
                         </span>
-                        {/* Hover Quick Delete (레이아웃 밀림 방지를 위해 공간은 유지하고 opacity로 제어) */}
-                        {onDelete && (
-                          <button
-                            type="button"
-                            onClick={(e) => onDelete(e, mail.id)}
-                            title="삭제"
-                            aria-label="삭제"
-                            className="inline-flex opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto p-1 rounded-md text-[#86868b] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition-opacity shrink-0 print:hidden"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
+                  {/* Hover Quick Delete (절대 배치로 평상시 스니펫 너비 확보) */}
+                  {onDelete && (
+                    <button
+                      type="button"
+                      onClick={(e) => onDelete(e, mail.id)}
+                      title="삭제"
+                      aria-label="삭제"
+                      className="absolute right-2.5 bottom-2 inline-flex opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto p-1 rounded-md bg-white/95 shadow-xs text-[#86868b] hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition-opacity print:hidden"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
               );
               };
@@ -1414,6 +1453,16 @@ export const MailDataTable: React.FC<MailDataTableProps> = ({
           }}
         />
       </div>
+
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 right-5 z-50 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-xs font-medium text-white shadow-xl"
+        >
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 };

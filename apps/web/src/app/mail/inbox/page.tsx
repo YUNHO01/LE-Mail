@@ -18,17 +18,20 @@ export default function MailInboxPage() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadMails = async () => {
     if (!isAuthenticated || !user?.email) {
       setMails([]);
       setTotal(0);
+      setError(null);
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
+      setError(null);
 
       const queryParams = new URLSearchParams({
         folderType: FolderType.INBOX,
@@ -46,6 +49,7 @@ export default function MailInboxPage() {
       setTotal(res.total || 0);
     } catch (err: any) {
       console.error('받은편지함 조회 오류:', err);
+      setError(err?.message || '받은편지함을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
@@ -169,6 +173,8 @@ export default function MailInboxPage() {
         onBulkDelete={handleBulkDelete}
         onBulkToggleRead={handleBulkToggleRead}
         onRefresh={loadMails}
+        error={error}
+        onRetry={loadMails}
         emptyMessage="수신된 메일이 없습니다."
         emptySubMessage={`외부에서 ${user?.email || '사서함'} 주소로 메일을 발송하면 이곳에 표시됩니다.`}
       />
