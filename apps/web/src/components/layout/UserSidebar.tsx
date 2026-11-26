@@ -41,7 +41,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
   const searchParams = useSearchParams();
   const { user, isAdmin, logout, refreshStorageUsage, licenseStatus } = useAuth();
   const brandName = formatBrandName(licenseStatus);
-  const { startNavigation } = useNavigation();
+  const { startNavigation, navigateWithGuard } = useNavigation();
   const isCompose = pathname === '/mail/compose';
   const isContacts = pathname?.startsWith('/mail/contacts');
   const isCalendar = pathname?.startsWith('/mail/calendar');
@@ -80,8 +80,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
       setContactsExpanded(false);
       setCalendarExpanded(false);
       setSidebarOpen(false);
-      startNavigation('/mail/inbox');
-      router.push('/mail/inbox');
+      navigateWithGuard('/mail/inbox');
     }
   };
 
@@ -92,8 +91,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
       setMailExpanded(false);
       setCalendarExpanded(false);
       setSidebarOpen(false);
-      startNavigation('/mail/contacts');
-      router.push('/mail/contacts');
+      navigateWithGuard('/mail/contacts');
     }
   };
 
@@ -104,8 +102,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({
       setMailExpanded(false);
       setContactsExpanded(false);
       setSidebarOpen(false);
-      startNavigation('/mail/calendar');
-      router.push('/mail/calendar');
+      navigateWithGuard('/mail/calendar');
     }
   };
 

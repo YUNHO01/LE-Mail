@@ -658,7 +658,7 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
                     </div>
                   </div>
 
-                  {/* 오른쪽 수신 / 참조 / 숨은참조 바로 추가 버튼 */}
+                  {/* 오른쪽 수신 / 참조 / 숨은참조 바로 추가 버튼 (사내 임직원 탭과 동일 스타일) */}
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
@@ -666,15 +666,14 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
                       onClick={() =>
                         onToggleRecipient('to', { name: item.name, email: item.email })
                       }
-                      className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${
                         isInTo
-                          ? 'bg-sky-600 text-white border-sky-600 shadow-2xs'
-                          : 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:border-sky-300'
+                          ? 'bg-sky-600 text-white border-sky-600'
+                          : 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50'
                       }`}
                       title={isInTo ? '받는사람에서 제거' : '받는사람(수신)에 추가'}
                     >
-                      {isInTo && <Check className="h-2.5 w-2.5" />}
-                      <span>수신</span>
+                      수신
                     </button>
 
                     <button
@@ -683,15 +682,14 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
                       onClick={() =>
                         onToggleRecipient('cc', { name: item.name, email: item.email })
                       }
-                      className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${
                         isInCc
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                          : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'
                       }`}
                       title={isInCc ? '참조에서 제거' : '참조(Cc)에 추가'}
                     >
-                      {isInCc && <Check className="h-2.5 w-2.5" />}
-                      <span>참조</span>
+                      참조
                     </button>
 
                     <button
@@ -700,15 +698,14 @@ export const ComposeAddressBookPanel: React.FC<ComposeAddressBookPanelProps> = (
                       onClick={() =>
                         onToggleRecipient('bcc', { name: item.name, email: item.email })
                       }
-                      className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition disabled:opacity-40 disabled:cursor-not-allowed ${
                         isInBcc
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300'
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
                       }`}
                       title={isInBcc ? '숨은참조에서 제거' : '숨은참조(Bcc)에 추가'}
                     >
-                      {isInBcc && <Check className="h-2.5 w-2.5" />}
-                      <span>숨은</span>
+                      숨은
                     </button>
                   </div>
                 </div>

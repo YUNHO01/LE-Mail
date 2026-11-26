@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,7 +50,10 @@ function ComposeMailContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, isAuthenticated, isLoading: authLoading, refreshStorageUsage } = useAuth();
-    const { startNavigation } = useNavigation();
+    const { startNavigation, registerUnsavedGuard } = useNavigation();
+
+    const [hasUserEdited, setHasUserEdited] = useState(false);
+    const bodyUserInteractedRef = useRef(false);
 
     const [to, setTo] = useState<string[]>([]);
     const [cc, setCc] = useState<string[]>([]);
@@ -491,6 +494,9 @@ function ComposeMailContent() {
             setSendingStatusMessage('메일 발송이 완료되었습니다!');
             setSendingDetailMessage('보낸편지함으로 이동하고 있습니다. 잠시만 기다려 주세요...');
 
+            setHasUserEdited(false);
+            registerUnsavedGuard(false);
+
             setStatusMessage({
                 type: 'success',
                 text: '메일이 성공적으로 발송되었습니다. 보낸편지함으로 이동합니다...',
@@ -536,6 +542,7 @@ function ComposeMailContent() {
                 setDraftId(res.draftId);
             }
 
+            setHasUserEdited(false);
             setStatusMessage({
                 type: 'success',
                 text: '임시보관함에 저장되었습니다.',
@@ -554,6 +561,28 @@ function ComposeMailContent() {
             setSavingDraft(false);
         }
     };
+
+    const isComposeGuardActive = hasUserEdited && !sending;
+
+    useEffect(() => {
+        registerUnsavedGuard(
+            isComposeGuardActive,
+            '작성 중인 메일이 있습니다. 저장하지 않고 다른 화면으로 이동할까요?',
+        );
+        return () => {
+            registerUnsavedGuard(false);
+        };
+    }, [isComposeGuardActive, registerUnsavedGuard]);
+
+    useEffect(() => {
+        if (!isComposeGuardActive) return;
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isComposeGuardActive]);
 
     if (!authLoading && !isAuthenticated) {
         return (
@@ -782,7 +811,10 @@ function ComposeMailContent() {
                         label="받는사람"
                         fieldType="to"
                         recipients={to}
-                        onChange={setTo}
+                        onChange={(next) => {
+                            setTo(next);
+                            setHasUserEdited(true);
+                        }}
                         onDropRecipient={moveRecipient}
                         placeholder="수신자 이메일 주소 입력 후 Enter"
                         rightAction={
@@ -841,7 +873,10 @@ function ComposeMailContent() {
                             label="참조 (Cc)"
                             fieldType="cc"
                             recipients={cc}
-                            onChange={setCc}
+                            onChange={(next) => {
+                                setCc(next);
+                                setHasUserEdited(true);
+                            }}
                             onDropRecipient={moveRecipient}
                             placeholder="참조 이메일 주소 입력 후 Enter"
                             rightAction={
@@ -866,7 +901,10 @@ function ComposeMailContent() {
                             label="숨은참조"
                             fieldType="bcc"
                             recipients={bcc}
-                            onChange={setBcc}
+                            onChange={(next) => {
+                                setBcc(next);
+                                setHasUserEdited(true);
+                            }}
                             onDropRecipient={moveRecipient}
                             placeholder="숨은참조 이메일 주소 입력 후 Enter"
                             rightAction={
@@ -893,7 +931,10 @@ function ComposeMailContent() {
                         <input
                             type="text"
                             value={subject}
-                            onChange={(e) => setSubject(e.target.value)}
+                            onChange={(e) => {
+                                setSubject(e.target.value);
+                                setHasUserEdited(true);
+                            }}
                             placeholder="메일 제목을 입력하세요"
                             data-testid="compose-subject-input"
                             className="flex-1 border-none bg-transparent py-1 text-sm font-medium text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none"
@@ -1029,11 +1070,23 @@ function ComposeMailContent() {
                         }
                         setBodyHtml(res.bodyHtml);
                         setBodyText(res.bodyText);
+                        setHasUserEdited(true);
                     }}
                 />
 
                 {/* Rich Text Editor */}
-                <div className="relative">
+                <div
+                    className="relative"
+                    onKeyDownCapture={() => {
+                        bodyUserInteractedRef.current = true;
+                    }}
+                    onPasteCapture={() => {
+                        bodyUserInteractedRef.current = true;
+                    }}
+                    onPointerDownCapture={() => {
+                        bodyUserInteractedRef.current = true;
+                    }}
+                >
                     {aiGenerating && (
                         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2.5 rounded-xl bg-white/75 backdrop-blur-[2px]">
                             <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#0071e3]/20 border-t-[#0071e3]" />
@@ -1047,6 +1100,9 @@ function ComposeMailContent() {
                         onChange={(html, text) => {
                             setBodyHtml(html);
                             setBodyText(text);
+                            if (bodyUserInteractedRef.current) {
+                                setHasUserEdited(true);
+                            }
                         }}
                         placeholder="메일 본문을 자유롭게 작성하세요..."
                         minHeight="500px"
@@ -1055,7 +1111,13 @@ function ComposeMailContent() {
 
                 {/* Attachments Section */}
                 <div className="pt-2">
-                    <AttachmentUploader attachments={attachments} onChange={setAttachments} />
+                    <AttachmentUploader
+                        attachments={attachments}
+                        onChange={(next) => {
+                            setAttachments(next);
+                            setHasUserEdited(true);
+                        }}
+                    />
                 </div>
 
                 {/* Footer Actions */}
@@ -1063,7 +1125,8 @@ function ComposeMailContent() {
                     <button
                         type="button"
                         onClick={() => {
-                            if (confirm('작성 중인 내용이 저장되지 않을 수 있습니다. 취소하시겠습니까?')) {
+                            if (!hasUserEdited || confirm('작성 중인 내용이 저장되지 않을 수 있습니다. 취소하시겠습니까?')) {
+                                registerUnsavedGuard(false);
                                 router.back();
                             }
                         }}

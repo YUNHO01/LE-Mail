@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchApi } from '@/lib/api';
@@ -39,6 +39,8 @@ export const SignatureSettingsTab: React.FC<{ onDirtyChange?: (dirty: boolean) =
   const [saving, setSaving] = useState(false);
   const [confirmTemplate, setConfirmTemplate] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const initialRef = useRef<{ useSignature: boolean; signatureHtml: string } | null>(null);
+  const userInteractedRef = useRef(false);
 
   useEffect(() => {
     loadSignature();
@@ -49,8 +51,13 @@ export const SignatureSettingsTab: React.FC<{ onDirtyChange?: (dirty: boolean) =
       setLoading(true);
       const data = await fetchApi<UserSignatureDto>('/users/me/signature');
       if (data) {
-        setUseSignature(Boolean(data.useSignature));
-        setSignatureHtml(data.signatureHtml || '');
+        const nextUse = Boolean(data.useSignature);
+        const nextHtml = data.signatureHtml || '';
+        setUseSignature(nextUse);
+        setSignatureHtml(nextHtml);
+        initialRef.current = { useSignature: nextUse, signatureHtml: nextHtml };
+        userInteractedRef.current = false;
+        onDirtyChange?.(false);
       }
     } catch (err: any) {
       setMessage({
@@ -73,6 +80,8 @@ export const SignatureSettingsTab: React.FC<{ onDirtyChange?: (dirty: boolean) =
           signatureHtml,
         }),
       });
+      initialRef.current = { useSignature, signatureHtml };
+      userInteractedRef.current = false;
       setMessage({
         type: 'success',
         text: '서명 설정이 성공적으로 저장되었습니다.',
@@ -124,8 +133,14 @@ export const SignatureSettingsTab: React.FC<{ onDirtyChange?: (dirty: boolean) =
         <ToggleSwitch
           checked={useSignature}
           onChange={(next) => {
+            userInteractedRef.current = true;
             setUseSignature(next);
-            onDirtyChange?.(true);
+            if (initialRef.current) {
+              onDirtyChange?.(
+                next !== initialRef.current.useSignature ||
+                  signatureHtml !== initialRef.current.signatureHtml,
+              );
+            }
           }}
           color="primary"
           showStatusText={false}
@@ -167,8 +182,10 @@ export const SignatureSettingsTab: React.FC<{ onDirtyChange?: (dirty: boolean) =
               <button
                 type="button"
                 onClick={() => {
+                  userInteractedRef.current = true;
                   setConfirmTemplate(false);
                   applyDefaultTemplate();
+                  onDirtyChange?.(true);
                 }}
                 className="rounded-md bg-[#0071e3] px-2.5 py-1 font-semibold text-white hover:bg-[#0062c4] transition"
               >
@@ -190,7 +207,9 @@ export const SignatureSettingsTab: React.FC<{ onDirtyChange?: (dirty: boolean) =
                 if (plain) {
                   setConfirmTemplate(true);
                 } else {
+                  userInteractedRef.current = true;
                   applyDefaultTemplate();
+                  onDirtyChange?.(true);
                 }
               }}
               className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-lg border border-black/[0.1] text-[#1d1d1f] bg-white hover:bg-black/[0.03] text-xs font-semibold transition"
@@ -202,7 +221,18 @@ export const SignatureSettingsTab: React.FC<{ onDirtyChange?: (dirty: boolean) =
         </div>
 
         {/* 에디터 컴포넌트 */}
-        <div className="border border-black/[0.1] rounded-xl overflow-hidden focus-within:border-[#0071e3] transition min-h-[260px] relative">
+        <div
+          onKeyDownCapture={() => {
+            userInteractedRef.current = true;
+          }}
+          onPasteCapture={() => {
+            userInteractedRef.current = true;
+          }}
+          onPointerDownCapture={() => {
+            userInteractedRef.current = true;
+          }}
+          className="border border-black/[0.1] rounded-xl overflow-hidden focus-within:border-[#0071e3] transition min-h-[260px] relative"
+        >
           {loading ? (
             <div className="flex h-64 items-center justify-center bg-[#f5f5f7]/60 text-[#86868b]">
               <div className="flex items-center gap-2 text-xs font-medium">
@@ -215,7 +245,15 @@ export const SignatureSettingsTab: React.FC<{ onDirtyChange?: (dirty: boolean) =
               value={signatureHtml}
               onChange={(html) => {
                 setSignatureHtml(html);
-                onDirtyChange?.(true);
+                if (!initialRef.current) return;
+                if (userInteractedRef.current) {
+                  onDirtyChange?.(
+                    useSignature !== initialRef.current.useSignature ||
+                      html !== initialRef.current.signatureHtml,
+                  );
+                } else {
+                  initialRef.current.signatureHtml = html;
+                }
               }}
               placeholder="여기에 서명으로 표시할 텍스트 및 서식을 작성하세요..."
               minHeight="220px"
